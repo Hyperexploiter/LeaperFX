@@ -1,3 +1,26 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  /* This ensures the background pattern covers the whole page */
+  min-height: 100vh;
+}
+
+@layer utilities {
+  @keyframes ticker-scroll {
+    0% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(-50%); /* Animate to -50% because we duplicate the content */
+    }
+  }
+  .animate-ticker-scroll {
+    animation: ticker-scroll 40s linear infinite;
+  }
+  .hover\:pause-animation:hover {
+    animation-play-state: paused;
+  }
+}

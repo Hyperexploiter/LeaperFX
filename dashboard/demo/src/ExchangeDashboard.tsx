@@ -200,6 +200,7 @@ export default function ExchangeDashboard(): React.ReactElement {
         
         <main>
             <div className="w-full bg-white/30 dark:bg-gray-800/30 rounded-xl shadow-lg p-3 mb-8 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 flex flex-wrap items-center justify-between gap-4">
+                {/* COMMENTED OUT - Add Currency Section (keeping for future use)
                 <div className="flex items-center gap-2">
                     <label htmlFor="currency-select" className="font-semibold text-nowrap">Add Currency:</label>
                     <select id="currency-select" value={currencyToAdd} onChange={(e) => setCurrencyToAdd(e.target.value)} className="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" disabled={!allSupportedCurrencies.length || isLoading}>
@@ -207,6 +208,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                     </select>
                     <button onClick={handleAddCurrency} disabled={isLoading} className="flex items-center p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"><Plus className="h-4 w-4" /></button>
                 </div>
+                */}
                 <div className="flex items-center gap-4">
                     <LiveClock />
                     <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />

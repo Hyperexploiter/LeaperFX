@@ -60,3 +60,5 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+dashboard/documentation/contract.tex

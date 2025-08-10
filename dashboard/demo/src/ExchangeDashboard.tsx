@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Clock, Sun, Moon, Plus, X, Loader, AlertTriangle, ArrowUp, TrendingUp, ArrowDown } from 'lucide-react';
 import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis } from 'recharts';
 import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from './services/exchangeRateService';
+import webSocketService, { WebSocketEvent } from './services/webSocketService';
 
 import logoWhite from './assets/logo_white.jpg';
 import logoBlack from './assets/logo_black.PNG';
@@ -101,7 +102,6 @@ export default function ExchangeDashboard(): React.ReactElement {
   const getCurrencyInfo = (code: string): CurrencyInfo => currencyInfo[code] || { name: code, code: '' };
 
   const getRates = useCallback(async () => {
-    console.log("Fetching rates from Frankfurter...");
     setError(null);
     if(!isLoading) setIsLoading(true);
     
@@ -114,7 +114,6 @@ export default function ExchangeDashboard(): React.ReactElement {
     else setError("Failed to fetch latest rates.");
     
     if (historical) setHistoricalRates(historical);
-    else console.warn("Could not fetch historical rates for 24h change.");
 
     setIsLoading(false);
   }, [isLoading]);
@@ -135,6 +134,52 @@ export default function ExchangeDashboard(): React.ReactElement {
      const interval = setInterval(getRates, REFRESH_INTERVAL_MS);
      return () => clearInterval(interval);
   }, [getRates]);
+
+  // Set up WebSocket connection for real-time rate updates from store owner
+  useEffect(() => {
+    const setupWebSocket = async () => {
+      try {
+        // Connect to WebSocket server
+        await webSocketService.connect();
+        
+        // Subscribe to WebSocket events
+        const unsubscribe = webSocketService.subscribe((event: WebSocketEvent) => {
+          // Only handle rate_update events
+          if (event.type === 'rate_update') {
+            
+            const { currency, buyRate, sellRate } = event.data;
+            
+            // Update liveRates with the new rate
+            setLiveRates(prevRates => {
+              if (!prevRates) return prevRates;
+              
+              // Calculate the new rate value based on the buy/sell rates
+              // The API uses rates relative to CAD, so we need to convert
+              // For simplicity, we'll use the average of buy and sell rates
+              const avgRate = (parseFloat(buyRate) + parseFloat(sellRate)) / 2;
+              const newRate = 1 / avgRate; // Invert because the API uses inverse rates
+              
+              // Create a new rates object with the updated rate
+              return {
+                ...prevRates,
+                [currency]: newRate
+              };
+            });
+          }
+        });
+        
+        // Clean up WebSocket connection on component unmount
+        return () => {
+          unsubscribe();
+          webSocketService.disconnect();
+        };
+      } catch (err) {
+        console.error('Failed to set up WebSocket connection:', err);
+      }
+    };
+    
+    setupWebSocket();
+  }, []);
 
   const handleAddCurrency = () => {
     if (currencyToAdd && !displayedCurrencies.includes(currencyToAdd)) {

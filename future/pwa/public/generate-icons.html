@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate PWA Icons</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .icon-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+    .instructions {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>PWA Icon Generator</h1>
+  <p>Right-click on each icon and select "Save Image As..." to save it with the correct filename.</p>
+  
+  <div class="icon-container">
+    <h2>apple-touch-icon.png (180x180)</h2>
+    <svg width="180" height="180" viewBox="0 0 180 180">
+      <rect width="180" height="180" rx="45" fill="#3B82F6"/>
+      <path d="M90 45L135 90L90 135L45 90L90 45Z" fill="white"/>
+    </svg>
+    <div class="instructions">Save as: apple-touch-icon.png</div>
+  </div>
+  
+  <div class="icon-container">
+    <h2>pwa-192x192.png (192x192)</h2>
+    <svg width="192" height="192" viewBox="0 0 192 192">
+      <rect width="192" height="192" rx="48" fill="#3B82F6"/>
+      <path d="M96 48L144 96L96 144L48 96L96 48Z" fill="white"/>
+    </svg>
+    <div class="instructions">Save as: pwa-192x192.png</div>
+  </div>
+  
+  <div class="icon-container">
+    <h2>pwa-512x512.png (512x512)</h2>
+    <svg width="512" height="512" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="128" fill="#3B82F6"/>
+      <path d="M256 128L384 256L256 384L128 256L256 128Z" fill="white"/>
+    </svg>
+    <div class="instructions">Save as: pwa-512x512.png</div>
+  </div>
+  
+  <p>After saving all icons, place them in the public directory of your PWA project.</p>
+</body>
+</html>

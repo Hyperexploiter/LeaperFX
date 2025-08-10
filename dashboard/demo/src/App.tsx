@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import ExchangeDashboard from './ExchangeDashboard';
 import StoreOwnerDashboard from './StoreOwnerDashboard';
+import StoreOwnerDashboardSimple from './StoreOwnerDashboardSimple';
+import CustomerMobileForm from './components/CustomerMobileForm';
+import EnhancedCustomerForm from './components/EnhancedCustomerForm';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ErrorBoundary from './ErrorBoundary';
+import databaseService from './services/databaseService';
 import './index.css';
 
 // Login Component
@@ -121,6 +126,36 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
 // Main App Component
 function App(): React.ReactElement {
+  const [isDbInitialized, setIsDbInitialized] = useState(false);
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Initialize the database
+        await databaseService.init();
+        await databaseService.initializeDefaultData();
+        setIsDbInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize database:', error);
+        // Continue without database - components will handle gracefully
+        setIsDbInitialized(true);
+      }
+    };
+
+    initializeApp();
+  }, []);
+
+  if (!isDbInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Initializing application...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AuthProvider>
       <Router>
@@ -131,10 +166,34 @@ function App(): React.ReactElement {
             path="/owner" 
             element={
               <ProtectedRoute>
-                <StoreOwnerDashboard />
+                <ErrorBoundary>
+                  <StoreOwnerDashboard />
+                </ErrorBoundary>
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/owner-simple" 
+            element={
+              <ProtectedRoute>
+                <StoreOwnerDashboardSimple />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/customer-form" element={<CustomerMobileForm />} />
+          <Route path="/customer-form/:transactionId" element={<CustomerMobileForm />} />
+          <Route path="/form/:sessionId" element={<EnhancedCustomerForm />} />
+          <Route path="/form-submitted" element={
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-lg shadow-sm p-8 text-center max-w-md w-full">
+                <div className="text-6xl mb-4">✅</div>
+                <h1 className="text-xl font-semibold text-gray-900 mb-2">Form Submitted Successfully</h1>
+                <p className="text-gray-600">
+                  Thank you for submitting your information. The store owner will review your documents and process your registration.
+                </p>
+              </div>
+            </div>
+          } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

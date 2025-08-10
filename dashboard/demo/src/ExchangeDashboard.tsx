@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Clock, Sun, Moon, Plus, X, Loader, AlertTriangle, ArrowUp, TrendingUp, ArrowDown } from 'lucide-react';
 import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis } from 'recharts';
 import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from './services/exchangeRateService';
-import mockWebSocketService, { WebSocketEvent } from './services/mockWebSocketService';
+import webSocketService, { WebSocketEvent } from './services/webSocketService';
 
 import logoWhite from './assets/logo_white.jpg';
 import logoBlack from './assets/logo_black.PNG';
@@ -102,7 +102,6 @@ export default function ExchangeDashboard(): React.ReactElement {
   const getCurrencyInfo = (code: string): CurrencyInfo => currencyInfo[code] || { name: code, code: '' };
 
   const getRates = useCallback(async () => {
-    console.log("Fetching rates from Frankfurter...");
     setError(null);
     if(!isLoading) setIsLoading(true);
     
@@ -115,7 +114,6 @@ export default function ExchangeDashboard(): React.ReactElement {
     else setError("Failed to fetch latest rates.");
     
     if (historical) setHistoricalRates(historical);
-    else console.warn("Could not fetch historical rates for 24h change.");
 
     setIsLoading(false);
   }, [isLoading]);
@@ -142,14 +140,12 @@ export default function ExchangeDashboard(): React.ReactElement {
     const setupWebSocket = async () => {
       try {
         // Connect to WebSocket server
-        await mockWebSocketService.connect();
-        console.log('Connected to WebSocket for real-time rate updates');
+        await webSocketService.connect();
         
         // Subscribe to WebSocket events
-        const unsubscribe = mockWebSocketService.subscribe((event: WebSocketEvent) => {
+        const unsubscribe = webSocketService.subscribe((event: WebSocketEvent) => {
           // Only handle rate_update events
           if (event.type === 'rate_update') {
-            console.log('Received rate update via WebSocket:', event.data);
             
             const { currency, buyRate, sellRate } = event.data;
             
@@ -175,8 +171,7 @@ export default function ExchangeDashboard(): React.ReactElement {
         // Clean up WebSocket connection on component unmount
         return () => {
           unsubscribe();
-          mockWebSocketService.disconnect();
-          console.log('Disconnected from WebSocket');
+          webSocketService.disconnect();
         };
       } catch (err) {
         console.error('Failed to set up WebSocket connection:', err);

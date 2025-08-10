@@ -1,5 +1,9 @@
 # LeaperFX
 
+LeaperFX is a comprehensive currency exchange management system designed for local currency exchange businesses. It provides both a public-facing client dashboard and a private store owner dashboard for managing inventory, transactions, and business analytics.
+
+> **For comprehensive documentation, please see [Index.md](Index.md)**
+
 # Store Owner Dashboard Guide
 
 This guide explains how to access and use the Store Owner Dashboard in the Leaper-Fx Currency Exchange application.
@@ -43,8 +47,8 @@ To access the Store Owner Dashboard:
 
 1. Navigate to `http://localhost:5173/login`
 2. Enter the following credentials:
-   - Username: `owner`
-   - Password: `password`
+   - Username: `admin`
+   - Password: `LeaperFx2024!`
 3. Click "Sign in"
 
 After successful authentication, you will be redirected to the Store Owner Dashboard at `/owner`.

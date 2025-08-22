@@ -375,7 +375,7 @@ const CustomerMobileForm: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Transaction Not Found</h1>
           <p className="text-gray-600 mb-6">We couldn't find the transaction you're looking for. Please check the QR code and try again.</p>
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={() => { window.location.hash = '#/'; }}
             className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
             Return to Home

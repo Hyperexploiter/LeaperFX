@@ -82,9 +82,10 @@ class FormService {
 
       const sessionToken = generateSecureId();
       
+      const basePath = (import.meta as any).env?.BASE_URL || '/';
       const session: QRCodeSession = {
         id: sessionId,
-        qrCodeUrl: `${window.location.origin}/form/${sessionId}?token=${sessionToken}`,
+        qrCodeUrl: `${window.location.origin}${basePath}#/form/${sessionId}?token=${sessionToken}`,
         sessionToken,
         expiresAt,
         isActive: true,
@@ -128,9 +129,10 @@ class FormService {
     const sessionToken = generateSecureId();
     const expiresIn = options.expiresIn || 30 * 60 * 1000; // 30 minutes default
 
+    const basePath2 = (import.meta as any).env?.BASE_URL || '/';
     const session: QRCodeSession = {
       id: sessionId,
-      qrCodeUrl: `${window.location.origin}/customer-form/${sessionId}?token=${sessionToken}`,
+      qrCodeUrl: `${window.location.origin}${basePath2}#/customer-form/${sessionId}?token=${sessionToken}`,
       sessionToken,
       expiresAt: new Date(Date.now() + expiresIn).toISOString(),
       isActive: true,

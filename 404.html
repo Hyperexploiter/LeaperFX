@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Redirecting…</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="refresh" content="0; url=/Leaper-Fx/" />
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color:#111; padding: 2rem; }
+  </style>
+</head>
+<body>
+  <noscript>
+    This is a single-page app. If you are seeing this page, please go to
+    <a href="/Leaper-Fx/">/Leaper-Fx/</a>.
+  </noscript>
+  <script>
+    // GitHub Pages SPA fallback: redirect unknown routes to the app root
+    (function () {
+      var BASE = '/Leaper-Fx/';
+      // If already at base, do nothing
+      if (location.pathname === BASE || location.pathname === BASE + 'index.html') return;
+      location.replace(BASE);
+    })();
+  </script>
+</body>
+</html>

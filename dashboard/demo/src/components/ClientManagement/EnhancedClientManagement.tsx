@@ -5,9 +5,10 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, Plus, Search, Edit2, Shield, AlertTriangle,
   CheckCircle, Clock, Filter, SortAsc, SortDesc, Eye,
-  User, Mail, Phone, MapPin
+  User, Mail, Phone, MapPin, Upload
 } from 'lucide-react';
 import { Modal, Toast } from '../Modal';
+import CSVImport from '../CSVImport';
 import customerService, { type CustomerProfile, type CustomerSearchFilters } from '../../services/customerService';
 import webSocketService from '../../services/webSocketService';
 import transactionService from '../../services/transactionService';
@@ -68,12 +69,13 @@ const EnhancedClientManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
   // Modal states
-  const [, setShowAddClientModal] = useState<boolean>(false);
+  const [showAddClientModal, setShowAddClientModal] = useState<boolean>(false);
   const [showClientProfileModal, setShowClientProfileModal] = useState<boolean>(false);
-  const [, setShowFiltersModal] = useState<boolean>(false);
+  const [showFiltersModal, setShowFiltersModal] = useState<boolean>(false);
+  const [showCSVImportModal, setShowCSVImportModal] = useState<boolean>(false);
   
   // Selected data
-  const [, setSelectedClient] = useState<EnhancedClient | null>(null);
+  const [selectedClient, setSelectedClient] = useState<EnhancedClient | null>(null);
   const [selectedClientProfile, setSelectedClientProfile] = useState<CustomerProfile | null>(null);
   
   // View configuration
@@ -372,6 +374,13 @@ const EnhancedClientManagement: React.FC = () => {
             Filters
           </button>
           <button
+            onClick={() => setShowCSVImportModal(true)}
+            className="flex items-center px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          >
+            <Upload className="h-4 w-4 mr-1" />
+            Import CSV
+          </button>
+          <button
             onClick={() => setShowAddClientModal(true)}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
@@ -665,6 +674,92 @@ const EnhancedClientManagement: React.FC = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Add Client Modal */}
+      <Modal isOpen={showAddClientModal} onClose={() => setShowAddClientModal(false)} title="Add New Client" size="lg">
+        <div className="space-y-4">
+          <p className="text-gray-600">Create a new client profile with KYC and compliance information.</p>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+              <input
+                type="text"
+                placeholder="Enter first name"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+              <input
+                type="text"
+                placeholder="Enter last name"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                placeholder="client@example.com"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input
+                type="tel"
+                placeholder="+1 (555) 123-4567"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+          
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>Note:</strong> For full FINTRAC compliance, clients should complete the detailed customer form with ID verification and document uploads.
+            </p>
+          </div>
+          
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              onClick={() => setShowAddClientModal(false)}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                // For now, just close the modal - full implementation would save the client
+                setShowAddClientModal(false);
+                showToast('info', 'Client creation feature coming soon! Use Import CSV or Forms tab for now.');
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Create Client
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* CSV Import Modal */}
+      <Modal isOpen={showCSVImportModal} onClose={() => setShowCSVImportModal(false)} title="Import Clients from CSV" size="lg">
+        <div className="space-y-4">
+          <CSVImport
+            onImportComplete={(count: number) => {
+              setShowCSVImportModal(false);
+              showToast('success', `Successfully imported ${count} clients`);
+              void loadClients(); // Refresh client list
+            }}
+            onError={(error: string) => {
+              showToast('error', `Import failed: ${error}`);
+            }}
+          />
+        </div>
       </Modal>
 
       {/* Toast notifications */}

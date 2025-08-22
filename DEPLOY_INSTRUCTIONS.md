@@ -40,3 +40,17 @@ Notes:
 - The workflow deploys only `dashboard/demo/dist` to the `gh-pages` branch and creates a `.nojekyll` file there.
 - You don't need to move the workflow into `dashboard/`; keeping it in `.github/workflows/` is correct.
 - If your default branch is not `hyp3r`, update the `branches` trigger accordingly.
+
+
+## SPA fallback for GitHub Pages
+
+To avoid 404 errors when refreshing deep links (client-side routes) on GitHub Pages, a SPA fallback page is included:
+- File: dashboard/demo/public/404.html
+- Behavior: any unknown route will redirect to the app root at /Leaper-Fx/
+- Vite automatically copies files from public/ to dist/ during build, so 404.html will be deployed to gh-pages.
+
+Notes:
+- GitHub Pages is case-sensitive. Ensure you use the exact repository path with hyphen: /Leaper-Fx/
+- After pushing to hyp3r and the workflow completes, test:
+  - https://<your-username>.github.io/Leaper-Fx/
+  - Manually navigate to a nested route in the app and refresh; it should redirect to the app without a 404 page.

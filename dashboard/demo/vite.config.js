@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.NODE_ENV === 'production' ? '/LeaperFX/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/Leaper-Fx/' : '/',
   server: {
     // CORS configuration for development
     cors: {

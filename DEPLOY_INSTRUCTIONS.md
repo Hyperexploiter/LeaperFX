@@ -32,7 +32,11 @@ git push origin hyp3r
 ## Result
 Your app will be live at:
 ```
-https://hyperexploiter.github.io/LeaperFX/
+https://<your-username>.github.io/Leaper-Fx/
 ```
 
-**Only the React app gets deployed - no Jekyll processing of docs/markdown files!**
+Notes:
+- Vite base is set to `/Leaper-Fx/` for production to ensure assets resolve correctly on GitHub Pages.
+- The workflow deploys only `dashboard/demo/dist` to the `gh-pages` branch and creates a `.nojekyll` file there.
+- You don't need to move the workflow into `dashboard/`; keeping it in `.github/workflows/` is correct.
+- If your default branch is not `hyp3r`, update the `branches` trigger accordingly.

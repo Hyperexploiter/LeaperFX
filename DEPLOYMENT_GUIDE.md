@@ -20,10 +20,12 @@ Your private repository is now configured for GitHub Pages deployment from the `
 ```bash
 # Commit and push the workflow files
 git add .github/workflows/deploy.yml
+git add .nojekyll
 git add dashboard/demo/vite.config.js
+git add dashboard/documentation/ALGORITHM_VISUALIZATION_DOCUMENTATION.md
 git add DEPLOYMENT_GUIDE.md
 git add deploy-check.sh
-git commit -m "Add GitHub Pages deployment workflow"
+git commit -m "Add GitHub Pages deployment workflow - fix Jekyll conflicts"
 git push origin hyp3r
 ```
 

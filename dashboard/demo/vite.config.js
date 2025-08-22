@@ -33,7 +33,10 @@ export default defineConfig({
       }
     },
     // Enable source map for debugging but not in production
-    sourcemap: process.env.NODE_ENV !== 'production'
+    sourcemap: process.env.NODE_ENV !== 'production',
+    // Add .nojekyll file to disable Jekyll processing
+    assetsInlineLimit: 0,
+    emptyOutDir: true
   },
   // Environment variables security
   define: {

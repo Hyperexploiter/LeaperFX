@@ -119,7 +119,7 @@ Implemented a progress bar to visually indicate the current step in the process:
 <div className="w-full bg-gray-200 rounded-full h-2.5 mb-6">
   <div 
     className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
-    style={{ width: `${(currentStep + 1) * (100 / 9)}%` }}
+    style={% raw %}{{ width: `${(currentStep + 1) * (100 / 9)}%` }}{% endraw %}
   ></div>
 </div>
 ```

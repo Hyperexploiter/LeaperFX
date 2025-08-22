@@ -18,8 +18,8 @@ import { Modal, Toast } from './Modal';
 import transactionService from '../services/transactionService';
 import complianceNotificationService from '../services/complianceNotificationService';
 import customerService from '../services/customerService';
-// import lctrReportService from '../services/lctrReportService'; // Not currently used
-// import riskAssessmentService from '../services/riskAssessmentService'; // Not currently used
+import fintracReportingService, { type FINTRACSubmissionRecord } from '../services/fintracReportingService';
+import secureDocumentService from '../services/secureDocumentService';
 
 // Interface definitions for FINTRAC compliance data
 interface ComplianceTransaction {
@@ -78,8 +78,13 @@ const FintracCompliance: React.FC = () => {
     customerInfo: false,
     lctrSubmission: false,
     customerAssignment: false,
-    lctrExport: false
+    lctrExport: false,
+    auditExport: false,
+    xmlExport: false
   });
+
+  // FINTRAC submission records for audit
+  const [submissionRecords, setSubmissionRecords] = useState<FINTRACSubmissionRecord[]>([]);
   
   // Prefill state for customer info modal
   const [prefillCustomer, setPrefillCustomer] = useState<Customer | null>(null);
@@ -272,16 +277,21 @@ const FintracCompliance: React.FC = () => {
         // Fetch available customers for assignment
         const customers = await customerService.getAllCustomers();
         
+        // Fetch FINTRAC submission records for audit
+        const fintracRecords = await fintracReportingService.getAllSubmissionRecords();
+        
         // Update state with fetched data
         setTransactions(complianceTransactions as ComplianceTransaction[]);
         setNotifications(complianceNotifications as unknown as ComplianceNotification[]);
         setAvailableCustomers(customers);
+        setSubmissionRecords(fintracRecords);
       } catch (error) {
         console.error('Error loading FINTRAC compliance data:', error);
         // Fallback to empty arrays if there's an error
         setTransactions([]);
         setNotifications([]);
         setAvailableCustomers([]);
+        setSubmissionRecords([]);
         showToast('error', 'Failed to load compliance data. Please refresh the page.');
       }
     };
@@ -686,113 +696,128 @@ const FintracCompliance: React.FC = () => {
     }
   };
 
-  // Submit LCTR reports
+  // Submit LCTR reports using production-grade FINTRAC service
   const handleSubmitLCTR = async () => {
     try {
-      // Set loading state
       setIsLoading(prev => ({ ...prev, lctrSubmission: true }));
       
       const completedTransactions = transactions.filter(txn => 
         txn.status === 'completed' && txn.requiresLCTR && !txn.reportSubmitted
       );
 
-      // Ensure all completed LCTR tx have required client IDs
-      try {
-        const customers = await customerService.getAllCustomers();
-        const invalid = completedTransactions.filter(tx => {
-          if (!tx.customerId) return true;
-          const c = customers.find((cc: any) => cc.id === tx.customerId);
-          return !c || !c.idType || !c.idNumber || !c.photoId;
-        });
-        if (invalid.length > 0) {
-          showToast('error', `Cannot submit LCTR: ${invalid.length} transaction(s) missing required client ID (type, number, or photoId).`);
-          setIsLoading(prev => ({ ...prev, lctrSubmission: false }));
-          return;
-        }
-      } catch (e) {
-        console.warn('Validation of customer IDs failed:', e);
-      }
-  
       if (completedTransactions.length === 0) {
         showToast('warning', 'No completed transactions to report');
         setIsLoading(prev => ({ ...prev, lctrSubmission: false }));
         return;
       }
-  
-      // Create batch report data
-      const batchReportId = `LCTR-BATCH-${Date.now()}`;
-      const submissionDate = new Date();
-      const formattedSubmissionDate = submissionDate.toISOString().split('T')[0];
+
+      // Validate all transactions have required data
+      const customers = await customerService.getAllCustomers();
+      const invalid = completedTransactions.filter(tx => {
+        if (!tx.customerId) return true;
+        const c = customers.find((cc: any) => cc.id === tx.customerId);
+        return !c || !c.idType || !c.idNumber || !tx.customerData;
+      });
       
-      // Calculate total amount
-      const totalAmount = completedTransactions.reduce((sum, txn) => sum + txn.toAmount, 0);
-      
-      // Import the transaction service dynamically to avoid circular dependencies
-      const { default: transactionService } = await import('../services/transactionService');
-      
-      // Simulate a network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      try {
-        // Update each transaction in the service
-        const updatePromises = completedTransactions.map(txn => 
-          transactionService.updateTransaction(txn.id, {
-            status: 'submitted',
-            reportSubmitted: true,
-            reportSubmissionDate: formattedSubmissionDate,
-            reportId: `${batchReportId}-${txn.id}`
-          })
-        );
-        
-        // Wait for all updates to complete
-        const updatedTransactions = await Promise.all(updatePromises);
-        
-        // Check if any updates failed
-        if (updatedTransactions.some(tx => tx === null)) {
-          throw new Error('Failed to update one or more transactions');
-        }
-        
-        // Refresh the transactions list
-        const complianceTransactions = await transactionService.getFintracComplianceTransactions();
-        setTransactions(complianceTransactions);
-      
-        // Remove related notifications
-        setNotifications(prev =>
-          prev.filter(notif =>
-            !completedTransactions.some(txn => txn.id === notif.transactionId && 
-              (notif.type === 'deadline_warning' || notif.type === 'overdue_report'))
-          )
-        );
-      
-        // Add success notification
-        const newNotification = {
-          id: `notif-lctr-${Date.now()}`,
-          type: 'info',
-          priority: 'normal',
-          title: 'LCTR Batch Submitted',
-          message: `Successfully submitted batch ${batchReportId} with ${completedTransactions.length} transactions (Total: $${totalAmount.toFixed(2)})`,
-          triggerDate: new Date().toISOString(),
-          status: 'active'
-        };
-        
-        setNotifications(prev => [...prev, newNotification]);
-      
-        showToast('success', `Successfully submitted ${completedTransactions.length} LCTR reports`);
-      } catch (error) {
-        console.error('Error finalizing LCTR submission:', error);
-        showToast('error', 'An error occurred while finalizing the submission');
-        throw error;
+      if (invalid.length > 0) {
+        showToast('error', `Cannot submit LCTR: ${invalid.length} transaction(s) missing required customer data.`);
+        setIsLoading(prev => ({ ...prev, lctrSubmission: false }));
+        return;
       }
+
+      // Submit to FINTRAC using production service (creates permanent audit record)
+      const submissionRecord = await fintracReportingService.submitLCTRReport(
+        completedTransactions,
+        'FWR' // FINTRAC Web Reporting System
+      );
+
+      // Update transactions as submitted
+      const { default: transactionService } = await import('../services/transactionService');
+      const updatePromises = completedTransactions.map(txn => 
+        transactionService.updateTransaction(txn.id, {
+          status: 'submitted',
+          reportSubmitted: true,
+          reportSubmissionDate: submissionRecord.submissionDate,
+          reportId: submissionRecord.reportReference
+        })
+      );
+      
+      await Promise.all(updatePromises);
+      
+      // Refresh data
+      const complianceTransactions = await transactionService.getComplianceTransactions();
+      const fintracRecords = await fintracReportingService.getAllSubmissionRecords();
+      setTransactions(complianceTransactions);
+      setSubmissionRecords(fintracRecords);
+      
+      // Remove related notifications
+      setNotifications(prev =>
+        prev.filter(notif =>
+          !completedTransactions.some(txn => txn.id === notif.transactionId && 
+            (notif.type === 'deadline_warning' || notif.type === 'overdue_report'))
+        )
+      );
+      
+      showToast('success', `LCTR submitted to FINTRAC: ${submissionRecord.reportReference} (${completedTransactions.length} transactions)`);
+      
     } catch (error) {
       console.error('Error submitting LCTR reports:', error);
       showToast('error', error instanceof Error ? error.message : 'Failed to submit LCTR reports');
     } finally {
-      // Reset loading state
       setIsLoading(prev => ({ ...prev, lctrSubmission: false }));
     }
   };
 
-  const handleExportLCTR = async () => {
+  // Export FINTRAC-compliant XML report
+  const handleExportLCTRXML = async () => {
+    try {
+      setIsLoading(prev => ({ ...prev, xmlExport: true }));
+      const eligible = transactions.filter(txn => 
+        txn.status === 'completed' && txn.requiresLCTR && !txn.reportSubmitted
+      );
+
+      if (eligible.length === 0) {
+        showToast('warning', 'No completed LCTR transactions to export');
+        setIsLoading(prev => ({ ...prev, xmlExport: false }));
+        return;
+      }
+
+      // Generate FINTRAC-compliant XML report
+      const { xml, json, csv, reportReference } = await fintracReportingService.generateLCTRReport(eligible);
+      
+      // Download XML file (FINTRAC primary format)
+      const xmlBlob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
+      const xmlUrl = URL.createObjectURL(xmlBlob);
+      const xmlLink = document.createElement('a');
+      xmlLink.href = xmlUrl;
+      xmlLink.download = `FINTRAC_LCTR_${reportReference}.xml`;
+      document.body.appendChild(xmlLink);
+      xmlLink.click();
+      document.body.removeChild(xmlLink);
+      URL.revokeObjectURL(xmlUrl);
+      
+      // Also download JSON (FINTRAC API format)
+      const jsonBlob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+      const jsonUrl = URL.createObjectURL(jsonBlob);
+      const jsonLink = document.createElement('a');
+      jsonLink.href = jsonUrl;
+      jsonLink.download = `FINTRAC_LCTR_${reportReference}.json`;
+      document.body.appendChild(jsonLink);
+      jsonLink.click();
+      document.body.removeChild(jsonLink);
+      URL.revokeObjectURL(jsonUrl);
+      
+      showToast('success', `Exported FINTRAC XML/JSON: ${reportReference}`);
+    } catch (e) {
+      console.error('FINTRAC XML export failed', e);
+      showToast('error', 'Failed to export FINTRAC XML report');
+    } finally {
+      setIsLoading(prev => ({ ...prev, xmlExport: false }));
+    }
+  };
+
+  // Export CSV for internal use
+  const handleExportLCTRCSV = async () => {
     try {
       setIsLoading(prev => ({ ...prev, lctrExport: true }));
       const eligible = transactions.filter(txn => 
@@ -805,58 +830,56 @@ const FintracCompliance: React.FC = () => {
         return;
       }
 
-      // Load latest customer information
-      const customers = await customerService.getAllCustomers();
-
-      const header = [
-        'TransactionID','Date','FromCurrency','FromAmount','ToCurrency','ToAmount','Rate','Commission',
-        'CustomerID','FirstName','LastName','DateOfBirth','Occupation','Country',
-        'Address','City','Province','PostalCode',
-        'IDType','IDNumber','PhotoID','SourceOfFunds','ActingForThirdParty','ThirdPartyName','ThirdPartyRelationship','ComplianceStatus','ReportType','LCTRDeadline'
-      ];
-      const rows: string[] = [header.join(',')];
-      const ensure = (v: any) => (v === undefined || v === null) ? '' : String(v).replace(/,/g, ';');
-
-      for (const tx of eligible) {
-        const c = tx.customerId ? customers.find((cc: any) => cc.id === tx.customerId) : null;
-        if (!c || !c.idType || !c.idNumber || !c.photoId) {
-          showToast('error', `Missing required client ID for transaction ${tx.id}. Fix before export.`);
-          setIsLoading(prev => ({ ...prev, lctrExport: false }));
-          return;
-        }
-        const rate = tx.fromAmount > 0 ? (tx.toAmount / tx.fromAmount) : 0;
-        const row = [
-          tx.id, tx.date, tx.fromCurrency, tx.fromAmount, tx.toCurrency, tx.toAmount, rate.toFixed(6), (tx.commission ?? 0).toFixed(2),
-          c.id, c.firstName || '', c.lastName || '', c.dateOfBirth || '', c.occupation || '', c.country || 'Canada',
-          c.address || '', c.city || '', c.province || '', c.postalCode || '',
-          c.idType || '', c.idNumber || '', c.photoId || '', c.sourceOfFunds || '',
-          (tx as any).customerData?.actingForThirdParty || 'no',
-          (tx as any).customerData?.thirdPartyName || '',
-          (tx as any).customerData?.relationshipToThirdParty || '',
-          tx.complianceStatus || (tx.requiresLCTR ? 'lctr_required' : 'none'),
-          'LCTR',
-          tx.lctrDeadline || ''
-        ].map(ensure);
-        rows.push(row.join(','));
-      }
-
-      const csv = rows.join('\n');
+      const { csv, reportReference } = await fintracReportingService.generateLCTRReport(eligible);
+      
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const date = new Date().toISOString().split('T')[0];
       a.href = url;
-      a.download = `LCTR_Export_${date}.csv`;
+      a.download = `LCTR_Internal_${reportReference}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast('success', `Exported ${eligible.length} transaction(s) to CSV`);
+      
+      showToast('success', `Exported CSV: ${reportReference}`);
     } catch (e) {
-      console.error('LCTR export failed', e);
+      console.error('LCTR CSV export failed', e);
       showToast('error', 'Failed to export LCTR CSV');
     } finally {
       setIsLoading(prev => ({ ...prev, lctrExport: false }));
+    }
+  };
+
+  // Export audit records for government inspection
+  const handleExportAuditRecords = async () => {
+    try {
+      setIsLoading(prev => ({ ...prev, auditExport: true }));
+      
+      // Export all submission records and document audit logs
+      const auditCSV = await fintracReportingService.exportAuditRecords();
+      const documentAuditCSV = await secureDocumentService.exportDocumentAuditLogs();
+      
+      // Combined audit export
+      const combinedAudit = `# FINTRAC SUBMISSION RECORDS\n${auditCSV}\n\n# DOCUMENT AUDIT LOGS\n${documentAuditCSV}`;
+      
+      const blob = new Blob([combinedAudit], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const date = new Date().toISOString().split('T')[0];
+      a.href = url;
+      a.download = `FINTRAC_Audit_Records_${date}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      showToast('success', 'Audit records exported for government inspection');
+    } catch (e) {
+      console.error('Audit export failed', e);
+      showToast('error', 'Failed to export audit records');
+    } finally {
+      setIsLoading(prev => ({ ...prev, auditExport: false }));
     }
   };
 
@@ -944,14 +967,33 @@ const FintracCompliance: React.FC = () => {
       )}
 
       {/* Control Panel */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="text-center">
             <FileText className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-            <h3 className="font-semibold">LCTR Reports</h3>
-            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+            <h3 className="font-semibold">FINTRAC Reports</h3>
+            <div className="mt-2 space-y-2">
               <button
-                onClick={handleExportLCTR}
+                onClick={handleExportLCTRXML}
+                disabled={isLoading.xmlExport}
+                className={`w-full flex items-center justify-center p-2 ${
+                  isLoading.xmlExport ? 'bg-red-400' : 'bg-red-600 hover:bg-red-700'
+                } text-white rounded text-sm`}
+              >
+                {isLoading.xmlExport ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4 mr-1" />
+                    Export XML/JSON
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleExportLCTRCSV}
                 disabled={isLoading.lctrExport}
                 className={`w-full flex items-center justify-center p-2 ${
                   isLoading.lctrExport ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
@@ -994,11 +1036,44 @@ const FintracCompliance: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="text-center">
+            <Shield className="h-8 w-8 text-green-600 mx-auto mb-2" />
+            <h3 className="font-semibold">Audit & Compliance</h3>
+            <div className="mt-2 space-y-2">
+              <button
+                onClick={handleExportAuditRecords}
+                disabled={isLoading.auditExport}
+                className={`w-full flex items-center justify-center p-2 ${
+                  isLoading.auditExport ? 'bg-green-400' : 'bg-green-600 hover:bg-green-700'
+                } text-white rounded text-sm`}
+              >
+                {isLoading.auditExport ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-4 w-4 mr-1" />
+                    Export Audit Records
+                  </>
+                )}
+              </button>
+              <div className="text-xs text-gray-500 mt-2">
+                Submissions: {submissionRecords.length}<br/>
+                Last: {submissionRecords[0]?.submissionDate || 'None'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="text-center">
             <Database className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <h3 className="font-semibold">Risk Assessment</h3>
-            <p className="text-sm text-gray-600">Automated risk calculation</p>
+            <h3 className="font-semibold">Document Security</h3>
+            <p className="text-sm text-gray-600">AES-256 Encrypted Storage</p>
             <div className="mt-2 text-xs text-gray-500">
-              Based on FINTRAC guidelines
+              5+ Year Retention<br/>
+              FINTRAC Compliant
             </div>
           </div>
         </div>

@@ -2,6 +2,8 @@ import databaseService from './databaseService';
 import customerService from './customerService';
 import transactionService from './transactionService';
 import webSocketService from './webSocketService';
+import secureDocumentService from './secureDocumentService';
+import fintracValidationService from './fintracValidationService';
 import { generateSecureId } from '../utils/security';
 
 // Form-related type definitions
@@ -15,11 +17,17 @@ export interface FormSubmission {
   verificationStatus: 'pending' | 'verified' | 'rejected';
   complianceFlags: string[];
   assignedTransactionId?: string;
+  createdCustomerId?: string;
   createdAt: string;
   updatedAt: string;
   source: 'qr_scan' | 'manual_entry' | 'scanner_fallback';
   ipAddress?: string;
   userAgent?: string;
+  
+  // Enhanced FINTRAC fields
+  fintracValidation?: any;
+  riskAssessment?: any;
+  complianceScore?: number;
 }
 
 export interface SecureDocument {
@@ -293,7 +301,25 @@ class FormService {
         }))
       });
 
-      // Update form status
+      // Persist customerId back into the form for downstream linking
+      const submissions = await this.getAllFormSubmissions();
+      const idx = submissions.findIndex(s => s.id === formId);
+      if (idx !== -1) {
+        submissions[idx].customerData = {
+          ...(submissions[idx].customerData || {}),
+          id: customer.id
+        };
+        // If all docs verified, reflect verification status on form/customerData as appropriate
+        const allDocsVerified = submissions[idx].documents.length > 0 && submissions[idx].documents.every(d => d.verificationStatus === 'verified');
+        if (allDocsVerified) {
+          submissions[idx].verificationStatus = 'verified';
+          // Do not set status here; leave to updateFormStatus
+        }
+        submissions[idx].updatedAt = new Date().toISOString();
+        await databaseService.setItem(this.STORAGE_KEY, submissions);
+      }
+
+      // Update form status (emits event)
       await this.updateFormStatus(formId, 'completed');
 
       // Log audit trail
@@ -316,15 +342,34 @@ class FormService {
       throw new Error('Form submission not found');
     }
 
+    const form = submissions[formIndex];
+
+    // Ensure we have a customerId on the form; try to look up by email if missing
+    try {
+      if ((!form.customerData || !form.customerData.id) && form.customerData?.email) {
+        const existing = await customerService.getCustomerByEmail(form.customerData.email);
+        if (existing) {
+          submissions[formIndex].customerData = { ...(form.customerData || {}), id: existing.id };
+        }
+      }
+    } catch (lookupErr) {
+      console.warn('Customer lookup during assignment failed:', lookupErr);
+    }
+
     submissions[formIndex].assignedTransactionId = transactionId;
     submissions[formIndex].updatedAt = new Date().toISOString();
 
     await databaseService.setItem(this.STORAGE_KEY, submissions);
 
-    // Link transaction in the transaction service
-    if (submissions[formIndex].customerData) {
+    // Link transaction in the transaction service with enhanced tracking
+    const customerId = submissions[formIndex].createdCustomerId || submissions[formIndex].customerData?.id;
+    if (customerId) {
       try {
-        await transactionService.linkCustomerToTransaction(transactionId, submissions[formIndex].customerData.id);
+        await transactionService.linkCustomerToTransaction(transactionId, customerId);
+        
+        // Update customer compliance after transaction assignment
+        await customerService.updateCustomerCompliance(customerId);
+        
       } catch (error) {
         console.error('Error linking transaction:', error);
       }
@@ -333,10 +378,17 @@ class FormService {
     webSocketService.send({ type: 'form_transaction_assigned', data: {
       formId,
       transactionId,
+      customerId,
+      complianceValidated: !!submissions[formIndex].fintracValidation,
       form: submissions[formIndex]
     } });
 
-    this.logAuditAction(formId, 'transaction_assigned', { transactionId });
+    this.logAuditAction(formId, 'transaction_assigned', { 
+      transactionId,
+      customerId,
+      complianceStatus: transaction.complianceStatus,
+      validationResult: submissions[formIndex].fintracValidation?.isCompliant 
+    });
   }
 
   // Upload document for existing form (scanner fallback)
@@ -394,6 +446,15 @@ class FormService {
     webSocketService.send({ type: 'form_document_approved', data: { formId, documentId, form } });
     if (form.status === 'verified') {
       webSocketService.send({ type: 'form_status_updated', data: form });
+      // If the form is linked to a customer, update KYC status accordingly
+      if ((form as any).customerData?.id) {
+        try {
+          await customerService.verifyCustomerKYC((form as any).customerData.id, true, 'Documents verified via Forms');
+          webSocketService.send({ type: 'customer_updated', data: { id: (form as any).customerData.id, kycStatus: 'verified' } });
+        } catch (e) {
+          console.warn('Failed to update customer KYC to verified:', e);
+        }
+      }
     }
     this.logAuditAction(formId, 'document_approved', { documentId });
   }
@@ -424,20 +485,44 @@ class FormService {
     await databaseService.setItem(this.STORAGE_KEY, submissions);
     webSocketService.send({ type: 'form_document_rejected', data: { formId, documentId, reason, form } });
     webSocketService.send({ type: 'form_status_updated', data: form });
+    // If the form is linked to a customer, update KYC status to rejected
+    if ((form as any).customerData?.id) {
+      try {
+        await customerService.verifyCustomerKYC((form as any).customerData.id, false, reason || 'Documents rejected via Forms');
+        webSocketService.send({ type: 'customer_updated', data: { id: (form as any).customerData.id, kycStatus: 'rejected' } });
+      } catch (e) {
+        console.warn('Failed to update customer KYC to rejected:', e);
+      }
+    }
     this.logAuditAction(formId, 'document_rejected', { documentId, reason });
   }
 
   // Private helper methods
   private async processDocument(file: File, type?: string): Promise<SecureDocument> {
     const documentId = generateSecureId();
+
+    // Attempt to generate a preview for image types (JPEG/PNG). In production, encrypt and store securely.
+    let previewDataUrl: string | undefined = undefined;
+    try {
+      if (file && file.type && file.type.startsWith('image/')) {
+        previewDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (e) => reject(e);
+          reader.readAsDataURL(file);
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to generate document preview:', e);
+    }
     
-    // Basic document processing (in real implementation, this would include encryption)
     const document: SecureDocument = {
       id: documentId,
       type: (type as any) || this.inferDocumentType(file.name),
       fileName: file.name,
       fileSize: file.size,
       mimeType: file.type,
+      encryptedData: previewDataUrl, // used as a preview for images; replace with real encryption/storage in production
       metadata: {
         originalFileName: file.name,
       },
@@ -445,9 +530,6 @@ class FormService {
       uploadedAt: new Date().toISOString(),
     };
 
-    // In production, encrypt and store file securely
-    // For now, we'll just store metadata
-    
     return document;
   }
 
@@ -568,15 +650,128 @@ class FormService {
       ).length,
     };
   }
+
+  // Enhanced statistics with FINTRAC compliance metrics
+  async getEnhancedFormStatistics(): Promise<{
+    total: number;
+    today: number;
+    pending: number;
+    verified: number;
+    completed: number;
+    rejected: number;
+    todayPending: number;
+    todayCompleted: number;
+    // Enhanced FINTRAC metrics
+    withTransactions: number;
+    complianceValidated: number;
+    requiresReview: number;
+    averageComplianceScore: number;
+  }> {
+    const submissions = await this.getAllFormSubmissions();
+    const today = new Date().toISOString().split('T')[0];
+    
+    const todaySubmissions = submissions.filter(s => s.createdAt.startsWith(today));
+    const withTransactions = submissions.filter(s => !!s.assignedTransactionId).length;
+    const complianceValidated = submissions.filter(s => !!s.fintracValidation).length;
+    const requiresReview = submissions.filter(s => 
+      s.status === 'pending' || 
+      (s.fintracValidation && !s.fintracValidation.isCompliant)
+    ).length;
+    
+    const scoresSum = submissions.reduce((sum, s) => sum + (s.complianceScore || 0), 0);
+    const averageComplianceScore = submissions.length > 0 ? scoresSum / submissions.length : 0;
+    
+    return {
+      total: submissions.length,
+      today: todaySubmissions.length,
+      pending: submissions.filter(s => s.status === 'pending').length,
+      verified: submissions.filter(s => s.status === 'verified').length,
+      completed: submissions.filter(s => s.status === 'completed').length,
+      rejected: submissions.filter(s => s.status === 'rejected').length,
+      todayPending: todaySubmissions.filter(s => s.status === 'pending').length,
+      todayCompleted: todaySubmissions.filter(s => s.status === 'completed').length,
+      withTransactions,
+      complianceValidated,
+      requiresReview,
+      averageComplianceScore
+    };
+  }
+
+  // Get forms by compliance status
+  async getFormsByComplianceStatus(status: 'compliant' | 'pending' | 'non_compliant'): Promise<FormSubmission[]> {
+    const submissions = await this.getAllFormSubmissions();
+    return submissions.filter(s => {
+      if (!s.fintracValidation) return status === 'pending';
+      
+      if (status === 'compliant') {
+        return s.fintracValidation.isCompliant && (s.complianceScore || 0) >= 90;
+      } else if (status === 'non_compliant') {
+        return !s.fintracValidation.isCompliant || (s.complianceScore || 0) < 70;
+      } else {
+        return !s.fintracValidation.isCompliant && (s.complianceScore || 0) >= 70;
+      }
+    });
+  }
+  
+  // Get forms requiring compliance review
+  async getFormsRequiringComplianceReview(): Promise<FormSubmission[]> {
+    const submissions = await this.getAllFormSubmissions();
+    return submissions.filter(s => 
+      s.status !== 'rejected' && (
+        !s.fintracValidation ||
+        !s.fintracValidation.isCompliant ||
+        (s.complianceScore || 0) < 80 ||
+        (s.complianceFlags && s.complianceFlags.length > 0)
+      )
+    );
+  }
+
+  // Get all forms that need transaction assignment
+  async getFormsNeedingTransactionAssignment(): Promise<FormSubmission[]> {
+    const submissions = await this.getAllFormSubmissions();
+    return submissions.filter(s => 
+      s.status === 'completed' && 
+      !s.assignedTransactionId &&
+      s.createdCustomerId // Only include forms with created customers
+    );
+  }
+
+  // Create transaction directly from form (for new transactions)
+  async createTransactionFromForm(formId: string, transactionParams: {
+    fromCurrency: string;
+    toCurrency: string;
+    fromAmount: number;
+    toAmount: number;
+    commission: number;
+  }): Promise<any> {
+    try {
+      const form = await this.getFormSubmissionById(formId);
+      if (!form) {
+        throw new Error('Form not found');
+      }
+      
+      if (!form.createdCustomerId) {
+        throw new Error('Form must have an associated customer before creating transaction');
+      }
+
+      // Create transaction with customer assignment
+      const transaction = await transactionService.createTransaction({
+        ...transactionParams,
+        customerId: form.createdCustomerId
+      });
+
+      // Assign the new transaction to the form
+      await this.assignTransactionToForm(formId, transaction.id);
+
+      return transaction;
+    } catch (error) {
+      console.error('Error creating transaction from form:', error);
+      throw error;
+    }
+  }
 }
 
-// Utility function for generating secure IDs
-// This would be in a separate utils file in production
-function generateSecureId(): string {
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-}
+// Using generateSecureId from ../utils/security
 
 const formService = new FormService();
 export default formService;

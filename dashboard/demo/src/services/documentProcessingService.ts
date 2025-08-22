@@ -68,6 +68,7 @@ class DocumentProcessingService {
   constructor(config: ValidationWorkflowConfig) {
     this.config = config;
     this.initializeTemplates();
+    this._touchPublicAPI();
   }
 
   /**
@@ -124,6 +125,15 @@ class DocumentProcessingService {
     });
 
     // Add more templates as needed...
+  }
+
+  /**
+   * Internal: prevent unused method warnings in demo build; these are part of the public API.
+   */
+  private _touchPublicAPI(): void {
+    // No-op references to mark these as used for static analyzers
+    void this.processDocument;
+    void this.verifyAuthenticity;
   }
 
   /**
@@ -261,7 +271,7 @@ class DocumentProcessingService {
   /**
    * Identify document type from OCR results
    */
-  private async identifyDocumentType(ocrResult: OCRResult, documentFile: DocumentFile): Promise<DocumentType> {
+  private async identifyDocumentType(ocrResult: OCRResult, _documentFile: DocumentFile): Promise<DocumentType> {
     const text = ocrResult.text.toLowerCase();
     
     // Driver's License Detection
@@ -314,7 +324,6 @@ class DocumentProcessingService {
     }
     
     // Build structured data
-    const now = new Date();
     const dateOfBirth = extractedFields.get('dateOfBirth') || extractedFields.get('dob') || '';
     const age = dateOfBirth ? this.calculateAge(dateOfBirth) : 0;
     const expiryDate = extractedFields.get('expiryDate') || extractedFields.get('expiry') || '';
@@ -461,7 +470,7 @@ class DocumentProcessingService {
 
   // Helper methods for mock data generation and processing
 
-  private generateMockOCRText(documentFile: DocumentFile): string {
+  private generateMockOCRText(_documentFile: DocumentFile): string {
     return `
       ONTARIO
       DRIVER'S LICENCE
@@ -485,7 +494,7 @@ class DocumentProcessingService {
     `;
   }
 
-  private generateMockStructuredData(documentFile: DocumentFile): { [key: string]: any } {
+  private generateMockStructuredData(_documentFile: DocumentFile): { [key: string]: any } {
     return {
       licenseNumber: 'D1234-56789-01234',
       firstName: 'JOHN',
@@ -509,7 +518,7 @@ class DocumentProcessingService {
 
   private getTemplateForDocument(documentType: DocumentType): DocumentTemplate | undefined {
     // Simple template matching - in production this would be more sophisticated
-    for (const [key, template] of this.templates.entries()) {
+    for (const [_key, template] of this.templates.entries()) {
       if (template.type === documentType) {
         return template;
       }
@@ -564,7 +573,7 @@ class DocumentProcessingService {
     return date instanceof Date && !isNaN(date.getTime());
   }
 
-  private async checkSecurityFeatures(documentFile: DocumentFile, template?: DocumentTemplate): Promise<any> {
+  private async checkSecurityFeatures(_documentFile: DocumentFile, _template?: DocumentTemplate): Promise<any> {
     // Mock security feature detection
     await new Promise(resolve => setTimeout(resolve, 1000));
     
@@ -578,7 +587,7 @@ class DocumentProcessingService {
     };
   }
 
-  private async performQualityChecks(documentFile: DocumentFile): Promise<any> {
+  private async performQualityChecks(_documentFile: DocumentFile): Promise<any> {
     // Mock quality assessment
     await new Promise(resolve => setTimeout(resolve, 500));
     
@@ -591,7 +600,7 @@ class DocumentProcessingService {
     };
   }
 
-  private async performTemplateMatching(documentFile: DocumentFile, template?: DocumentTemplate): Promise<any> {
+  private async performTemplateMatching(_documentFile: DocumentFile, template?: DocumentTemplate): Promise<any> {
     // Mock template matching
     await new Promise(resolve => setTimeout(resolve, 800));
     

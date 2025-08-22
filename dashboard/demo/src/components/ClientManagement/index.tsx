@@ -1,3 +1,10 @@
+// Enhanced Client Management with FINTRAC Compliance
+import EnhancedClientManagement from './EnhancedClientManagement';
+
+// Export the enhanced version
+export default EnhancedClientManagement;
+
+// Legacy import for backward compatibility
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Search, Edit2, Trash2, FileText } from 'lucide-react';
 import { Modal, Toast } from '../Modal';
@@ -88,7 +95,7 @@ const ClientManagement: React.FC = () => {
 
   // Load clients on component mount
   useEffect(() => {
-    loadClients();
+    void loadClients();
   }, []);
 
   // Filter clients based on search term
@@ -155,7 +162,7 @@ const ClientManagement: React.FC = () => {
 
   useEffect(() => {
     if (clients && clients.length > 0) {
-      refreshLastTransactions();
+      void refreshLastTransactions();
     } else {
       setLastTxMap({});
     }
@@ -168,7 +175,9 @@ const ClientManagement: React.FC = () => {
         await webSocketService.connect();
         unsubscribe = webSocketService.subscribe((event: any) => {
           if (event.type === 'transaction_created' || event.type === 'transaction_updated') {
-            refreshLastTransactions();
+            void refreshLastTransactions();
+          } else if (event.type === 'customer_created' || event.type === 'customer_updated') {
+            void loadClients();
           }
         });
       } catch (err) {
@@ -768,4 +777,4 @@ const ClientManagement: React.FC = () => {
   );
 };
 
-export default ClientManagement;
+export { ClientManagement as LegacyClientManagement };

@@ -377,7 +377,7 @@ const FormWizard: React.FC<FormWizardProps> = ({
               <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                 {currentStep.title}
                 {currentStep.complianceRequired && (
-                  <Shield className="h-5 w-5 ml-2 text-blue-600" title="FINTRAC Compliance Required" />
+                  <Shield className="h-5 w-5 ml-2 text-blue-600" />
                 )}
               </h2>
               {currentStep.subtitle && (

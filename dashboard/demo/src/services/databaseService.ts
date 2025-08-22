@@ -470,8 +470,13 @@ class DatabaseService {
     }
   }
 
-  // Ensure database is initialized and return it
-  private async ensureDatabase(): Promise<IDBDatabase> {
+  // Ensure database is initialized and return it (public wrapper)
+  async ensureDatabase(): Promise<IDBDatabase> {
+    return this._ensureDatabase();
+  }
+
+  // Internal helper to initialize and return the DB
+  private async _ensureDatabase(): Promise<IDBDatabase> {
     if (!this.db) {
       await this.init();
     }

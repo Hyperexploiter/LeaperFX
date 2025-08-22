@@ -1,5 +1,8 @@
 // Real Customer Service - Production Ready
 import databaseService from './databaseService';
+import webSocketService from './webSocketService';
+import secureDocumentService from './secureDocumentService';
+import fintracValidationService from './fintracValidationService';
 
 // Types
 export interface Customer {
@@ -32,6 +35,17 @@ export interface Customer {
   kycStatus: 'pending' | 'verified' | 'rejected';
   kycDate?: string;
   notes?: string;
+  
+  // FINTRAC Compliance Fields
+  complianceStatus?: 'compliant' | 'pending' | 'non_compliant';
+  lastComplianceCheck?: string;
+  documentsVerified?: boolean;
+  transactions?: string[];
+  totalTransactionVolume?: number;
+  lastTransactionDate?: string;
+  pepStatus?: boolean; // Politically Exposed Person
+  sanctionsCheck?: boolean;
+  enhancedDueDiligence?: boolean;
 }
 
 export interface CreateCustomerParams {
@@ -55,6 +69,20 @@ export interface CustomerSearchFilters {
   riskRating?: string;
   kycStatus?: string;
   isActive?: boolean;
+  complianceStatus?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  hasDocuments?: boolean;
+  minTransactionVolume?: number;
+}
+
+export interface CustomerProfile {
+  customer: Customer;
+  documents: any[];
+  transactions: any[];
+  complianceValidation: any;
+  riskAssessment: any;
+  transactionSummary: any;
 }
 
 /**
@@ -119,13 +147,19 @@ class CustomerService {
     customers.push(customer);
     await this.saveCustomers(customers);
     
+    try {
+      webSocketService.send({ type: 'customer_created', data: customer });
+    } catch (e) {
+      // Non-fatal: continue even if WS fails
+      console.warn('WS emit failed for customer_created:', e);
+    }
     return customer;
   }
 
   /**
-   * Simplified validation for basic customer creation (used by Smart Calculator)
+   * Simplified validation for basic customer creation (used by Smart Calculator and Forms)
    */
-  private validateCustomerDataSimplified(data: any): { isValid: boolean; errors: string[] } {
+  validateCustomerDataSimplified(data: any): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
     
     // Required fields for basic compliance
@@ -354,6 +388,252 @@ class CustomerService {
    */
   async getHighRiskCustomers(): Promise<Customer[]> {
     return this.searchCustomers({ riskRating: 'high' });
+  }
+  
+  /**
+   * Get complete customer profile with all related data
+   */
+  async getCustomerProfile(id: string): Promise<CustomerProfile | null> {
+    const customer = await this.getCustomerById(id);
+    if (!customer) return null;
+    
+    try {
+      // Get customer documents
+      const documents = await secureDocumentService.getCustomerDocuments(id);
+      
+      // Get customer transactions
+      const { default: transactionService } = await import('./transactionService');
+      const transactions = await transactionService.getTransactionsByCustomerId(id);
+      const transactionSummary = await transactionService.getCustomerTransactionSummary(id);
+      
+      // Get compliance validation
+      const complianceValidation = await fintracValidationService.validateCustomerDueDiligence(id);
+      
+      // Calculate risk assessment
+      const riskAssessment = this.calculateComprehensiveRiskAssessment(customer, transactions, documents);
+      
+      return {
+        customer,
+        documents,
+        transactions,
+        complianceValidation,
+        riskAssessment,
+        transactionSummary
+      };
+    } catch (error) {
+      console.error('Error building customer profile:', error);
+      return {
+        customer,
+        documents: [],
+        transactions: [],
+        complianceValidation: { isCompliant: false, missingRequirements: ['Error loading validation'], documentStatus: [] },
+        riskAssessment: { score: 0, rating: 'medium', factors: ['Error calculating risk'] },
+        transactionSummary: { totalTransactions: 0, totalVolume: 0, latestTransactionDate: null, complianceTransactions: 0, riskRating: 'low' }
+      };
+    }
+  }
+  
+  /**
+   * Get customers with advanced filtering and sorting
+   */
+  async getCustomersAdvanced(filters: CustomerSearchFilters, sortBy: string = 'lastUpdated', sortOrder: 'asc' | 'desc' = 'desc'): Promise<Customer[]> {
+    let customers = await this.searchCustomers(filters);
+    
+    // Additional filters
+    if (filters.complianceStatus) {
+      customers = customers.filter(c => c.complianceStatus === filters.complianceStatus);
+    }
+    
+    if (filters.dateFrom || filters.dateTo) {
+      customers = customers.filter(c => {
+        const createdDate = new Date(c.createdAt);
+        const fromDate = filters.dateFrom ? new Date(filters.dateFrom) : new Date(0);
+        const toDate = filters.dateTo ? new Date(filters.dateTo) : new Date();
+        return createdDate >= fromDate && createdDate <= toDate;
+      });
+    }
+    
+    if (filters.hasDocuments !== undefined) {
+      // This would require checking documents for each customer
+      // For now, we'll assume customers with KYC verified have documents
+      if (filters.hasDocuments) {
+        customers = customers.filter(c => c.kycStatus === 'verified');
+      }
+    }
+    
+    if (filters.minTransactionVolume) {
+      customers = customers.filter(c => 
+        (c.totalTransactionVolume || 0) >= (filters.minTransactionVolume || 0)
+      );
+    }
+    
+    // Sort customers
+    customers.sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = `${a.firstName} ${a.lastName}`.toLowerCase();
+          bValue = `${b.firstName} ${b.lastName}`.toLowerCase();
+          break;
+        case 'createdAt':
+          aValue = new Date(a.createdAt).getTime();
+          bValue = new Date(b.createdAt).getTime();
+          break;
+        case 'lastTransactionDate':
+          aValue = new Date(a.lastTransactionDate || 0).getTime();
+          bValue = new Date(b.lastTransactionDate || 0).getTime();
+          break;
+        case 'totalTransactionVolume':
+          aValue = a.totalTransactionVolume || 0;
+          bValue = b.totalTransactionVolume || 0;
+          break;
+        case 'riskRating':
+          const riskOrder = { 'low': 1, 'medium': 2, 'high': 3 };
+          aValue = riskOrder[a.riskRating];
+          bValue = riskOrder[b.riskRating];
+          break;
+        default:
+          aValue = new Date(a.lastUpdated).getTime();
+          bValue = new Date(b.lastUpdated).getTime();
+      }
+      
+      if (sortOrder === 'desc') {
+        return bValue > aValue ? 1 : bValue < aValue ? -1 : 0;
+      } else {
+        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      }
+    });
+    
+    return customers;
+  }
+  
+  /**
+   * Update customer compliance status after transaction or document verification
+   */
+  async updateCustomerCompliance(id: string): Promise<void> {
+    try {
+      const profile = await this.getCustomerProfile(id);
+      if (!profile) return;
+      
+      const { complianceValidation, riskAssessment } = profile;
+      
+      // Update compliance status based on validation
+      const complianceStatus = complianceValidation.isCompliant ? 'compliant' : 'pending';
+      const documentsVerified = complianceValidation.missingRequirements.length === 0;
+      
+      await this.updateCustomer(id, {
+        complianceStatus,
+        documentsVerified,
+        lastComplianceCheck: new Date().toISOString(),
+        riskRating: riskAssessment.rating
+      });
+      
+      // Broadcast compliance update
+      webSocketService.send({
+        type: 'customer_compliance_updated',
+        data: {
+          customerId: id,
+          complianceStatus,
+          riskRating: riskAssessment.rating
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error updating customer compliance:', error);
+    }
+  }
+  
+  /**
+   * Get customers requiring compliance review
+   */
+  async getCustomersRequiringComplianceReview(): Promise<Customer[]> {
+    const customers = await this.getAllCustomers();
+    return customers.filter(customer => {
+      // Check if customer needs compliance review
+      const lastCheck = customer.lastComplianceCheck ? new Date(customer.lastComplianceCheck) : null;
+      const daysSinceCheck = lastCheck ? (Date.now() - lastCheck.getTime()) / (1000 * 60 * 60 * 24) : 999;
+      
+      return (
+        customer.complianceStatus === 'pending' ||
+        !customer.documentsVerified ||
+        daysSinceCheck > 90 || // Review every 90 days
+        customer.riskRating === 'high'
+      );
+    });
+  }
+  
+  /**
+   * Calculate comprehensive risk assessment
+   */
+  private calculateComprehensiveRiskAssessment(customer: Customer, transactions: any[], documents: any[]): {
+    score: number;
+    rating: 'low' | 'medium' | 'high';
+    factors: string[];
+  } {
+    let score = 0;
+    const factors: string[] = [];
+    
+    // Base score from customer risk rating
+    const riskScores = { 'low': 10, 'medium': 30, 'high': 60 };
+    score += riskScores[customer.riskRating];
+    
+    // Transaction volume risk
+    const totalVolume = customer.totalTransactionVolume || 0;
+    if (totalVolume > 100000) {
+      score += 20;
+      factors.push('High transaction volume (>$100K)');
+    } else if (totalVolume > 50000) {
+      score += 10;
+      factors.push('Medium transaction volume (>$50K)');
+    }
+    
+    // Frequency risk
+    if (transactions.length > 50) {
+      score += 15;
+      factors.push('High transaction frequency (>50 transactions)');
+    } else if (transactions.length > 20) {
+      score += 8;
+      factors.push('Medium transaction frequency (>20 transactions)');
+    }
+    
+    // Document verification status
+    const verifiedDocs = documents.filter(d => d.metadata.documentVerified).length;
+    if (verifiedDocs === 0) {
+      score += 25;
+      factors.push('No verified documents');
+    } else if (verifiedDocs < 2) {
+      score += 10;
+      factors.push('Insufficient verified documents');
+    }
+    
+    // KYC status
+    if (customer.kycStatus === 'pending') {
+      score += 15;
+      factors.push('KYC verification pending');
+    } else if (customer.kycStatus === 'rejected') {
+      score += 30;
+      factors.push('KYC verification rejected');
+    }
+    
+    // Age of customer relationship
+    const daysSinceCreation = (Date.now() - new Date(customer.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceCreation < 30) {
+      score += 10;
+      factors.push('New customer (<30 days)');
+    }
+    
+    // Determine final rating
+    let rating: 'low' | 'medium' | 'high';
+    if (score >= 70) {
+      rating = 'high';
+    } else if (score >= 40) {
+      rating = 'medium';
+    } else {
+      rating = 'low';
+    }
+    
+    return { score, rating, factors };
   }
   
   /**

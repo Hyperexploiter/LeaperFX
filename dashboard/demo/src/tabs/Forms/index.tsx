@@ -1,26 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, QrCode, UserPlus, AlertCircle, CheckCircle, Clock, Upload } from 'lucide-react';
+import { FileText, QrCode, UserPlus, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import StoreQRCode from '../../components/StoreQRCode';
 import DocumentReviewer from '../../components/DocumentReviewer';
 import ScannerFallback from '../../components/ScannerFallback';
 import formService from '../../services/formService';
-import databaseService from '../../services/databaseService';
-import customerService from '../../services/customerService';
-import transactionService from '../../services/transactionService';
+// databaseService removed: all mutations go through formService to ensure events and consistency
 import webSocketService from '../../services/webSocketService';
 
-interface FormSubmission {
-  id: string;
-  qrCodeId: string;
-  customerData: any;
-  documents: any[];
-  status: 'pending' | 'processing' | 'verified' | 'completed' | 'rejected';
-  submissionDate: string;
-  verificationStatus: 'pending' | 'verified' | 'rejected';
-  assignedTransactionId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { FormSubmission } from '../../services/formService';
 
 const FormsTab: React.FC = () => {
   const [activeSection, setActiveSection] = useState<'qr-management' | 'submissions' | 'id-validation'>('qr-management');
@@ -106,17 +93,10 @@ const FormsTab: React.FC = () => {
       const form = formSubmissions.find(f => f.id === formId);
       if (!form) throw new Error('Form not found');
 
-      // Create customer from form data
-      const customer = await customerService.createCustomer({
-        ...form.customerData,
-        source: 'forms_tab',
-        formId: formId
-      });
+      // Create customer via formService to ensure form is updated with customerId and events are emitted
+      const customer = await formService.createCustomerFromForm(formId);
 
-      // Update form status
-      await formService.updateFormStatus(formId, 'completed');
       await loadFormSubmissions();
-
       console.log('Client created successfully:', customer);
     } catch (error) {
       console.error('Error creating client from form:', error);
@@ -160,27 +140,13 @@ const FormsTab: React.FC = () => {
 
   const handleRejectDocument = async (formId: string, documentId: string, reason: string) => {
     try {
-      // Update document status in the form
-      const submissions = await formService.getAllFormSubmissions();
-      const updatedSubmissions = submissions.map(form => {
-        if (form.id === formId) {
-          const updatedDocuments = form.documents.map(doc => 
-            doc.id === documentId 
-              ? { ...doc, verificationStatus: 'rejected' as const, rejectionReason: reason }
-              : doc
-          );
-          return { ...form, documents: updatedDocuments };
-        }
-        return form;
-      });
-
-      // Update in storage
-      await databaseService.setItem('form_submissions', updatedSubmissions);
+      setIsLoading(true);
+      await formService.rejectDocument(formId, documentId, reason);
       await loadFormSubmissions();
-
-      console.log('Document rejected:', { formId, documentId, reason });
     } catch (error) {
       console.error('Error rejecting document:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -376,7 +342,7 @@ const FormsTab: React.FC = () => {
                     <div className="flex gap-2">
                       {form.documents.slice(0, 3).map((doc, index) => (
                         <div key={index} className="w-16 h-12 bg-gray-100 rounded border flex items-center justify-center text-xs text-gray-500">
-                          📄
+                          {doc && (doc.type === 'photo_id' ? '🆔' : doc.type === 'selfie' ? '🤳' : doc.type === 'proof_of_address' ? '📄' : '📎')}
                         </div>
                       ))}
                       {form.documents.length > 3 && (

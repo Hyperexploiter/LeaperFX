@@ -5,6 +5,7 @@ export type WebSocketEventType =
   | 'rate_update' 
   | 'inventory_update' 
   | 'transaction_created' 
+  | 'transaction_updated'
   | 'alert'
   | 'rate_lock_created'
   | 'rate_lock_completed'
@@ -22,7 +23,12 @@ export type WebSocketEventType =
   | 'form_document_uploaded'
   | 'form_document_approved'
   | 'form_document_rejected'
-  | 'form_audit_log';
+  | 'form_audit_log'
+  | 'customer_compliance_updated'
+  | 'customer_created'
+  | 'customer_updated'
+  | 'transaction_receipt_generated'
+  | 'fintrac_report_submitted';
 
 export interface WebSocketEvent {
   type: WebSocketEventType;

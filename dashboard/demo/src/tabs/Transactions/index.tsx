@@ -3,7 +3,7 @@ import { Modal, Toast } from '../../components/Modal';
 import webSocketService from '../../services/webSocketService';
 import riskAssessmentService from '../../services/riskAssessmentService';
 import { Transaction } from '../../services/transactionService';
-import { MoreVertical, Printer, Filter as FilterIcon, Calendar, Search as SearchIcon } from 'lucide-react';
+import { MoreVertical, Printer, Search as SearchIcon, Mail } from 'lucide-react';
 
 interface SortConfig {
   key: string | null;
@@ -46,6 +46,16 @@ const TransactionHistory: React.FC = () => {
   // Row actions menu state
   const [openMenuTxnId, setOpenMenuTxnId] = useState<string | null>(null);
 
+  // Email receipt states
+  const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
+  const [emailRecipient, setEmailRecipient] = useState<string>('');
+  const [customEmail, setCustomEmail] = useState<string>('');
+  const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
+  const [selectedTxForEmail, setSelectedTxForEmail] = useState<any>(null);
+  const [showEmailSavePrompt, setShowEmailSavePrompt] = useState<boolean>(false);
+  const [emailToSaveToCustomer, setEmailToSaveToCustomer] = useState<string>('');
+  const [customerIdToUpdate, setCustomerIdToUpdate] = useState<string>('');
+
   // Filter bar state
   const [filterSearch, setFilterSearch] = useState<string>('');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
@@ -78,7 +88,7 @@ const TransactionHistory: React.FC = () => {
       }
     };
 
-    loadRiskAssessments();
+    void loadRiskAssessments();
   }, []);
 
   // Enhanced transaction data with risk information
@@ -201,7 +211,7 @@ const TransactionHistory: React.FC = () => {
       case 'amount':
         return transaction.fromAmount;
       case 'customer':
-        return getCustomerName(transaction.customerId);
+        return getCustomerName(transaction.customerId || '');
       case 'commission':
         return transaction.commission || 0;
       case 'profit':
@@ -288,7 +298,7 @@ const TransactionHistory: React.FC = () => {
       }
     };
 
-    loadCustomers();
+    void loadCustomers();
   }, []);
 
   useEffect(() => {
@@ -358,7 +368,7 @@ const TransactionHistory: React.FC = () => {
     }
   };
 
-  const getCustomerName = (customerId: string) => {
+  const getCustomerName = (customerId: string | undefined) => {
     if (!customerId) return 'No Customer';
     const customer = customers.find(c => c.id === customerId);
     return customer ? `${customer.firstName} ${customer.lastName}` : 'Unknown Customer';
@@ -370,46 +380,214 @@ const TransactionHistory: React.FC = () => {
 
   const printReceipt = (tx: any) => {
     try {
-      const owner = JSON.parse(localStorage.getItem('ownerSettings') || '{}');
-      const businessName = owner.businessName || 'Leaper FX';
-      const customerName = getCustomerName(tx.customerId);
-      const rate = tx.fromAmount > 0 ? (tx.toAmount / tx.fromAmount) : 0;
-      const type = `${tx.fromCurrency}→${tx.toCurrency}`;
       const w = window.open('', 'PRINT', 'height=700,width=480');
       if (!w) return;
-      const html = `<!doctype html><html><head><title>Receipt ${tx.id}</title>
-        <style>
-          body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto; padding:16px;color:#111}
-          .hdr{font-weight:700;font-size:18px;margin-bottom:8px}
-          .sub{color:#555;margin-bottom:16px}
-          .row{display:flex;justify-content:space-between;margin:6px 0}
-          .muted{color:#666}
-          .total{font-weight:700}
-          hr{border:none;border-top:1px solid #e5e7eb;margin:12px 0}
-          .center{text-align:center}
-        </style>
-      </head><body>
-        <div class="hdr">${businessName}</div>
-        <div class="sub">Receipt • TXN-${tx.id}</div>
-        <div class="row"><div>Date/Time</div><div>${tx.date}</div></div>
-        <div class="row"><div>Customer</div><div>${customerName}</div></div>
-        <div class="row"><div>Type</div><div>${type}</div></div>
-        <hr/>
-        <div class="row"><div>From</div><div>${tx.fromAmount.toLocaleString()} ${tx.fromCurrency}</div></div>
-        <div class="row"><div>To</div><div>${tx.toAmount.toLocaleString()} ${tx.toCurrency}</div></div>
-        <div class="row"><div>Rate</div><div>${rate.toFixed(6)}</div></div>
-        <div class="row"><div class="muted">Commission</div><div class="muted">$${(tx.commission ?? 0).toFixed(2)}</div></div>
-        <hr/>
-        <div class="row total"><div>Total</div><div>${tx.toAmount.toLocaleString()} ${tx.toCurrency}</div></div>
-        <div class="center muted" style="margin-top:16px">Thank you</div>
-        <script>window.addEventListener('load',()=>{setTimeout(()=>{window.print();window.close();},150);});<\/script>
-      </body></html>`;
-      w.document.write(html);
-      w.document.close();
+      const html = generateReceiptHTML(tx).replace('</body></html>', '<script>window.addEventListener(\'load\',()=>{setTimeout(()=>{window.print();window.close();},150);});</script></body></html>');
+      
+      if (w.document) {
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
+      }
       w.focus();
+      try {
+        webSocketService.send({
+          type: 'transaction_receipt_generated',
+          data: {
+            transactionId: tx.id,
+            fromAmount: tx.fromAmount,
+            fromCurrency: tx.fromCurrency,
+            toAmount: tx.toAmount,
+            toCurrency: tx.toCurrency,
+            printedAt: new Date().toISOString()
+          }
+        });
+      } catch (err) {
+        console.warn('WS emit failed for receipt:', err);
+      }
     } catch (e) {
       console.error('Print failed', e);
       showToast('error', 'Failed to print receipt');
+    }
+  };
+
+  const generateReceiptHTML = (tx: any) => {
+    const owner = JSON.parse(localStorage.getItem('ownerSettings') || '{}');
+    const businessName = owner.businessName || 'Leaper FX';
+    const customerName = getCustomerName(tx.customerId);
+    const rate = tx.fromAmount > 0 ? (tx.toAmount / tx.fromAmount) : 0;
+    const type = `${tx.fromCurrency}→${tx.toCurrency}`;
+    
+    return `<!doctype html><html><head><title>Receipt ${tx.id}</title>
+      <style>
+        body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto; padding:16px;color:#111}
+        .hdr{font-weight:700;font-size:18px;margin-bottom:8px}
+        .sub{color:#555;margin-bottom:16px}
+        .row{display:flex;justify-content:space-between;margin:6px 0}
+        .muted{color:#666}
+        .total{font-weight:700}
+        hr{border:none;border-top:1px solid #e5e7eb;margin:12px 0}
+        .center{text-align:center}
+      </style>
+    </head><body>
+      <div class="hdr">${businessName}</div>
+      <div class="sub">Receipt • TXN-${tx.id}</div>
+      <div class="row"><div>Date/Time</div><div>${tx.date}</div></div>
+      <div class="row"><div>Customer</div><div>${customerName}</div></div>
+      <div class="row"><div>Type</div><div>${type}</div></div>
+      <hr/>
+      <div class="row"><div>From</div><div>${tx.fromAmount.toLocaleString()} ${tx.fromCurrency}</div></div>
+      <div class="row"><div>To</div><div>${tx.toAmount.toLocaleString()} ${tx.toCurrency}</div></div>
+      <div class="row"><div>Rate</div><div>${rate.toFixed(6)}</div></div>
+      <div class="row"><div class="muted">Commission</div><div class="muted">$${(tx.commission ?? 0).toFixed(2)}</div></div>
+      <hr/>
+      <div class="row total"><div>Total</div><div>${tx.toAmount.toLocaleString()} ${tx.toCurrency}</div></div>
+      <div class="center muted" style="margin-top:16px">Thank you</div>
+    </body></html>`;
+  };
+
+  // Check if transaction requires FINTRAC compliance for email workflow
+  const checkFintracThreshold = (amount: number, currency: string): boolean => {
+    let cadAmount = amount;
+    if (currency !== 'CAD') {
+      const exchangeRates: { [key: string]: number } = {
+        'USD': 1.35, 'EUR': 1.45, 'GBP': 1.70, 'JPY': 0.009, 'AUD': 0.95, 'CHF': 1.47
+      };
+      cadAmount = amount * (exchangeRates[currency] || 1);
+    }
+    return cadAmount >= 3000; // $3,000 CAD threshold for enhanced records
+  };
+
+  const handleEmailReceipt = async (tx: any) => {
+    setSelectedTxForEmail(tx);
+    setCustomEmail('');
+    
+    // Check if transaction has customer with email
+    if (tx.customerId) {
+      const customer = customers.find(c => c.id === tx.customerId);
+      if (customer?.email) {
+        setEmailRecipient(customer.email);
+        setShowEmailModal(true);
+        return;
+      }
+    }
+    
+    // Check FINTRAC threshold
+    const requiresCompliance = checkFintracThreshold(tx.fromAmount, tx.fromCurrency);
+    
+    if (!tx.customerId && requiresCompliance) {
+      // Force customer creation for high-value transactions
+      showToast('warning', 'High-value transactions require customer profile. Please assign a customer first.');
+      handleAssignCustomer(tx);
+      return;
+    }
+    
+    // Show email modal for manual entry
+    setEmailRecipient('');
+    setShowEmailModal(true);
+  };
+
+  const sendEmailReceipt = async () => {
+    if (!selectedTxForEmail) return;
+    
+    const emailToSend = emailRecipient || customEmail;
+    if (!emailToSend || !emailToSend.includes('@')) {
+      showToast('error', 'Please enter a valid email address');
+      return;
+    }
+    
+    setIsSendingEmail(true);
+    
+    try {
+      // Import email service
+      const { default: emailService } = await import('../../services/emailService');
+      
+      // Generate receipt HTML for email
+      const receiptHTML = generateReceiptHTML(selectedTxForEmail);
+      const owner = JSON.parse(localStorage.getItem('ownerSettings') || '{}');
+      const businessName = owner.businessName || 'Leaper FX';
+      
+      // Send email using real email service
+      const result = await emailService.sendTransactionReceipt(
+        emailToSend,
+        receiptHTML,
+        selectedTxForEmail.id,
+        businessName
+      );
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Email sending failed');
+      }
+      
+      // Log email action
+      try {
+        webSocketService.send({
+          type: 'transaction_receipt_emailed',
+          data: {
+            transactionId: selectedTxForEmail.id,
+            recipientEmail: emailToSend,
+            messageId: result.messageId,
+            sentAt: new Date().toISOString()
+          }
+        });
+      } catch (err) {
+        console.warn('WS emit failed for email receipt:', err);
+      }
+      
+      // Check if we should save email to customer profile
+      if (selectedTxForEmail.customerId && customEmail && !emailRecipient) {
+        const customer = customers.find(c => c.id === selectedTxForEmail.customerId);
+        if (customer && !customer.email) {
+          setEmailToSaveToCustomer(customEmail);
+          setCustomerIdToUpdate(selectedTxForEmail.customerId);
+          setShowEmailSavePrompt(true);
+        }
+      }
+      
+      showToast('success', `📧 Receipt sent to ${emailToSend} (ID: ${result.messageId?.slice(-8)})`);
+      setShowEmailModal(false);
+      
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      showToast('error', `Failed to send receipt: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const saveEmailToCustomer = async () => {
+    try {
+      const { default: customerService } = await import('../../services/customerService');
+      await customerService.updateCustomer(customerIdToUpdate, { email: emailToSaveToCustomer });
+      
+      // Update local customer state
+      setCustomers(prev => prev.map(c => 
+        c.id === customerIdToUpdate ? { ...c, email: emailToSaveToCustomer } : c
+      ));
+      
+      showToast('success', 'Email saved to customer profile');
+      setShowEmailSavePrompt(false);
+    } catch (error) {
+      console.error('Failed to save email to customer:', error);
+      showToast('error', 'Failed to save email to customer profile');
+    }
+  };
+
+  const testEmailService = async () => {
+    try {
+      const { default: emailService } = await import('../../services/emailService');
+      showToast('info', 'Sending test email...');
+      
+      const result = await emailService.sendTestEmail('yourpersonalizednew@yahoo.com');
+      
+      if (result.success) {
+        showToast('success', `✅ Test email sent successfully! Check yourpersonalizednew@yahoo.com`);
+      } else {
+        showToast('error', `❌ Test email failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Email test failed:', error);
+      showToast('error', 'Email service test failed');
     }
   };
 
@@ -418,7 +596,7 @@ const TransactionHistory: React.FC = () => {
       try {
         await webSocketService.connect();
         const unsubscribe = webSocketService.subscribe(event => {
-          if (event.type === 'transaction_created') {
+          if (event.type === 'transaction_created' || event.type === 'transaction_updated') {
             const refresh = async () => {
               try {
                 const { default: transactionService } = await import('../../services/transactionService');
@@ -428,7 +606,7 @@ const TransactionHistory: React.FC = () => {
                 console.error('Failed to refresh transactions:', err);
               }
             };
-            refresh();
+            void refresh();
           }
         });
         return () => {
@@ -440,7 +618,7 @@ const TransactionHistory: React.FC = () => {
       }
     };
 
-    setupWebSocket();
+    void setupWebSocket();
   }, []);
 
   return (
@@ -448,6 +626,13 @@ const TransactionHistory: React.FC = () => {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-gray-800">Transaction History</h2>
         <div className="flex items-center space-x-4">
+          <button
+            onClick={testEmailService}
+            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+            title="Test email service"
+          >
+            📧 Test Email
+          </button>
           {sortConfig.key && (
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">
@@ -664,12 +849,18 @@ const TransactionHistory: React.FC = () => {
                           <MoreVertical className="h-4 w-4" />
                         </button>
                         {openMenuTxnId === tx.id && (
-                          <div className="absolute right-6 top-10 z-10 bg-white border rounded shadow-md w-44">
+                          <div className="absolute right-6 top-10 z-10 bg-white border rounded shadow-md w-48">
                             <button
                               onClick={() => { printReceipt(tx); setOpenMenuTxnId(null); }}
                               className="w-full flex items-center px-3 py-2 text-sm hover:bg-gray-50"
                             >
                               <Printer className="h-4 w-4 mr-2" /> Print receipt
+                            </button>
+                            <button
+                              onClick={() => { handleEmailReceipt(tx); setOpenMenuTxnId(null); }}
+                              className="w-full flex items-center px-3 py-2 text-sm hover:bg-gray-50"
+                            >
+                              <Mail className="h-4 w-4 mr-2" /> Email receipt
                             </button>
                             <button
                               onClick={() => { handleAssignCustomer(tx); setOpenMenuTxnId(null); }}
@@ -735,6 +926,107 @@ const TransactionHistory: React.FC = () => {
               ) : (
                 'Assign Customer'
               )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Email Receipt Modal */}
+      <Modal isOpen={showEmailModal} onClose={() => setShowEmailModal(false)} title="Email Receipt" size="md">
+        <div className="space-y-4">
+          {selectedTxForEmail && (
+            <div className="bg-gray-50 p-3 rounded">
+              <p className="text-sm text-gray-600">
+                Transaction: {selectedTxForEmail.fromAmount.toLocaleString()} {selectedTxForEmail.fromCurrency} → {selectedTxForEmail.toAmount.toLocaleString()} {selectedTxForEmail.toCurrency}
+              </p>
+              <p className="text-sm text-gray-600">
+                Customer: {getCustomerName(selectedTxForEmail.customerId)}
+              </p>
+            </div>
+          )}
+          
+          {emailRecipient ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Send receipt to:</label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="email"
+                  value={emailRecipient}
+                  disabled
+                  className="flex-1 p-2 border border-gray-300 rounded-lg bg-gray-50"
+                />
+                <button
+                  onClick={() => setEmailRecipient('')}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email address:</label>
+              <input
+                type="email"
+                value={customEmail}
+                onChange={e => setCustomEmail(e.target.value)}
+                placeholder="customer@example.com"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          )}
+          
+          <div className="flex justify-end space-x-3 pt-2">
+            <button
+              onClick={() => setShowEmailModal(false)}
+              className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={sendEmailReceipt}
+              disabled={(!emailRecipient && !customEmail) || isSendingEmail}
+              className={`px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                (!emailRecipient && !customEmail) || isSendingEmail
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {isSendingEmail ? (
+                <div className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Sending...
+                </div>
+              ) : (
+                'Send Receipt'
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Save Email to Customer Prompt */}
+      <Modal isOpen={showEmailSavePrompt} onClose={() => setShowEmailSavePrompt(false)} title="Save Email" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Would you like to save this email address ({emailToSaveToCustomer}) to the customer's profile for future use?
+          </p>
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => setShowEmailSavePrompt(false)}
+              className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              No, thanks
+            </button>
+            <button
+              onClick={saveEmailToCustomer}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Yes, save email
             </button>
           </div>
         </div>

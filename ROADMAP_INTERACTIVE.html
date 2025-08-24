@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeaperFX Development Roadmap - Interactive Tracking</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #16a34a;
+            --warning-color: #f59e0b;
+            --danger-color: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, var(--gray-50) 0%, #ffffff 100%);
+            color: var(--gray-800);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .phase {
+            background: white;
+            margin: 2rem 0;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .phase:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+        
+        .phase-header {
+            padding: 1.5rem 2rem;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.3s ease;
+        }
+        
+        .phase-header:hover {
+            background-color: var(--gray-50);
+        }
+        
+        .phase-completed .phase-header {
+            background: linear-gradient(135deg, var(--success-color), #059669);
+            color: white;
+        }
+        
+        .phase-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .phase-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .phase-completed .phase-meta {
+            opacity: 1;
+        }
+        
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge-completed {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .badge-available {
+            background: var(--warning-color);
+            color: white;
+        }
+        
+        .badge-live {
+            background: var(--success-color);
+            color: white;
+        }
+        
+        .phase-content {
+            display: none;
+            padding: 0 2rem 2rem;
+        }
+        
+        .phase.expanded .phase-content {
+            display: block;
+        }
+        
+        .expand-icon {
+            position: absolute;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .phase.expanded .expand-icon {
+            transform: translateY(-50%) rotate(90deg);
+        }
+        
+        .milestone {
+            background: var(--gray-50);
+            margin: 1.5rem 0;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .milestone-header {
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            background: rgba(37, 99, 235, 0.05);
+        }
+        
+        .deliverable-item {
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .deliverable-item:last-child {
+            border-bottom: none;
+        }
+        
+        .deliverable-checkbox {
+            margin-top: 0.125rem;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--success-color);
+        }
+        
+        .deliverable-text {
+            flex: 1;
+        }
+        
+        .deliverable-title {
+            font-weight: 500;
+            color: var(--gray-800);
+            margin-bottom: 0.25rem;
+        }
+        
+        .deliverable-desc {
+            font-size: 0.9rem;
+            color: var(--gray-600);
+        }
+        
+        .value-indicator {
+            font-size: 0.8rem;
+            color: var(--success-color);
+            font-weight: 600;
+        }
+        
+        .progress-bar {
+            background: var(--gray-200);
+            height: 8px;
+            border-radius: 4px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success-color), #059669);
+            transition: width 0.3s ease;
+        }
+        
+        .out-of-scope {
+            background: rgba(220, 38, 38, 0.05);
+            border-left-color: var(--danger-color);
+            margin-top: 2rem;
+        }
+        
+        .out-of-scope .milestone-header {
+            color: var(--danger-color);
+            background: rgba(220, 38, 38, 0.05);
+        }
+        
+        .payment-schedule {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(59, 130, 246, 0.05));
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border: 1px solid rgba(37, 99, 235, 0.2);
+        }
+        
+        .payment-schedule h4 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+        
+        .payment-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(37, 99, 235, 0.1);
+        }
+        
+        .payment-item:last-child {
+            border-bottom: none;
+        }
+        
+        .payment-amount {
+            font-weight: 600;
+            color: var(--success-color);
+        }
+        
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .header h1 { font-size: 2rem; }
+            .phase-meta { flex-direction: column; align-items: flex-start; }
+            .expand-icon { right: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>LeaperFX Development Roadmap</h1>
+            <p>Professional Currency Exchange System - Interactive Progress Tracker</p>
+            <p><strong>Client:</strong> Mr. Ali Mohammadi - Currency Exchange SAADAT</p>
+        </div>
+
+        <!-- STEP 1: FOUNDATION COMPLETE -->
+        <div class="phase phase-completed expanded">
+            <div class="phase-header" onclick="togglePhase(this)">
+                <div class="phase-title">STEP 1: FOUNDATION COMPLETE</div>
+                <div class="phase-meta">
+                    <span class="badge badge-completed">✅ DELIVERED</span>
+                    <span>Investment: $2,000 CAD</span>
+                    <span>Status: LIVE</span>
+                </div>
+                <span class="expand-icon">▶</span>
+            </div>
+            <div class="phase-content">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 100%"></div>
+                </div>
+                
+                <div class="milestone">
+                    <div class="milestone-header">✅ Successfully Implemented & Deployed</div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" checked disabled>
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Smart Dashboard System</div>
+                            <div class="deliverable-desc">Complete owner dashboard with intuitive navigation</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" checked disabled>
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Transaction Management</div>
+                            <div class="deliverable-desc">Comprehensive logging, tracking, and receipt generation</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" checked disabled>
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Client Management System</div>
+                            <div class="deliverable-desc">Customer database with CSV import/export capabilities</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" checked disabled>
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">FINTRAC Compliance Framework</div>
+                            <div class="deliverable-desc">Basic compliance monitoring and reporting structure</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" checked disabled>
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Live Demo Deployment</div>
+                            <div class="deliverable-desc">Accessible at <a href="https://hyperexploiter.github.io/LeaperFX/" target="_blank">https://hyperexploiter.github.io/LeaperFX/</a></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: PRODUCTION DEPLOYMENT -->
+        <div class="phase expanded">
+            <div class="phase-header" onclick="togglePhase(this)">
+                <div class="phase-title">STEP 2: PRODUCTION DEPLOYMENT & ENHANCEMENT</div>
+                <div class="phase-meta">
+                    <span class="badge badge-available">AVAILABLE</span>
+                    <span>Investment: $5,000 CAD (NON-NEGOTIABLE)</span>
+                    <span>Timeline: 4-6 weeks</span>
+                </div>
+                <span class="expand-icon">▶</span>
+            </div>
+            <div class="phase-content">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%" id="step2-progress"></div>
+                </div>
+
+                <div class="payment-schedule">
+                    <h4>💳 Payment Schedule</h4>
+                    <div class="payment-item">
+                        <span>At Agreement</span>
+                        <span class="payment-amount">$2,300 CAD</span>
+                    </div>
+                    <div class="payment-item">
+                        <span>First Deliverable</span>
+                        <span class="payment-amount">$1,700 CAD</span>
+                    </div>
+                    <div class="payment-item">
+                        <span>Completion</span>
+                        <span class="payment-amount">$1,000 CAD</span>
+                    </div>
+                </div>
+
+                <!-- MILESTONE 1 -->
+                <div class="milestone">
+                    <div class="milestone-header">🎯 Milestone 1 — Production Launch ($2,300 at agreement)</div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Custom Domain Configuration</div>
+                            <div class="deliverable-desc">Professional domain with enterprise SSL certificates (Let's Encrypt/managed certs). <span class="value-indicator">$200 value</span></div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Production Hosting Infrastructure</div>
+                            <div class="deliverable-desc">High-availability hosting with health checks, automated backups, monitoring hooks. <span class="value-indicator">$300 value</span></div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">CI/CD Pipeline</div>
+                            <div class="deliverable-desc">Automated deployment from main branch to staging → production with manual approval. <span class="value-indicator">$500 value</span></div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Database Migration & Setup</div>
+                            <div class="deliverable-desc">Production database environment with seed data and optimization. <span class="value-indicator">$300 value</span></div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Production Smoke Test</div>
+                            <div class="deliverable-desc">Zero P0/P1 errors in smoke script (quote → finalize → export CSV).</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MILESTONE 2 -->
+                <div class="milestone">
+                    <div class="milestone-header">🎯 Milestone 2 — Website Redesign + QR Flows ($1,700 at milestone)</div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Professional Website Redesign</div>
+                            <div class="deliverable-desc">Modern one-page site with brand, hours, map, contact. Mobile-responsive design generating 40% more inquiries. <span class="value-indicator">$3,000 value</span></div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">SEO Optimization Package</div>
+                            <div class="deliverable-desc">Technical SEO: title/meta/schema, sitemap, robots.txt, Google Business profile optimization. Target: Lighthouse ≥85 performance, ≥90 SEO. <span class="value-indicator">$800 value</span></div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Live Rate Board Widget</div>
+                            <div class="deliverable-desc">Public rate display with country flags, timestamp, "indicative only" disclaimer. Auto-fallback if API down. <span class="value-indicator">$600 value</span></div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">QR Code Lead Generation System</div>
+                            <div class="deliverable-desc">Dynamic QR per currency pair → mobile landing page with prefilled inquiry. Lead capture only (KYC/payment at counter). <span class="value-indicator">$1,200 value</span></div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Marketing Asset Package</div>
+                            <div class="deliverable-desc">Printable QR posters, social media image pack (PNG), professional branding materials. <span class="value-indicator">$400 value</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MILESTONE 3 -->
+                <div class="milestone">
+                    <div class="milestone-header">🎯 Milestone 3 — Polish, Training & Load Test ($1,000 at completion)</div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Client Management UX Polish</div>
+                            <div class="deliverable-desc">Fewer clicks, clearer KYC prompts, optimized workflow for single-location operation.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Smart Inventory Alerts</div>
+                            <div class="deliverable-desc">Threshold + rolling 7-day average suggestions (non-AI). Practical for premium location traffic patterns.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Training & Documentation Package</div>
+                            <div class="deliverable-desc">End-to-end test scripts, operator runbook, training session. New cashier can complete quote→receipt in ≤90 seconds.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Performance & Load Testing</div>
+                            <div class="deliverable-desc">Validated to 30 transactions/hour with median response <300ms. Optimized for single premium location.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step2')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">FINTRAC Compliance Enhancement</div>
+                            <div class="deliverable-desc">Clear LCTR/≥$10k cash flagging, CSV draft quality assurance, alerting hooks. Government-ready audit trails.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OUT OF SCOPE -->
+                <div class="milestone out-of-scope">
+                    <div class="milestone-header">❌ Out of Scope (Phase 2)</div>
+                    <div class="deliverable-item">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Debit/POS Integration (Square/Stripe/Moneris)</div>
+                            <div class="deliverable-desc">Covered in Step 3 - Payment Systems</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">FINTRAC API/XML Submission</div>
+                            <div class="deliverable-desc">Export-only in Phase 2; direct regulatory submission requires separate MSB/FWR integration</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Multi-page Marketing Site or Ranking Guarantees</div>
+                            <div class="deliverable-desc">Phase 2 focuses on technical SEO readiness; content marketing separate scope</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3: PAYMENT SYSTEMS -->
+        <div class="phase">
+            <div class="phase-header" onclick="togglePhase(this)">
+                <div class="phase-title">STEP 3: PAYMENT SYSTEMS & ANALYTICS</div>
+                <div class="phase-meta">
+                    <span class="badge badge-available">AVAILABLE</span>
+                    <span>Investment: $3,000 CAD</span>
+                    <span>Timeline: 4-6 weeks</span>
+                </div>
+                <span class="expand-icon">▶</span>
+            </div>
+            <div class="phase-content">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%" id="step3-progress"></div>
+                </div>
+
+                <div class="payment-schedule">
+                    <h4>💳 Payment Schedule</h4>
+                    <div class="payment-item">
+                        <span>At Agreement</span>
+                        <span class="payment-amount">$1,500 CAD</span>
+                    </div>
+                    <div class="payment-item">
+                        <span>At Completion</span>
+                        <span class="payment-amount">$1,500 CAD</span>
+                    </div>
+                </div>
+
+                <div class="milestone">
+                    <div class="milestone-header">🎯 Single-Location Debit Integration</div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step3')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Moneris/Square Debit Integration</div>
+                            <div class="deliverable-desc">ONE semi-integrated debit provider, ONE terminal, ONE location. Canadian Interac network. <span class="value-indicator">$1,500 value</span></div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step3')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Basic Payment Reconciliation</div>
+                            <div class="deliverable-desc">Daily settlement reports, transaction matching, basic reconciliation tools.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step3')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Receipt & Settlement Integration</div>
+                            <div class="deliverable-desc">Automated receipts for debit transactions, settlement tracking in dashboard.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="milestone">
+                    <div class="milestone-header">🎯 Enhanced Analytics for Single Location</div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step3')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Premium Location Analytics</div>
+                            <div class="deliverable-desc">Profit margin analysis optimized for high-traffic premium location, peak hour identification.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step3')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Customer Pattern Recognition</div>
+                            <div class="deliverable-desc">Transaction frequency analysis, currency preference trends, customer value segmentation.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step3')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Inventory Optimization</div>
+                            <div class="deliverable-desc">Demand forecasting based on location traffic, seasonal adjustments, reorder recommendations.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="milestone out-of-scope">
+                    <div class="milestone-header">❌ Out of Scope (Phase 3)</div>
+                    <div class="deliverable-item">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Credit Card Processing or Multi-Payment</div>
+                            <div class="deliverable-desc">Debit only in base scope; credit/multi-payment requires additional pricing</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Multi-Location Management</div>
+                            <div class="deliverable-desc">Single location focus; multi-location covered in Step 5</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">E-commerce or Online Payments</div>
+                            <div class="deliverable-desc">In-person transactions only</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 4: ENHANCED ANALYTICS -->
+        <div class="phase">
+            <div class="phase-header" onclick="togglePhase(this)">
+                <div class="phase-title">STEP 4: ENHANCED ANALYTICS & LIGHT AI</div>
+                <div class="phase-meta">
+                    <span class="badge badge-available">AVAILABLE</span>
+                    <span>Investment: $1,200 CAD</span>
+                    <span>Timeline: 2-3 weeks</span>
+                </div>
+                <span class="expand-icon">▶</span>
+            </div>
+            <div class="phase-content">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%" id="step4-progress"></div>
+                </div>
+
+                <div class="payment-schedule">
+                    <h4>💳 Payment Schedule</h4>
+                    <div class="payment-item">
+                        <span>At Agreement</span>
+                        <span class="payment-amount">$600 CAD</span>
+                    </div>
+                    <div class="payment-item">
+                        <span>At Completion</span>
+                        <span class="payment-amount">$600 CAD</span>
+                    </div>
+                </div>
+
+                <div class="milestone">
+                    <div class="milestone-header">🎯 Advanced Business Analytics</div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step4')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Enhanced Dashboard Analytics</div>
+                            <div class="deliverable-desc">Advanced profit margin analysis by currency pair, customer behavior insights, peak time analysis.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step4')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Seasonal Demand Forecasting</div>
+                            <div class="deliverable-desc">Historical pattern analysis, inventory turnover optimization, revenue trend analysis with export capabilities.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="milestone">
+                    <div class="milestone-header">🎯 Light AI Integration (GPT-2/Gemma-2B)</div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step4')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Custom Model Fine-tuning</div>
+                            <div class="deliverable-desc">Fine-tune GPT-2 or Gemma-2B on your transaction data for basic pattern recognition.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step4')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Predictive Insights</div>
+                            <div class="deliverable-desc">Simple predictions: "EUR demand typically increases 15% on Fridays", "Business customers prefer morning exchanges".</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <input type="checkbox" class="deliverable-checkbox" onchange="updateProgress('step4')">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Natural Language Reports</div>
+                            <div class="deliverable-desc">Automated daily/weekly business report summaries in plain English, inventory alerts with context.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 5: LIQUIDITY SCALING -->
+        <div class="phase">
+            <div class="phase-header" onclick="togglePhase(this)">
+                <div class="phase-title">STEP 5: LIQUIDITY SCALING & FLASH EXCHANGE</div>
+                <div class="phase-meta">
+                    <span class="badge" style="background: var(--gray-500); color: white;">CONCEPTUAL</span>
+                    <span>Investment: TBD</span>
+                    <span>Timeline: TBD</span>
+                </div>
+                <span class="expand-icon">▶</span>
+            </div>
+            <div class="phase-content">
+                <div class="milestone">
+                    <div class="milestone-header">🎯 Flash Liquidity System (Advanced Concept)</div>
+                    <div class="deliverable-item">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Banking Partner Integration</div>
+                            <div class="deliverable-desc">Partner with banks/credit facilities for instant liquidity access without physical inventory requirements.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Large Transaction Support</div>
+                            <div class="deliverable-desc">Serve exchanges $50K+ without capital constraints through real-time borrowing and settlement.</div>
+                        </div>
+                    </div>
+                    <div class="deliverable-item">
+                        <div class="deliverable-text">
+                            <div class="deliverable-title">Smart Liquidity Management</div>
+                            <div class="deliverable-desc">AI-driven optimization of inventory vs. flash borrowing, automatic partner selection.</div>
+                        </div>
+                    </div>
+                </div>
+                <p><em>Note: This step requires detailed scoping based on banking partnerships and regulatory requirements. Pricing and timeline to be determined after Phase 2-4 completion.</em></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function togglePhase(header) {
+            const phase = header.parentElement;
+            phase.classList.toggle('expanded');
+        }
+
+        function updateProgress(stepId) {
+            const phase = document.querySelector(`#${stepId}-progress`).closest('.phase');
+            const checkboxes = phase.querySelectorAll('.deliverable-checkbox');
+            const total = checkboxes.length;
+            const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const percentage = (checked / total) * 100;
+            
+            document.querySelector(`#${stepId}-progress`).style.width = percentage + '%';
+            
+            // Update phase status if fully complete
+            if (percentage === 100) {
+                phase.classList.add('phase-completed');
+            } else {
+                phase.classList.remove('phase-completed');
+            }
+        }
+
+        // Initialize expanded states
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-expand first available phase
+            const firstAvailable = document.querySelector('.phase:not(.phase-completed)');
+            if (firstAvailable) {
+                firstAvailable.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>

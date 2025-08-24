@@ -190,7 +190,7 @@ cd exchange-dashboard
 npm run install-all
 
 # Setup environment
-cp server/.env.example server/.env
+cp server/.env server/.env
 # Edit server/.env with your database credentials
 
 # Setup database

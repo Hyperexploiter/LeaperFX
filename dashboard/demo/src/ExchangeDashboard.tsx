@@ -4,9 +4,9 @@ import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis } from 'recharts';
 import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from './services/exchangeRateService';
 import webSocketService, { WebSocketEvent } from './services/webSocketService';
 
-import logoWhite from './assets/logo_white.jpg';
-import logoBlack from './assets/logo_black.PNG';
-import saadatWhite from './assets/saadat_white.PNG';
+import logoWhite from './assets/logo_white-removebg-preview.png';
+import logoBlack from './assets/logo_black.png';
+import saadatWhite from './assets/saadat_white-removebg-preview.png';
 import saadatBlack from './assets/saadat_black.PNG';
 
 // --- Type Definitions for TypeScript ---
@@ -24,6 +24,7 @@ const DEFAULT_SPREAD_PERCENT = 1.5;
 
 // --- Sub-Components ---
 
+// START: Ticker component updated for light/dark theme
 const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) => {
   if (!rates) return null;
   const tickerItems = Object.keys(rates).filter(key => ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CHF', 'CNY'].includes(key));
@@ -33,15 +34,15 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
     const { customerBuys } = calculateRates(currency);
     return (
         <div key={currency} className="flex items-center mx-8 text-base flex-shrink-0">
-          <span className="font-semibold text-gray-400">{currency}/{baseCurrency}</span>
-          <span className="ml-3 text-green-400 font-mono text-lg">{customerBuys}</span>
-          <ArrowUp className="h-5 w-5 text-green-400 ml-1.5" />
+          <span className="font-semibold text-gray-500 dark:text-gray-400">{currency}/{baseCurrency}</span>
+          <span className="ml-3 text-green-500 dark:text-green-400 font-mono text-lg">{customerBuys}</span>
+          <ArrowUp className="h-5 w-5 text-green-500 dark:text-green-400 ml-1.5" />
         </div>
     );
   });
 
   return (
-    <div className="bg-gray-900 dark:bg-black text-white py-4 overflow-hidden w-full shadow-lg rounded-xl">
+    <div className="bg-white dark:bg-black py-4 overflow-hidden w-full shadow-lg rounded-xl">
       <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation">
         {tickerContent}
         {tickerContent} {/* Duplicate for seamless loop */}
@@ -49,6 +50,7 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
     </div>
   );
 };
+// END: Ticker component updated
 
 const DarkModeToggle: React.FC<DarkModeToggleProps> = ({ darkMode, setDarkMode }) => (
   <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full bg-white/50 dark:bg-gray-800/50 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors" aria-label="Toggle dark mode">
@@ -131,8 +133,8 @@ export default function ExchangeDashboard(): React.ReactElement {
   }, []);
   
   useEffect(() => {
-     const interval = setInterval(getRates, REFRESH_INTERVAL_MS);
-     return () => clearInterval(interval);
+      const interval = setInterval(getRates, REFRESH_INTERVAL_MS);
+      return () => clearInterval(interval);
   }, [getRates]);
 
   // Set up WebSocket connection for real-time rate updates from store owner
@@ -244,7 +246,9 @@ export default function ExchangeDashboard(): React.ReactElement {
         </div>
         
         <main>
-            <div className="w-full bg-white/30 dark:bg-gray-800/30 rounded-xl shadow-lg p-3 mb-8 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 flex flex-wrap items-center justify-between gap-4">
+          {/* START: This is the entire updated control bar section */}
+          <div className="group w-full bg-white/30 dark:bg-gray-800/30 rounded-xl shadow-lg mb-8 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 transition-all duration-300 ease-in-out min-h-[1.5rem] group-hover:min-h-[5rem] group-hover:px-6 group-hover:py-3">
+            <div className="flex flex-wrap items-center justify-end gap-4 w-full max-h-0 opacity-0 group-hover:max-h-screen group-hover:opacity-100 overflow-hidden group-hover:overflow-visible transition-all duration-500 ease-in-out">
                 {/* COMMENTED OUT - Add Currency Section (keeping for future use)
                 <div className="flex items-center gap-2">
                     <label htmlFor="currency-select" className="font-semibold text-nowrap">Add Currency:</label>
@@ -254,11 +258,13 @@ export default function ExchangeDashboard(): React.ReactElement {
                     <button onClick={handleAddCurrency} disabled={isLoading} className="flex items-center p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"><Plus className="h-4 w-4" /></button>
                 </div>
                 */}
-                <div className="flex items-center gap-4">
-                    <LiveClock />
-                    <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
-                </div>
+              <div className="flex items-center gap-4">
+                <LiveClock />
+                <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
+              </div>
             </div>
+          </div>
+          {/* END: End of the updated control bar section */}
 
           {isLoading && <div className="flex justify-center items-center p-10 bg-white/50 dark:bg-gray-800/50 rounded-lg shadow-md backdrop-blur-md"><Loader className="h-12 w-12 mr-4 animate-spin text-blue-600" /><span className="text-lg">Loading rates...</span></div>}
           {error && !isLoading && <div className="bg-red-100 dark:bg-red-900/50 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-4 rounded-lg shadow-md flex items-center" role="alert"><AlertTriangle className="h-6 w-6 mr-3" /><div><p className="font-bold">Error:</p><p>{error}</p></div></div>}

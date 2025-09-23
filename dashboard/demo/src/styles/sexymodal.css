@@ -1,0 +1,152 @@
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ticker-scroll {
+  animation: ticker-scroll 30s linear infinite;
+}
+
+.animate-ticker-scroll:hover {
+  animation-play-state: paused;
+}
+
+/* Ultra-thin border styles */
+.bloomberg-border {
+  border: 0.5px solid rgba(0, 212, 255, 0.2);
+}
+
+.bloomberg-border-hover:hover {
+  border-color: rgba(0, 212, 255, 0.5);
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
+}
+
+/* Currency card enhancements */
+.currency-card {
+  background: linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.currency-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 215, 0, 0.3) 50%,
+    transparent 100%
+  );
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Professional glow effects */
+.text-glow-cyan {
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+.text-glow-gold {
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+.text-glow-green {
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
+}
+
+.text-glow-red {
+  text-shadow: 0 0 8px rgba(255, 68, 68, 0.3);
+}
+
+/* Chart area gradient overlays */
+.chart-overlay {
+  position: relative;
+  background: linear-gradient(180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 8, 20, 0.2) 100%
+  );
+}
+
+/* Market watch item hover */
+.market-item:hover {
+  background: linear-gradient(90deg,
+    rgba(0, 20, 40, 0.3) 0%,
+    rgba(0, 8, 20, 0.2) 100%
+  );
+  border-left: 2px solid rgba(255, 176, 0, 0.6);
+  padding-left: 6px;
+  transition: all 0.2s ease;
+}
+
+/* Professional scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000814;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.4);
+}
+
+/* Pulse animation for live data */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.live-indicator {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Ultra-professional button styles */
+.bloomberg-button {
+  background: linear-gradient(135deg, #001428 0%, #002142 100%);
+  border: 0.5px solid rgba(0, 212, 255, 0.3);
+  color: #00D4FF;
+  transition: all 0.2s ease;
+}
+
+.bloomberg-button:hover {
+  background: linear-gradient(135deg, #002142 0%, #003256 100%);
+  border-color: rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+}
+
+/* Grid line effects */
+.grid-line {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0, 212, 255, 0.1) 50%,
+    transparent 100%
+  );
+  height: 0.5px;
+  width: 100%;
+}

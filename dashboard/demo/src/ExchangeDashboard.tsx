@@ -3,6 +3,7 @@ import { Clock, Sun, Moon, Plus, X, Loader, AlertTriangle, ArrowUp, TrendingUp, 
 import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis, XAxis, CartesianGrid } from 'recharts';
 import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from './services/exchangeRateService';
 import webSocketService, { WebSocketEvent } from './services/webSocketService';
+import './styles/sexymodal.css';
 
 import logoWhite from './assets/logo_white.jpg';
 import logoBlack from './assets/logo_black.PNG';
@@ -34,20 +35,19 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
     const change = parseFloat(change24h);
     const isPositive = !isNaN(change) && change >= 0;
     const arrow = isPositive ? '▲' : '▼';
-    const color = isPositive ? 'text-green-400' : 'text-red-500';
     return (
-        <div key={currency} className="flex items-center mx-6 text-sm flex-shrink-0">
-          <span className="font-bold text-cyan-400">{currency}</span>
-          <span className="font-semibold text-gray-500">/{baseCurrency}</span>
-          <span className="ml-3 text-white font-mono text-base font-semibold">{customerBuys}</span>
-          <span className={`ml-2 font-bold ${color}`}>{arrow} {isNaN(change) ? '' : `${Math.abs(change).toFixed(2)}%`}</span>
+        <div key={currency} className="flex items-center mx-4 text-xs flex-shrink-0">
+          <span className="font-bold" style={{ color: '#00D4FF' }}>{currency}</span>
+          <span className="font-semibold" style={{ color: '#666' }}>/{baseCurrency}</span>
+          <span className="ml-2 text-white font-mono text-sm font-semibold">{customerBuys}</span>
+          <span className={`ml-1.5 font-bold`} style={{ color: isPositive ? '#00FF00' : '#FF0000' }}>{arrow} {isNaN(change) ? '' : `${Math.abs(change).toFixed(2)}%`}</span>
         </div>
     );
   });
 
   return (
-    <div className="bg-gray-900 text-white py-2 overflow-hidden w-full border-t border-b border-gray-800">
-      <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation px-4">
+    <div className="bg-black text-white py-1.5 overflow-hidden w-full" style={{ borderTop: '0.5px solid rgba(0, 212, 255, 0.2)' }}>
+      <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation px-2">
         {tickerContent}
         {tickerContent} {/* Duplicate for seamless loop */}
       </div>
@@ -56,8 +56,8 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
 };
 
 const DarkModeToggle: React.FC<DarkModeToggleProps> = ({ darkMode, setDarkMode }) => (
-  <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded bg-gray-800 text-cyan-400 hover:bg-gray-700 transition-colors border border-cyan-800/50" aria-label="Toggle dark mode">
-    {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+  <button onClick={() => setDarkMode(!darkMode)} className="p-1.5 bg-black hover:bg-gray-900 transition-colors" style={{ border: '0.5px solid rgba(0, 212, 255, 0.3)', color: '#00D4FF' }} aria-label="Toggle dark mode">
+    {darkMode ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
   </button>
 );
 
@@ -69,7 +69,7 @@ const LiveClock: React.FC = () => {
     }, []);
 
     return (
-        <div className="font-mono text-sm text-cyan-400">
+        <div className="font-mono text-xs" style={{ color: '#00D4FF' }}>
             {time.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'medium' })}
         </div>
     );
@@ -187,41 +187,39 @@ const generateMiniData = (trend: Trend, points = 20) => {
 };
 
 const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
-  const color = item.trend === 'up' ? '#10b981' : '#ef4444';
+  const color = item.trend === 'up' ? '#00FF00' : '#FF0000';
   const gradientId = `mw-${item.symbol}-grad`;
   const data = useMemo(() => generateMiniData(item.trend, 18), [item.trend]);
 
   return (
-    <div className="bg-slate-950/60 border border-slate-800/50 rounded-lg p-3 hover:border-cyan-600/30 hover:bg-slate-900/40 transition-all duration-300">
+    <div className="bg-black px-2 py-1.5 hover:bg-gray-950 transition-all duration-100" style={{ borderBottom: '0.5px solid rgba(0, 212, 255, 0.08)' }}>
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
-          <div className="text-orange-400 font-semibold text-sm truncate">{item.symbol}</div>
-          <div className="text-slate-100 font-mono font-bold text-lg truncate">{item.value}</div>
-          <div className="text-slate-400 text-xs mt-1 truncate">{item.name}</div>
+          <div className="font-bold text-xs" style={{ color: '#FFB000' }}>{item.symbol}</div>
+          <div className="text-white font-mono font-bold text-sm">{item.value}</div>
         </div>
-        <div className="flex items-center space-x-3">
-          <div className="w-16 h-6">
+        <div className="flex items-center space-x-2">
+          <div className="w-14 h-6">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
                 <defs>
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={color} stopOpacity={0.4} />
+                    <stop offset="5%" stopColor={color} stopOpacity={0.3} />
                     <stop offset="95%" stopColor={color} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <YAxis hide domain={[ 'dataMin - 0.02', 'dataMax + 0.02' ] as any} />
-                <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradientId})`} dot={false} />
+                <Area type="monotone" dataKey="value" stroke={color} strokeWidth={0.5} fill={`url(#${gradientId})`} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className={`text-right ${item.trend === 'up' ? 'text-emerald-400' : 'text-rose-400'}`}>
-            <div className="flex items-center space-x-1 justify-end">
-              <span className="text-xs">{item.trend === 'up' ? '▲' : '▼'}</span>
-              <span className="font-semibold text-sm">{item.change}</span>
-              {item.changePercent && (
-                <span className="text-xs opacity-80">({item.changePercent})</span>
-              )}
+          <div className="text-right min-w-[60px]">
+            <div className="flex items-center justify-end" style={{ color: item.trend === 'up' ? '#00FF00' : '#FF0000' }}>
+              <span className="text-xs font-bold">{item.trend === 'up' ? '▲' : '▼'} {item.change}</span>
             </div>
+            {item.changePercent && (
+              <span className="text-xs opacity-80" style={{ color: '#666' }}>({item.changePercent})</span>
+            )}
           </div>
         </div>
       </div>
@@ -416,16 +414,16 @@ export default function ExchangeDashboard(): React.ReactElement {
   const availableToAdd = allSupportedCurrencies.filter(c => !displayedCurrencies.includes(c.value) && c.value !== BASE_CURRENCY);
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 font-sans overflow-x-hidden">
-      <div className="h-full flex flex-col">
+    <div className="min-h-screen bg-black text-gray-100 font-sans overflow-hidden">
+      <div className="h-screen flex flex-col">
         {/* Header Bar */}
-        <header className="bg-gradient-to-r from-gray-900 to-gray-800 border-b border-cyan-800/50 px-6 py-3">
+        <header className="bg-black px-4 py-2" style={{ borderBottom: '0.5px solid rgba(0, 212, 255, 0.3)' }}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img src={darkMode ? saadatBlack : saadatWhite} alt="Saadat Exchange" className="h-10 w-auto" />
-              <div className="text-cyan-400 font-bold text-xl tracking-wide">EXCHANGE TERMINAL</div>
+            <div className="flex items-center gap-3">
+              <img src={darkMode ? saadatBlack : saadatWhite} alt="SAADAT" className="h-8 w-auto" />
+              <div className="font-bold text-lg tracking-wider" style={{ color: '#00D4FF' }}>EXCHANGE TERMINAL</div>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <LiveClock />
               <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
             </div>
@@ -447,47 +445,101 @@ export default function ExchangeDashboard(): React.ReactElement {
                     const isPositive = parseFloat(change24h) >= 0;
 
                     return (
-                      <div key={currency} className="bg-slate-900/60 rounded-2xl shadow-xl hover:shadow-cyan-500/10 hover:-translate-y-2 transition-all duration-300 ease-in-out border border-slate-800 group overflow-hidden">
-                        <div className="p-6">
-                          <div className="flex items-center justify-between mb-4">
+                      <div key={currency} className="relative group overflow-hidden hover:scale-[1.02] transition-all duration-200" style={{
+                        background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                        border: '0.5px solid rgba(0, 150, 255, 0.2)',
+                        boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
+                      }}>
+                        <div className="p-3">
+                          <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center">
-                              <img src={`https://flagcdn.com/w40/${info.code}.png`} width="40" alt={`${info.name} flag`} className="mr-4 rounded-full shadow-md"/>
-                              <div><h3 className="text-xl font-bold text-orange-400">{currency}</h3><p className="text-sm text-cyan-300/90">{info.name}</p></div>
+                              <img src={`https://flagcdn.com/w40/${info.code}.png`} width="28" alt={`${info.name} flag`} className="mr-3 rounded-sm shadow-sm"/>
+                              <div>
+                                <h3 className="text-lg font-bold" style={{
+                                  color: '#00D4FF',
+                                  textShadow: '0 0 10px rgba(0, 212, 255, 0.3)'
+                                }}>{currency}</h3>
+                                <p className="text-xs font-medium" style={{ color: '#4A90E2' }}>{info.name}</p>
+                              </div>
                             </div>
-                            <button onClick={() => handleRemoveCurrency(currency)} className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><X className="h-5 w-5" /></button>
+                            <button onClick={() => handleRemoveCurrency(currency)} className="text-gray-600 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
                           </div>
-                          <div className="space-y-4 text-lg">
-                            <div className="flex justify-between items-baseline"><span className="text-slate-300">We Buy</span><span className="font-mono font-bold text-sky-400">{customerSells}</span></div>
-                            <div className="flex justify-between items-baseline"><span className="text-slate-300">We Sell</span><span className="font-mono font-bold text-emerald-400">{customerBuys}</span></div>
+                          <div className="space-y-2.5">
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#4A90E2' }}>We Buy</span>
+                              <span className="font-mono font-bold text-lg tabular-nums" style={{
+                                background: 'linear-gradient(90deg, #FFFFFF 0%, #E0E0E0 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                textShadow: '0 0 20px rgba(255, 255, 255, 0.3)'
+                              }}>{customerSells}</span>
+                            </div>
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#4A90E2' }}>We Sell</span>
+                              <span className="font-mono font-bold text-lg tabular-nums" style={{
+                                background: 'linear-gradient(90deg, #00FF88 0%, #00D4FF 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                textShadow: '0 0 20px rgba(0, 255, 136, 0.3)'
+                              }}>{customerBuys}</span>
+                            </div>
                           </div>
                         </div>
-                        <div className="px-6 pt-2 pb-4">
-                          <div className="h-20 -mx-6 -mb-4">
+                        <div className="px-3 pt-2 pb-3">
+                          <div className="h-14 -mx-3 -mb-3">
                             <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                              <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
                                 <defs>
-                                  <linearGradient id={`color-${currency}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor={isPositive ? '#10B981' : '#EF4444'} stopOpacity={0.4}/>
-                                    <stop offset="95%" stopColor={isPositive ? '#10B981' : '#EF4444'} stopOpacity={0}/>
+                                  <linearGradient id={`gradient-${currency}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor={isPositive ? '#FFD700' : '#FF4444'} stopOpacity={0.6}/>
+                                    <stop offset="50%" stopColor={isPositive ? '#FFB000' : '#FF0000'} stopOpacity={0.3}/>
+                                    <stop offset="100%" stopColor={isPositive ? '#FF8C00' : '#8B0000'} stopOpacity={0.05}/>
+                                  </linearGradient>
+                                  <linearGradient id={`stroke-${currency}`} x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stopColor={isPositive ? '#FFD700' : '#FF4444'} stopOpacity={0.8}/>
+                                    <stop offset="100%" stopColor={isPositive ? '#FFA500' : '#FF0000'} stopOpacity={1}/>
                                   </linearGradient>
                                 </defs>
                                 <YAxis hide={true} domain={['dataMin - (dataMax - dataMin) * 0.2', 'dataMax + (dataMax - dataMin) * 0.2']} />
-                                <Tooltip contentStyle={{ backgroundColor: 'rgba(31, 41, 55, 0.8)', border: 'none', borderRadius: '0.5rem' }} labelStyle={{ color: '#d1d5db' }}/>
-                                <Area type="monotone" dataKey="value" stroke={isPositive ? '#10B981' : '#EF4444'} strokeWidth={2} fillOpacity={1} fill={`url(#color-${currency})`} />
+                                <Tooltip
+                                  contentStyle={{
+                                    backgroundColor: 'rgba(0, 8, 20, 0.95)',
+                                    border: '0.5px solid rgba(0, 212, 255, 0.4)',
+                                    borderRadius: '3px',
+                                    padding: '4px 8px',
+                                    backdropFilter: 'blur(10px)'
+                                  }}
+                                  labelStyle={{ color: '#00D4FF', fontSize: 11, fontWeight: 'bold' }}
+                                  itemStyle={{ color: '#FFD700', fontSize: 10 }}
+                                />
+                                <Area
+                                  type="monotone"
+                                  dataKey="value"
+                                  stroke={`url(#stroke-${currency})`}
+                                  strokeWidth={1.5}
+                                  fillOpacity={1}
+                                  fill={`url(#gradient-${currency})`}
+                                />
                               </AreaChart>
                             </ResponsiveContainer>
                           </div>
                         </div>
-                        <div className="bg-slate-950/40 px-6 py-3 border-t border-slate-800 flex justify-between items-center text-sm">
-                          <span className="text-slate-400 font-semibold">24h Change</span>
+                        <div className="px-3 py-1.5 flex justify-between items-center" style={{
+                          background: 'linear-gradient(90deg, rgba(0, 20, 40, 0.8) 0%, rgba(0, 8, 20, 0.9) 100%)',
+                          borderTop: '0.5px solid rgba(0, 212, 255, 0.2)'
+                        }}>
+                          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#4A90E2' }}>24h</span>
                           {change24h === '0.00' ? (
-                            <span className="text-xs text-slate-400/80">Market awaiting update</span>
+                            <span className="text-xs" style={{ color: '#666' }}>—</span>
                           ) : change24h !== 'N/A' ? (
-                            <div className={`flex items-center font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                              <span className="mr-1">{isPositive ? '▲' : '▼'}</span>
+                            <div className={`flex items-center font-bold text-sm`} style={{
+                              color: isPositive ? '#00FF88' : '#FF4444',
+                              textShadow: isPositive ? '0 0 5px rgba(0, 255, 136, 0.4)' : '0 0 5px rgba(255, 68, 68, 0.4)'
+                            }}>
+                              <span className="mr-1" style={{ fontSize: '10px' }}>{isPositive ? '▲' : '▼'}</span>
                               {change24h}%
                             </div>
-                          ) : ( <span className="text-slate-500">N/A</span> )}
+                          ) : ( <span className="text-xs" style={{ color: '#666' }}>—</span> )}
                         </div>
                       </div>
                     );
@@ -512,7 +564,7 @@ export default function ExchangeDashboard(): React.ReactElement {
         </main>
 
         {/* Bottom ticker */}
-        <footer className="bg-gray-900 border-t border-cyan-800/50">
+        <footer className="bg-black" style={{ borderTop: '0.5px solid rgba(0, 212, 255, 0.2)' }}>
           <Ticker rates={liveRates} baseCurrency={BASE_CURRENCY} calculateRates={calculateRates}/>
         </footer>
       </div>

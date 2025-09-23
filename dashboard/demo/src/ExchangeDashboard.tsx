@@ -429,8 +429,8 @@ export default function ExchangeDashboard(): React.ReactElement {
   const availableToAdd = allSupportedCurrencies.filter(c => !displayedCurrencies.includes(c.value) && c.value !== BASE_CURRENCY);
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 font-sans overflow-hidden">
-      <div className="h-screen flex flex-col">
+    <div className="min-h-screen bg-black text-gray-100 font-sans">
+      <div className="min-h-screen flex flex-col">
         {/* Header Bar */}
         <header className="bg-black px-4 py-2" style={{ borderBottom: '0.5px solid rgba(0, 212, 255, 0.3)' }}>
           <div className="flex items-center justify-between">
@@ -446,7 +446,7 @@ export default function ExchangeDashboard(): React.ReactElement {
           </div>
         </header>
         
-        <main className="flex-1 flex flex-col p-4">
+        <main className="flex-1 flex flex-col p-4 overflow-auto">
           {isLoading && <div className="flex justify-center items-center p-10 bg-gray-900 rounded-lg shadow-md"><Loader className="h-12 w-12 mr-4 animate-spin text-cyan-400" /><span className="text-lg text-white">Loading rates...</span></div>}
           {error && !isLoading && <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 p-4 rounded-lg shadow-md flex items-center" role="alert"><AlertTriangle className="h-6 w-6 mr-3" /><div><p className="font-bold">Error:</p><p>{error}</p></div></div>}
           
@@ -569,7 +569,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                               textShadow: isPositive ? '0 0 3px rgba(0, 255, 136, 0.5)' : '0 0 3px rgba(255, 68, 68, 0.5)',
                               fontFamily: 'monospace'
                             }}>
-                              <span className="mr-0.5" style={{ fontSize: '8px' }}>{isPositive ? '▲' : '▼'}</span>
+                              <span className="mr-0.5" style={{ fontSize: '10px' }}>{isPositive ? '▲' : '▼'}</span>
                               {change24h}%
                             </div>
                           ) : ( <span className="text-xs font-mono" style={{ color: '#666' }}>—</span> )}
@@ -579,28 +579,6 @@ export default function ExchangeDashboard(): React.ReactElement {
                   })}
                 </div>
 
-                {/* News Bulletin Section */}
-                <div className="mt-4 bg-black border" style={{
-                  borderColor: 'rgba(255, 165, 0, 0.2)',
-                  borderWidth: '0.5px',
-                  borderLeftWidth: '3px',
-                  borderLeftColor: '#FFA500'
-                }}>
-                  <div className="p-3">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-xs font-bold uppercase" style={{
-                        color: '#FFA500',
-                        fontFamily: 'monospace',
-                        minWidth: '80px'
-                      }}>BREAKING</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-white mb-1">Federal Reserve holds interest rates steady at 5.25-5.50%</p>
-                        <p className="text-xs" style={{ color: '#666' }}>Markets react positively to dovish tone in Powell's statement • USD weakens against major currencies • Gold surges to $2,050/oz</p>
-                      </div>
-                      <span className="text-xs" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>14:32</span>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Right sidebar */}
@@ -632,6 +610,31 @@ export default function ExchangeDashboard(): React.ReactElement {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Daily Bulletin Section - Moved to bottom */}
+          {!isLoading && !error && (
+            <div className="mx-4 mb-4 bg-black border" style={{
+              borderColor: 'rgba(255, 165, 0, 0.2)',
+              borderWidth: '0.5px',
+              borderLeftWidth: '4px',
+              borderLeftColor: '#FFA500'
+            }}>
+              <div className="p-4">
+                <div className="flex items-start space-x-4">
+                  <span className="text-sm font-bold uppercase" style={{
+                    color: '#FFA500',
+                    fontFamily: 'monospace',
+                    minWidth: '120px'
+                  }}>DAILY BULLETIN</span>
+                  <div className="flex-1">
+                    <p className="text-base font-semibold text-white mb-2">Federal Reserve holds interest rates steady at 5.25-5.50%</p>
+                    <p className="text-sm" style={{ color: '#666' }}>Markets react positively to dovish tone in Powell's statement • USD weakens against major currencies • Gold surges to $2,050/oz • Canadian dollar strengthens to 1.35 against USD • Oil prices climb 2.3% on supply concerns</p>
+                  </div>
+                  <span className="text-sm" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>14:32 EST</span>
                 </div>
               </div>
             </div>

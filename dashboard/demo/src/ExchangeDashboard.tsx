@@ -46,7 +46,7 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
   });
 
   return (
-    <div className="bg-black text-white py-1.5 overflow-hidden w-full" style={{ borderTop: '0.5px solid rgba(0, 212, 255, 0.2)' }}>
+    <div className="bg-black text-white py-1.5 overflow-hidden w-full">
       <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation px-2">
         {tickerContent}
         {tickerContent} {/* Duplicate for seamless loop */}
@@ -123,41 +123,38 @@ const YieldChart: React.FC = () => {
   }, [view]);
 
   return (
-    <div className="bg-slate-900/60 rounded-2xl border border-slate-800 shadow-xl mb-8">
-      <div className="flex items-center justify-between p-4">
-        <div>
-          <h2 className="text-xl font-semibold text-cyan-400">Market Yields</h2>
-          <p className="text-sm text-slate-400">One Year and Intraday simulated views</p>
-        </div>
-        <div className="space-x-2">
-          <button
-            className={`px-3 py-1 rounded-md text-sm border ${view === 'intraday' ? 'bg-cyan-600/20 text-cyan-300 border-cyan-700' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}
-            onClick={() => setView('intraday')}
-          >
-            Intraday
-          </button>
-          <button
-            className={`px-3 py-1 rounded-md text-sm border ${view === '1y' ? 'bg-cyan-600/20 text-cyan-300 border-cyan-700' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}
-            onClick={() => setView('1y')}
-          >
-            1Y
-          </button>
-        </div>
+    <div className="bg-black border" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
+      <div className="p-2">
+        <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>CAD 30-Year Yield</h2>
+        <p className="text-xs" style={{ color: '#FFB000' }}>4.96 UNCH</p>
       </div>
-      <div className="h-72 md:h-80 px-2 pb-4">
+      <div className="h-32 px-2 pb-2" style={{
+        background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)'
+      }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="yieldGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.35} />
-                <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                <stop offset="0%" stopColor="#FFD700" stopOpacity={0.7} />
+                <stop offset="30%" stopColor="#FFB000" stopOpacity={0.5} />
+                <stop offset="70%" stopColor="#FF8C00" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="#FF6B00" stopOpacity={0.05} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="rgba(148,163,184,0.2)" vertical={false} />
-            <XAxis dataKey="time" hide={view === 'intraday'} tick={{ fill: '#94a3b8' }} />
-            <YAxis tick={{ fill: '#94a3b8' }} domain={[ (dataMin: number) => dataMin - 0.1, (dataMax: number) => dataMax + 0.1 ]} />
-            <Tooltip contentStyle={{ backgroundColor: 'rgba(2,6,23,0.9)', border: '1px solid rgba(8,145,178,0.3)', borderRadius: 8 }} labelStyle={{ color: '#67e8f9' }} itemStyle={{ color: '#e2e8f0' }} />
-            <Area type="monotone" dataKey="value" stroke="#22d3ee" strokeWidth={2} fill="url(#yieldGradient)" />
+            <CartesianGrid stroke="rgba(0, 212, 255, 0.05)" vertical={false} strokeDasharray="3 3" />
+            <XAxis dataKey="time" hide tick={{ fill: '#666', fontSize: 9 }} />
+            <YAxis tick={{ fill: '#666', fontSize: 9 }} domain={[ (dataMin: number) => dataMin - 0.1, (dataMax: number) => dataMax + 0.1 ]} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'rgba(0, 8, 20, 0.98)',
+                border: '0.5px solid rgba(255, 215, 0, 0.3)',
+                borderRadius: '2px',
+                padding: '3px 6px'
+              }}
+              labelStyle={{ color: '#FFD700', fontSize: 10 }}
+              itemStyle={{ color: '#FFB000', fontSize: 9 }}
+            />
+            <Area type="monotone" dataKey="value" stroke="#FFD700" strokeWidth={0.8} fill="url(#yieldGradient)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -437,10 +434,11 @@ export default function ExchangeDashboard(): React.ReactElement {
         {/* Header Bar */}
         <header className="bg-black px-4 py-2" style={{ borderBottom: '0.5px solid rgba(0, 212, 255, 0.3)' }}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src={darkMode ? saadatBlack : saadatWhite} alt="SAADAT" className="h-8 w-auto" />
-              <div className="font-bold text-lg tracking-wider" style={{ color: '#00D4FF' }}>EXCHANGE TERMINAL</div>
-            </div>
+            <div className="font-bold text-2xl tracking-wider" style={{
+              color: '#00D4FF',
+              textShadow: '0 0 10px rgba(0, 212, 255, 0.3)',
+              fontFamily: 'monospace'
+            }}>SAADAT EXCHANGE</div>
             <div className="flex items-center gap-4">
               <LiveClock />
               <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
@@ -474,8 +472,8 @@ export default function ExchangeDashboard(): React.ReactElement {
                               <img src={`https://flagcdn.com/w40/${info.code}.png`} width="24" alt={`${info.name} flag`} className="mr-2 rounded-sm shadow-sm"/>
                               <div className="-mt-0.5">
                                 <h3 className="text-base font-bold leading-tight" style={{
-                                  color: '#FFD700',
-                                  textShadow: '0 0 8px rgba(255, 215, 0, 0.4)',
+                                  color: '#FFA500',
+                                  textShadow: '0 0 8px rgba(255, 165, 0, 0.4)',
                                   fontFamily: 'monospace',
                                   letterSpacing: '0.5px'
                                 }}>{currency}</h3>
@@ -593,14 +591,40 @@ export default function ExchangeDashboard(): React.ReactElement {
                   </div>
                 </div>
                 <YieldChart />
+                {/* Weather Forecast Widget */}
+                <div className="bg-black border mt-2" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
+                  <div className="p-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#00D4FF', borderBottom: '0.5px solid rgba(0, 212, 255, 0.15)', paddingBottom: '4px' }}>Weather Toronto</h3>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center space-x-2">
+                        <span style={{ fontSize: '20px' }}>☀️</span>
+                        <div>
+                          <div className="font-mono font-bold text-lg" style={{ color: '#FFD700' }}>22°C</div>
+                          <div className="text-xs" style={{ color: '#666' }}>Clear Sky</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs" style={{ color: '#FFB000' }}>H: 24°</div>
+                        <div className="text-xs" style={{ color: '#4A90E2' }}>L: 18°</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </main>
 
-        {/* Bottom ticker */}
-        <footer className="bg-black" style={{ borderTop: '0.5px solid rgba(0, 212, 255, 0.2)' }}>
-          <Ticker rates={liveRates} baseCurrency={BASE_CURRENCY} calculateRates={calculateRates}/>
+        {/* Bottom ticker with logo */}
+        <footer className="bg-black relative" style={{ borderTop: '0.5px solid rgba(0, 212, 255, 0.2)' }}>
+          <div className="flex items-center">
+            <div className="px-3 py-1 flex items-center" style={{ borderRight: '0.5px solid rgba(0, 212, 255, 0.2)' }}>
+              <img src={darkMode ? saadatBlack : saadatWhite} alt="SAADAT" className="h-6 w-auto" />
+            </div>
+            <div className="flex-1">
+              <Ticker rates={liveRates} baseCurrency={BASE_CURRENCY} calculateRates={calculateRates}/>
+            </div>
+          </div>
         </footer>
       </div>
     </div>

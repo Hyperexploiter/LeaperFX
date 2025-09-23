@@ -1,0 +1,295 @@
+%! Author = hyperexploiter
+%! Date = 2025-09-21
+
+\documentclass[11pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{enumitem}
+\usepackage{lastpage}
+\usepackage{fancyhdr}
+
+% --- DOCUMENT STYLING ---
+\geometry{
+    left=1in,
+    right=1in,
+    top=1in,
+    bottom=1in
+}
+
+\definecolor{primary}{RGB}{45, 55, 72}
+\definecolor{secondary}{RGB}{74, 85, 104}
+\definecolor{accent}{RGB}{43, 108, 176}
+\definecolor{lightgray}{RGB}{237, 242, 247}
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyhead[L]{\textcolor{secondary}{\small LeaperFX Project - Phase 2 Agreement}}
+\fancyfoot[C]{\textcolor{secondary}{\thepage\ of \pageref{LastPage}}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\titleformat{\documentclass}{\normalfont\Large\bfseries\color{primary}}{\thesection}{1em}{}
+\titleformat{\section}{\normalfont\Large\bfseries\color{primary}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\color{secondary}}{\thesubsection.}{0.5em}{}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=accent,
+    urlcolor=accent,
+}
+
+\renewcommand{\labelitemi}{$\bullet$}
+\renewcommand{\labelitemii}{$\circ$}
+
+% --- DOCUMENT START ---
+\begin{document}
+
+\begin{center}
+    \vspace*{1cm}
+    {\huge\bfseries\color{primary} Freelance Service Agreement} \\
+    {\Large\bfseries\color{secondary} (Independent Contractor Agreement)} \\
+    \vspace{0.5cm}
+    \hrule
+    \vspace{0.2cm}
+    {\large \textbf{Project:} LeaperFX -- Phase 2 Production System \& Crypto Integration} \\
+    \vspace{0.2cm}
+    \hrule
+    \vspace{1cm}
+\end{center}
+
+% --- PARTIES SECTION ---
+\section*{Parties to the Agreement}
+
+This Agreement is entered into as of September 15, 2025 (the "Effective Date").
+
+\begin{tabularx}{\textwidth}{@{} X X @{}}
+    \textbf{Client:} & \textbf{Freelancer (Provider):} \\
+    Mr. Ali Mohammadi & Hypervelocity Capital™ \\
+    Currency Exchange SAADAT & (Hereinafter referred to as "the Developer") \\
+    (Hereinafter referred to as "the Client") & \\
+\end{tabularx}
+
+\vspace{1cm}
+
+This document constitutes the entire agreement for the services outlined herein, superseding any previous agreements or discussions related to this specific phase of work.
+
+% --- SCOPE OF SERVICES ---
+\section{Scope of Services: Phase 2}
+The Developer shall perform the following services and deliver the components outlined across three main milestones, plus the accepted Cryptocurrency Integration enhancement.
+
+\subsection{Milestone 1: Infrastructure \& Dashboard Enhancement}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Custom Domain \& Production Hosting:} Professional domain setup with enterprise-grade hosting, SSL certificate, automated daily backups, and high-availability monitoring.
+    \item \textbf{Enhanced Dashboard Finalization:} UX optimization for a 90-second quote-to-receipt workflow, clearer KYC prompts, and performance enhancements.
+    \item \textbf{Professional Website Redesign:} A modern, mobile-responsive, single-page website with Google Maps integration and SEO optimization to increase customer inquiries.
+    \item \textbf{Live Rate Display Widget:} A public-facing exchange rate board with real-time updates and country flags.
+\end{itemize}
+
+\subsection{Milestone 2: Stripe Integration \& Infrastructure System}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Stripe Terminal Integration (2 Devices):} Complete payment processing setup for Interac and international cards using a Verifone P400 and a BBPOS WisePad 3, with real-time sync to the dashboard.
+    \item \textbf{CI/CD Pipeline Implementation:} Automated testing and deployment pipeline (GitHub Actions) with staging and production environments for safe, reliable updates.
+    \item \textbf{Production Database Migration:} Secure, performance-tuned production database setup with data migration scripts.
+    \item \textbf{QR Code Lead Generation System:} Dynamic QR codes for specific currency pairs linking to mobile-optimized inquiry forms to capture leads.
+\end{itemize}
+
+\subsection{Milestone 3: Analytics \& Final System Deployment}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Advanced Analytics Dashboard:} Business intelligence tools to identify peak hours, customer patterns, and inventory optimization opportunities.
+    \item \textbf{Smart Inventory Alerts:} Automated, threshold-based low-stock alerts via email and dashboard notifications.
+    \item \textbf{Comprehensive Training Package:} Includes operator manuals, video tutorials, and quick-reference guides for all system functions.
+    \item \textbf{Enhanced FINTRAC Compliance:} Government-ready audit trails, automated Large Cash Transaction Report (LCTR) flagging, and CSV export for regulatory submissions.
+\end{itemize}
+
+\subsection{Accepted Enhancement: Comprehensive Cryptocurrency Integration}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{First-to-Market Integration:} Implement a complete multi-chain crypto payment system via Stripe, positioning the Client as Canada's first physical currency exchange to offer this service.
+    \item \textbf{Multi-Chain Support:} Enable payments and processing for BTC, ETH, SOL, AVAX, USDC, and more.
+    \item \textbf{Seamless Payments:} Accept credit, debit, and Apple Pay for instant crypto delivery to customer wallets.
+    \item \textbf{Zero Fraud Liability:} Stripe will handle all disputes and payment compliance.
+    \item \textbf{FINTRAC Integration:} Automate crypto transaction reporting to align with existing compliance frameworks.
+\end{itemize}
+
+% --- TIMELINE AND PENALTY ---
+% --- TIMELINE AND PENALTY ---
+\section{Project Timeline \& Delivery}
+\begin{enumerate}
+    \item \textbf{Delivery Schedule:} The Parties agree that the project commencement date, for the purpose of timeline calculation, is established as \textbf{September 2, 2025}. The Developer shall complete and deliver all milestones described in Section 1 no later than sixteen (16) weeks from this date. The projected final delivery deadline is therefore \textbf{December 23, 2025}.
+
+    \item \textbf{Grace Period for Unforeseen Delays:} The Parties acknowledge that software development can be subject to unforeseen complexities. As such, a grace period of five (5) additional weeks is granted to the Developer beyond the projected delivery deadline. No penalties shall be assessed for delays occurring within this grace period.
+
+    \item \textbf{Late Penalty:} The late penalty shall only become applicable in the event of a delay extending beyond the five-week grace period (i.e., after January 27, 2026). For each week of delay thereafter that is directly attributable to the Developer, the Developer shall be liable to a penalty of two percent (2\%) of the total project fee (\$214.00 CAD).
+\end{enumerate}
+
+
+% --- FINANCIAL TERMS ---
+\section{Financial Terms}
+\subsection{Total Project Investment}
+The total investment for the scope of services outlined in Section 1 is \textbf{\$10,700.00 CAD}. This amount is inclusive of all development, integration, and deployment services for Phase 2.
+
+\subsection{Payment Schedule}
+The total investment shall be paid as follows. An initial payment of \$4,280.00 has been made. The remaining balance of \$6,420.00 shall be divided into three (3) equal installments. Each installment is due and payable upon the successful completion and delivery of the corresponding project milestone to the Client.
+
+\begin{center}
+\begin{tabular}{|l >{\raggedright\arraybackslash}p{6cm} c c|}
+    \hline
+    \rowcolor{lightgray}
+    \textbf{Payment} & \textbf{Trigger Event / Milestone} & \textbf{Amount (CAD)} & \textbf{Status} \\
+    \hline
+    \hline
+    Initial Payment & Agreement Execution \& Project Kick-off & \$4,280.00 & \textbf{PAID} \\
+    \hline
+    Installment 1 & Successful completion and delivery of Milestone 1 & \$2,140.00 & PENDING \\
+    \hline
+    Installment 2 & Successful completion and delivery of Milestone 2 & \$2,140.00 & PENDING \\
+    \hline
+    Installment 3 & Final delivery of Milestone 3 and Crypto Integration & \$2,140.00 & PENDING \\
+    \hline
+    \rowcolor{lightgray}
+    \multicolumn{2}{|r|}{\textbf{TOTAL INVESTMENT}} & \textbf{\$10,700.00} & \\
+    \hline
+\end{tabular}
+\end{center}
+
+\newpage
+
+
+\newpage
+
+% --- TERMS AND CONDITIONS ---
+\section{Terms and Conditions}
+
+\begin{enumerate}[label=\textbf{4.\arabic*}, leftmargin=*, wide, labelwidth=!, labelindent=0pt]
+    \item \textbf{Ownership of Intellectual Property} \\
+    All source code, designs, databases, graphics, content, and any other materials developed under this agreement shall be the sole and exclusive property of the Client upon full and final payment. The Developer hereby irrevocably assigns all rights, title, and interest in the project to the Client. The Developer shall have no ownership rights whatsoever after completion and payment.
+
+    \item \textbf{Delivery of Source Code and Credentials} \\
+    Upon project completion and final payment, the Developer shall deliver to the Client all source code, project documentation, and full administrative access credentials to hosting, domain, CMS, databases, and any related systems. No administrative access shall remain exclusively with the Developer.
+
+    \item \textbf{Restriction on Reuse or Resale} \\
+    The Developer shall not reuse, resell, replicate, or modify any part of the project (including but not limited to code, design, content, and architecture) for any third party without the Client’s prior written consent.
+
+    \item \textbf{Domain and Hosting} \\
+    If the Developer registers the domain name or hosting on behalf of the Client, it shall be registered under the Client’s name and legal information. Ownership and administrative control of the domain and hosting shall belong exclusively to the Client.
+
+    \item \textbf{Confidentiality (NDA)} \\
+    The Developer shall treat all information, business data, user data, and materials related to the Client and the project as strictly confidential. Such information shall not be disclosed, shared, or used for any purpose outside the scope of this Agreement without the Client’s express written authorization.
+
+    \item \textbf{Waiver of Future Claims} \\
+    Upon full payment and delivery, the Developer waives any and all future claims of ownership, copyright, or financial interest in the project.
+
+    \item \textbf{Warranties and Disclaimers} \\
+    The Developer warrants that services will be performed in a professional and workmanlike manner. EXCEPT AS EXPRESSLY STATED HEREIN, THE SERVICES AND DELIVERABLES ARE PROVIDED "AS IS". THE DEVELOPER DISCLAIMS ALL OTHER WARRANTIES, EXPRESS OR IMPLIED, INCLUDING THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+    \item \textbf{Limitation of Liability} \\
+    The Developer's aggregate liability under this Agreement will not exceed the total fees paid by the Client to the Developer hereunder. Neither party is liable for indirect, incidental, special, or consequential damages.
+
+    \item \textbf{Governing Law \& Venue} \\
+    This Agreement shall be governed by and construed in accordance with the laws of the Province of Quebec, Canada. Any legal action or proceeding shall be brought in the courts of Montreal.
+
+\end{enumerate}
+
+
+% --- SIGNATURES ---
+\section*{Acceptance \& Signature}
+By signing below, the parties acknowledge that they have read, understood, and agree to be bound by the terms and conditions of this Freelance Service Agreement.
+
+\bigskip
+\textit{Note: This document contains interactive fields. Please use a compatible PDF viewer (e.g., Adobe Acrobat Reader) to fill and sign electronically.}
+\bigskip
+
+\begin{Form}
+\noindent % Prevents the entire block from being indented
+% --- LEFT COLUMN (CLIENT) ---
+\begin{minipage}[t]{0.48\textwidth}
+    {\large\bfseries For the Client}
+    \par\bigskip
+
+    \textbf{Signature:} \\[5pt]
+    \TextField[
+        name=client_signature,
+        width=\linewidth,
+        height=1.8cm,
+        bordercolor={0.7 0.7 0.7}
+    ]{}
+
+    \vspace{0.5cm}
+
+    \textbf{Printed Name:} \\[5pt]
+    \TextField[
+        name=client_name,
+        width=\linewidth,
+        value={Mr. Ali Mohammadi}
+    ]{}
+
+    \vspace{0.5cm}
+
+    \textbf{Company:} \\[5pt]
+    \TextField[
+        name=client_company,
+        width=\linewidth,
+        value={Currency Exchange SAADAT},
+        readonly=true
+    ]{}
+
+    \vspace{0.5cm}
+
+    \textbf{Date:} \\[5pt]
+    \TextField[
+        name=client_date,
+        width=4.5cm
+    ]{}
+\end{minipage}
+\hfill % Pushes the two columns apart to the edges of the page
+% --- RIGHT COLUMN (DEVELOPER) ---
+\begin{minipage}[t]{0.48\textwidth}
+    {\large\bfseries For the Developer}
+    \par\bigskip
+
+    \textbf{Signature:} \\[5pt]
+    \TextField[
+        name=developer_signature,
+        width=\linewidth,
+        height=1.8cm,
+        bordercolor={0.7 0.7 0.7}
+    ]{}
+
+    \vspace{0.5cm}
+
+    \textbf{Printed Name:} \\[5pt]
+    \TextField[
+        name=developer_name,
+        width=\linewidth
+    ]{}
+
+    \vspace{0.5cm}
+
+    \textbf{Company:} \\[5pt]
+    \TextField[
+        name=developer_company,
+        width=\linewidth,
+        value={Hypervelocity Capital™},
+        readonly=true
+    ]{}
+
+    \vspace{0.5cm}
+
+    \textbf{Date:} \\[5pt]
+    \TextField[
+        name=developer_date,
+        width=4.5cm
+    ]{}
+\end{minipage}
+\end{Form}
+
+\end{document}
+% --- END OF DOCUMENT ---
+

@@ -34,19 +34,19 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
     const change = parseFloat(change24h);
     const isPositive = !isNaN(change) && change >= 0;
     const arrow = isPositive ? '▲' : '▼';
-    const color = isPositive ? 'text-emerald-400' : 'text-rose-400';
+    const color = isPositive ? 'text-green-400' : 'text-red-500';
     return (
-        <div key={currency} className="flex items-center mx-8 text-base flex-shrink-0">
-          <span className="font-semibold text-orange-400">{currency}</span>
-          <span className="font-semibold text-slate-400">/{baseCurrency}</span>
-          <span className="ml-3 text-slate-100 font-mono text-lg">{customerBuys}</span>
-          <span className={`ml-2 font-semibold ${color}`}>{arrow} {isNaN(change) ? '' : `${Math.abs(change).toFixed(2)}%`}</span>
+        <div key={currency} className="flex items-center mx-6 text-sm flex-shrink-0">
+          <span className="font-bold text-cyan-400">{currency}</span>
+          <span className="font-semibold text-gray-500">/{baseCurrency}</span>
+          <span className="ml-3 text-white font-mono text-base font-semibold">{customerBuys}</span>
+          <span className={`ml-2 font-bold ${color}`}>{arrow} {isNaN(change) ? '' : `${Math.abs(change).toFixed(2)}%`}</span>
         </div>
     );
   });
 
   return (
-    <div className="bg-slate-950 text-slate-100 py-3 overflow-hidden w-full shadow-xl rounded-xl border border-slate-800">
+    <div className="bg-gray-900 text-white py-2 overflow-hidden w-full border-t border-b border-gray-800">
       <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation px-4">
         {tickerContent}
         {tickerContent} {/* Duplicate for seamless loop */}
@@ -56,8 +56,8 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
 };
 
 const DarkModeToggle: React.FC<DarkModeToggleProps> = ({ darkMode, setDarkMode }) => (
-  <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full bg-white/50 dark:bg-gray-800/50 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors" aria-label="Toggle dark mode">
-    {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+  <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded bg-gray-800 text-cyan-400 hover:bg-gray-700 transition-colors border border-cyan-800/50" aria-label="Toggle dark mode">
+    {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
   </button>
 );
 
@@ -69,8 +69,8 @@ const LiveClock: React.FC = () => {
     }, []);
 
     return (
-        <div className="font-medium text-base text-nowrap bg-white/30 dark:bg-gray-800/30 px-4 py-1.5 rounded-full backdrop-blur-md border border-white/20 dark:border-gray-700/50">
-            {time.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}
+        <div className="font-mono text-sm text-cyan-400">
+            {time.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'medium' })}
         </div>
     );
 };
@@ -237,7 +237,7 @@ export default function ExchangeDashboard(): React.ReactElement {
   const [currencyToAdd, setCurrencyToAdd] = useState<string>('CNY');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [darkMode, setDarkMode] = useState<boolean>(false);
+  const [darkMode, setDarkMode] = useState<boolean>(true);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -405,55 +405,42 @@ export default function ExchangeDashboard(): React.ReactElement {
   }, [liveRates, historicalRates]);
 
   const marketData = useMemo<MarketItem[]>(() => ([
-    { name: 'GOLD/CAD', symbol: 'GOLD', value: '3,592.80', change: '+12.40', changePercent: '0.35%', trend: 'up' },
-    { name: 'SILVER/CAD', symbol: 'SILVER', value: '43.25', change: '+0.92', changePercent: '2.17%', trend: 'up' },
-    { name: 'BTC/CAD', symbol: 'BTC', value: '86,420', change: '-1,240', changePercent: '-1.42%', trend: 'down' },
-    { name: 'ETH/CAD', symbol: 'ETH', value: '3,580', change: '+85', changePercent: '2.43%', trend: 'up' },
-    { name: 'CA 10Y YIELD', symbol: 'CA10Y', value: '3.15%', change: '+0.01', changePercent: '0.32%', trend: 'up' },
-    { name: 'US 10Y YIELD', symbol: 'US10Y', value: '4.28%', change: '+0.03', changePercent: '0.71%', trend: 'up' }
+    { name: 'GOLD', symbol: 'GOLD', value: '3547.35', change: '+14.51', changePercent: '0.41%', trend: 'up' },
+    { name: 'SILVER', symbol: 'SILVER', value: '41.72', change: '+0.13', changePercent: '0.32%', trend: 'up' },
+    { name: 'COPPER', symbol: 'COPPER', value: '403.65', change: '-1.45', changePercent: '0.36%', trend: 'down' },
+    { name: 'ALUM.FUT', symbol: 'ALUM', value: '2678.50', change: '-5.50', changePercent: '0.21%', trend: 'down' },
+    { name: 'PLAT.', symbol: 'PLAT', value: '1408.97', change: '-2.25', changePercent: '0.16%', trend: 'down' },
+    { name: 'VIX', symbol: 'VIX', value: '17.14', change: '-0.03', changePercent: '0.17%', trend: 'down' }
   ]), []);
 
   const availableToAdd = allSupportedCurrencies.filter(c => !displayedCurrencies.includes(c.value) && c.value !== BASE_CURRENCY);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 font-sans">
-      <div className="max-w-screen-xl mx-auto">
-        <header className="flex flex-col justify-center items-center mb-6 text-center">
-            <div className="flex items-center gap-6 mb-4">
-                <img src={darkMode ? logoBlack : logoWhite} alt="Company Logo" className="h-32 w-auto rounded-xl" />
-                <img src={darkMode ? saadatBlack : saadatWhite} alt="Saadat Name" className="h-24 w-auto" />
+    <div className="min-h-screen bg-black text-gray-100 font-sans overflow-x-hidden">
+      <div className="h-full flex flex-col">
+        {/* Header Bar */}
+        <header className="bg-gradient-to-r from-gray-900 to-gray-800 border-b border-cyan-800/50 px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <img src={darkMode ? saadatBlack : saadatWhite} alt="Saadat Exchange" className="h-10 w-auto" />
+              <div className="text-cyan-400 font-bold text-xl tracking-wide">EXCHANGE TERMINAL</div>
             </div>
+            <div className="flex items-center gap-6">
+              <LiveClock />
+              <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
+            </div>
+          </div>
         </header>
-      
-        <div className="mb-8">
-            <Ticker rates={liveRates} baseCurrency={BASE_CURRENCY} calculateRates={calculateRates}/>
-        </div>
         
-        <main>
-            <div className="w-full bg-slate-900/60 rounded-xl shadow-lg p-3 mb-8 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-                {/* COMMENTED OUT - Add Currency Section (keeping for future use)
-                <div className="flex items-center gap-2">
-                    <label htmlFor="currency-select" className="font-semibold text-nowrap">Add Currency:</label>
-                    <select id="currency-select" value={currencyToAdd} onChange={(e) => setCurrencyToAdd(e.target.value)} className="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" disabled={!allSupportedCurrencies.length || isLoading}>
-                        {availableToAdd.map(c => <option key={c.value} value={c.value}>{c.label.split(' - ')[0]}</option>)}
-                    </select>
-                    <button onClick={handleAddCurrency} disabled={isLoading} className="flex items-center p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"><Plus className="h-4 w-4" /></button>
-                </div>
-                */}
-                <div className="flex items-center gap-4">
-                    <LiveClock />
-                    <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
-                </div>
-            </div>
-
-          {isLoading && <div className="flex justify-center items-center p-10 bg-white/50 dark:bg-gray-800/50 rounded-lg shadow-md backdrop-blur-md"><Loader className="h-12 w-12 mr-4 animate-spin text-blue-600" /><span className="text-lg">Loading rates...</span></div>}
-          {error && !isLoading && <div className="bg-red-100 dark:bg-red-900/50 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-4 rounded-lg shadow-md flex items-center" role="alert"><AlertTriangle className="h-6 w-6 mr-3" /><div><p className="font-bold">Error:</p><p>{error}</p></div></div>}
+        <main className="flex-1 flex flex-col p-4">
+          {isLoading && <div className="flex justify-center items-center p-10 bg-gray-900 rounded-lg shadow-md"><Loader className="h-12 w-12 mr-4 animate-spin text-cyan-400" /><span className="text-lg text-white">Loading rates...</span></div>}
+          {error && !isLoading && <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 p-4 rounded-lg shadow-md flex items-center" role="alert"><AlertTriangle className="h-6 w-6 mr-3" /><div><p className="font-bold">Error:</p><p>{error}</p></div></div>}
           
           {!isLoading && !error && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="flex flex-1 gap-4">
               {/* Main currencies grid */}
-              <div className="lg:col-span-9">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+              <div className="flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {displayedCurrencies.map((currency) => {
                     const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
                     const info = getCurrencyInfo(currency);
@@ -523,7 +510,12 @@ export default function ExchangeDashboard(): React.ReactElement {
             </div>
           )}
         </main>
-    </div>
+
+        {/* Bottom ticker */}
+        <footer className="bg-gray-900 border-t border-cyan-800/50">
+          <Ticker rates={liveRates} baseCurrency={BASE_CURRENCY} calculateRates={calculateRates}/>
+        </footer>
+      </div>
     </div>
   );
 }

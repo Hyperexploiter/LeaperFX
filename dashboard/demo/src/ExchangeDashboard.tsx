@@ -36,18 +36,18 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
     const isPositive = !isNaN(change) && change >= 0;
     const arrow = isPositive ? '▲' : '▼';
     return (
-        <div key={currency} className="flex items-center mx-4 text-xs flex-shrink-0">
-          <span className="font-bold" style={{ color: '#00D4FF' }}>{currency}</span>
+        <div key={currency} className="flex items-center mx-6 text-sm flex-shrink-0">
+          <span className="font-bold text-base" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{currency}</span>
           <span className="font-semibold" style={{ color: '#666' }}>/{baseCurrency}</span>
-          <span className="ml-2 text-white font-mono text-sm font-semibold">{customerBuys}</span>
-          <span className={`ml-1.5 font-bold`} style={{ color: isPositive ? '#00FF00' : '#FF0000' }}>{arrow} {isNaN(change) ? '' : `${Math.abs(change).toFixed(2)}%`}</span>
+          <span className="ml-3 text-white font-mono text-base font-bold">{customerBuys}</span>
+          <span className={`ml-2 font-bold text-sm`} style={{ color: isPositive ? '#00FF00' : '#FF0000' }}>{arrow} {isNaN(change) ? '' : `${Math.abs(change).toFixed(2)}%`}</span>
         </div>
     );
   });
 
   return (
-    <div className="bg-black text-white py-1.5 overflow-hidden w-full">
-      <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation px-2">
+    <div className="bg-black text-white py-2.5 overflow-hidden w-full">
+      <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation px-4">
         {tickerContent}
         {tickerContent} {/* Duplicate for seamless loop */}
       </div>
@@ -124,11 +124,11 @@ const YieldChart: React.FC = () => {
 
   return (
     <div className="bg-black border" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
-      <div className="p-2">
-        <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>CAD 30-Year Yield</h2>
-        <p className="text-xs" style={{ color: '#FFB000' }}>4.96 UNCH</p>
+      <div className="p-4">
+        <h2 className="text-sm font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>CAD 30-Year Yield</h2>
+        <p className="text-sm font-bold" style={{ color: '#FFB000' }}>4.96 UNCH</p>
       </div>
-      <div className="h-32 px-2 pb-2" style={{
+      <div className="h-40 px-4 pb-4" style={{
         background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)'
       }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -189,17 +189,17 @@ const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
   const data = useMemo(() => generateMiniData(item.trend, 20), [item.trend]);
 
   return (
-    <div className="bg-black px-2 py-1.5 hover:bg-gray-950 transition-all duration-100" style={{
+    <div className="bg-black px-4 py-3 hover:bg-gray-950 transition-all duration-100" style={{
       borderBottom: '0.5px solid rgba(255, 215, 0, 0.08)',
       background: 'linear-gradient(90deg, rgba(0, 8, 20, 0.3) 0%, rgba(0, 0, 0, 1) 100%)'
     }}>
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-xs" style={{ color: '#FFD700', fontFamily: 'monospace' }}>{item.symbol}</div>
-          <div className="text-white font-mono font-bold text-sm">{item.value}</div>
+          <div className="font-bold text-sm" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{item.symbol}</div>
+          <div className="text-white font-mono font-bold text-lg">{item.value}</div>
         </div>
-        <div className="flex items-center space-x-2">
-          <div className="w-16 h-6" style={{
+        <div className="flex items-center space-x-3">
+          <div className="w-24 h-10" style={{
             background: 'linear-gradient(135deg, rgba(0, 20, 35, 0.2) 0%, rgba(0, 8, 20, 0.3) 100%)',
             borderRadius: '2px'
           }}>
@@ -218,19 +218,19 @@ const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
                   type="monotone"
                   dataKey="value"
                   stroke="#FFD700"
-                  strokeWidth={0.5}
+                  strokeWidth={0.8}
                   fill={`url(#${gradientId})`}
                   dot={false}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className="text-right min-w-[60px]">
+          <div className="text-right min-w-[70px]">
             <div className="flex items-center justify-end" style={{ color: item.trend === 'up' ? '#00FF88' : '#FF4444' }}>
-              <span className="text-xs font-bold font-mono">{item.trend === 'up' ? '▲' : '▼'} {item.change}</span>
+              <span className="text-sm font-bold font-mono">{item.trend === 'up' ? '▲' : '▼'} {item.change}</span>
             </div>
             {item.changePercent && (
-              <span className="text-xs opacity-80 font-mono" style={{ color: '#888' }}>({item.changePercent})</span>
+              <span className="text-sm opacity-80 font-mono" style={{ color: '#888' }}>({item.changePercent})</span>
             )}
           </div>
         </div>
@@ -243,7 +243,7 @@ export default function ExchangeDashboard(): React.ReactElement {
   const [liveRates, setLiveRates] = useState<RateData | null>(null);
   const [historicalRates, setHistoricalRates] = useState<RateData | null>(null);
   const [allSupportedCurrencies, setAllSupportedCurrencies] = useState<SupportedCurrency[]>([]);
-  const [displayedCurrencies, setDisplayedCurrencies] = useState<string[]>(['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CHF']);
+  const [displayedCurrencies, setDisplayedCurrencies] = useState<string[]>(['USD', 'EUR', 'GBP', 'JPY', 'CHF']);
   const [currencyToAdd, setCurrencyToAdd] = useState<string>('CNY');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -578,13 +578,36 @@ export default function ExchangeDashboard(): React.ReactElement {
                     );
                   })}
                 </div>
+
+                {/* News Bulletin Section */}
+                <div className="mt-4 bg-black border" style={{
+                  borderColor: 'rgba(255, 165, 0, 0.2)',
+                  borderWidth: '0.5px',
+                  borderLeftWidth: '3px',
+                  borderLeftColor: '#FFA500'
+                }}>
+                  <div className="p-3">
+                    <div className="flex items-start space-x-3">
+                      <span className="text-xs font-bold uppercase" style={{
+                        color: '#FFA500',
+                        fontFamily: 'monospace',
+                        minWidth: '80px'
+                      }}>BREAKING</span>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-white mb-1">Federal Reserve holds interest rates steady at 5.25-5.50%</p>
+                        <p className="text-xs" style={{ color: '#666' }}>Markets react positively to dovish tone in Powell's statement • USD weakens against major currencies • Gold surges to $2,050/oz</p>
+                      </div>
+                      <span className="text-xs" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>14:32</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Right sidebar */}
-              <div className="lg:col-span-3 space-y-4">
-                <div className="bg-slate-900/60 rounded-2xl border border-slate-800 shadow-xl p-4">
-                  <h3 className="text-cyan-400 font-semibold mb-3">Market Watch</h3>
-                  <div className="space-y-3">
+              <div className="w-96 space-y-4">
+                <div className="bg-black border p-6" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
+                  <h3 className="text-lg font-bold uppercase tracking-wider mb-4" style={{ color: '#00D4FF' }}>Market Watch</h3>
+                  <div className="space-y-2">
                     {marketData.map((item, idx) => (
                       <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
                     ))}
@@ -616,10 +639,16 @@ export default function ExchangeDashboard(): React.ReactElement {
         </main>
 
         {/* Bottom ticker with logo */}
-        <footer className="bg-black relative" style={{ borderTop: '0.5px solid rgba(0, 212, 255, 0.2)' }}>
+        <footer className="bg-black relative" style={{
+          borderTop: '0.5px solid rgba(255, 165, 0, 0.3)',
+          background: 'linear-gradient(90deg, rgba(0, 0, 0, 1) 0%, rgba(0, 8, 20, 0.5) 50%, rgba(0, 0, 0, 1) 100%)'
+        }}>
           <div className="flex items-center">
-            <div className="px-3 py-1 flex items-center" style={{ borderRight: '0.5px solid rgba(0, 212, 255, 0.2)' }}>
-              <img src={darkMode ? saadatBlack : saadatWhite} alt="SAADAT" className="h-6 w-auto" />
+            <div className="px-3 py-1 flex items-center" style={{
+              borderRight: '0.5px solid rgba(255, 165, 0, 0.3)',
+              background: 'rgba(0, 8, 20, 0.8)'
+            }}>
+              <img src={darkMode ? saadatBlack : saadatWhite} alt="SAADAT" className="h-7 w-auto" />
             </div>
             <div className="flex-1">
               <Ticker rates={liveRates} baseCurrency={BASE_CURRENCY} calculateRates={calculateRates}/>

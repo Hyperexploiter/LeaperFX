@@ -357,75 +357,183 @@ class PaymentProcessingService {
   /**
    * Get payment analytics
    */
-  getPaymentAnalytics(): PaymentAnalytics {
-    const today = new Date().toISOString().split('T')[0];
-    const todayPayments = this.paymentHistory.filter(p =>
-      p.timestamp.startsWith(today) && p.success
-    );
+  // New unified analytics matching ./types PaymentAnalytics
+  getAnalytics(): UIPaymentAnalytics {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const dayPrefix = startOfDay.toISOString().split('T')[0];
 
-    const failedPayments = this.paymentHistory.filter(p =>
-      p.timestamp.startsWith(today) && !p.success
-    );
+    const todays = this.paymentHistory.filter(p => p.timestamp.startsWith(dayPrefix));
+    const successful = todays.filter(p => p.success);
+    const failed = todays.filter(p => !p.success);
 
-    // Group by payment method
-    const methodStats = new Map<PaymentMethod, { count: number; volume: number }>();
-    todayPayments.forEach(payment => {
-      const current = methodStats.get(payment.paymentMethod) || { count: 0, volume: 0 };
-      methodStats.set(payment.paymentMethod, {
-        count: current.count + 1,
-        volume: current.volume + payment.amount
+    const totalVolume = successful.reduce((sum, p) => sum + p.amount, 0);
+    const totalCount = successful.length;
+    const averageAmount = totalCount > 0 ? totalVolume / totalCount : 0;
+    const successRate = todays.length > 0 ? successful.length / todays.length : 1;
+
+    // By method with success rate
+    const methodMap = new Map<PaymentMethod, { count: number; volume: number; attempts: number }>();
+    todays.forEach(p => {
+      const cur = methodMap.get(p.paymentMethod) || { count: 0, volume: 0, attempts: 0 };
+      methodMap.set(p.paymentMethod, {
+        count: cur.count + (p.success ? 1 : 0),
+        volume: cur.volume + (p.success ? p.amount : 0),
+        attempts: cur.attempts + 1
       });
     });
 
-    const byMethod = Array.from(methodStats.entries()).map(([method, stats]) => ({
+    const byMethod = Array.from(methodMap.entries()).map(([method, s]) => ({
       method,
-      count: stats.count,
-      volume: stats.volume,
-      averageAmount: stats.count > 0 ? stats.volume / stats.count : 0
+      count: s.count,
+      volume: s.volume,
+      averageAmount: s.count > 0 ? s.volume / s.count : 0,
+      successRate: s.attempts > 0 ? s.count / s.attempts : 1
     }));
 
-    // Crypto-specific analytics
-    const cryptoStats = new Map<SupportedCrypto, { count: number; volume: number; volumeCAD: number }>();
-    todayPayments
+    // Crypto breakdown with average rate
+    const cryptoMap = new Map<SupportedCrypto, { count: number; volume: number; volumeCAD: number; rateSum: number }>();
+    successful
       .filter(p => p.paymentMethod === 'cryptocurrency' && p.cryptoResult)
-      .forEach(payment => {
-        const crypto = payment.cryptoResult!.cryptocurrency;
-        const current = cryptoStats.get(crypto) || { count: 0, volume: 0, volumeCAD: 0 };
-        cryptoStats.set(crypto, {
-          count: current.count + 1,
-          volume: current.volume + (payment.cryptoAmount || 0),
-          volumeCAD: current.volumeCAD + payment.amount
+      .forEach(p => {
+        const symbol = p.cryptoResult!.cryptocurrency;
+        const cur = cryptoMap.get(symbol) || { count: 0, volume: 0, volumeCAD: 0, rateSum: 0 };
+        cryptoMap.set(symbol, {
+          count: cur.count + 1,
+          volume: cur.volume + (p.cryptoAmount || 0),
+          volumeCAD: cur.volumeCAD + p.amount,
+          rateSum: cur.rateSum + (p.exchangeRate || p.cryptoResult!.rate || 0)
         });
       });
 
-    const cryptocurrency = Array.from(cryptoStats.entries()).map(([symbol, stats]) => ({
+    const cryptocurrency = Array.from(cryptoMap.entries()).map(([symbol, stats]) => ({
       symbol,
       count: stats.count,
       volume: stats.volume,
-      volumeCAD: stats.volumeCAD
+      volumeCAD: stats.volumeCAD,
+      averageRate: stats.count > 0 ? stats.rateSum / stats.count : 0
     }));
 
-    return {
-      today: {
-        totalTransactions: todayPayments.length,
-        totalVolume: todayPayments.reduce((sum, p) => sum + p.amount, 0),
-        terminalPayments: todayPayments.filter(p => p.paymentMethod === 'stripe_terminal').length,
-        cryptoPayments: todayPayments.filter(p => p.paymentMethod === 'cryptocurrency').length,
-        cashPayments: todayPayments.filter(p => p.paymentMethod === 'cash').length,
-        failedPayments: failedPayments.length
+    // Compliance summary (best effort from stored results)
+    const lctrRequired = successful.filter(p => p.complianceLevel === 'lctr_required').length;
+    const enhancedRecordsRequired = successful.filter(p => p.complianceLevel === 'enhanced_records').length;
+    const totalReportsRequired = successful.filter(p => p.requiresFintracReport).length;
+
+    const analytics: UIPaymentAnalytics = {
+      period: {
+        start: startOfDay.toISOString(),
+        end: new Date().toISOString(),
+        type: 'day'
+      },
+      summary: {
+        totalTransactions: totalCount,
+        totalVolume,
+        successRate,
+        averageAmount,
+        failedPayments: failed.length
       },
       byMethod,
-      cryptocurrency: cryptocurrency.length > 0 ? cryptocurrency : undefined
+      cryptocurrency: cryptocurrency.length > 0 ? cryptocurrency : undefined,
+      compliance: {
+        totalReportsRequired,
+        lctrRequired,
+        enhancedRecordsRequired,
+        reportsSubmitted: 0
+      }
     };
+
+    return analytics;
+  }
+
+  // Backward-compatible alias
+  getPaymentAnalytics(): UIPaymentAnalytics {
+    return this.getAnalytics();
   }
 
   /**
    * Get payment history
+   * - If called with a number (or no arg): returns last N raw results (backward compatible)
+   * - If called with options object: returns paginated TransactionSummary per ./types
    */
-  getPaymentHistory(limit = 50): UnifiedPaymentResult[] {
-    return this.paymentHistory
-      .slice(-limit)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  getPaymentHistory(arg?: number | (FilterOptions & SortOptions)):
+    UnifiedPaymentResult[] | PaginatedResult<TransactionSummary> {
+    if (typeof arg === 'number' || typeof arg === 'undefined') {
+      const limit = typeof arg === 'number' ? arg : 50;
+      return this.paymentHistory
+        .slice(-limit)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+
+    // Options-based paginated result
+    const options = arg as FilterOptions & SortOptions;
+
+    // Filter
+    let items = this.paymentHistory.slice();
+    if (options.startDate) {
+      items = items.filter(p => new Date(p.timestamp) >= new Date(options.startDate!));
+    }
+    if (options.endDate) {
+      items = items.filter(p => new Date(p.timestamp) <= new Date(options.endDate!));
+    }
+    if (options.paymentMethod) {
+      items = items.filter(p => p.paymentMethod === options.paymentMethod);
+    }
+    if (options.status) {
+      items = items.filter(p => (p.success ? 'completed' : 'failed') === options.status);
+    }
+    if (typeof options.minAmount === 'number') {
+      items = items.filter(p => p.amount >= options.minAmount!);
+    }
+    if (typeof options.maxAmount === 'number') {
+      items = items.filter(p => p.amount <= options.maxAmount!);
+    }
+    if (typeof options.requiresCompliance === 'boolean') {
+      items = items.filter(p => !!p.requiresFintracReport === options.requiresCompliance);
+    }
+
+    // Sort
+    const field = options.field || 'timestamp';
+    const direction = options.direction || 'desc';
+    items.sort((a, b) => {
+      const av = field === 'timestamp' ? new Date(a.timestamp).getTime() :
+                 field === 'amount' ? a.amount :
+                 field === 'status' ? (a.success ? 1 : 0) :
+                 field === 'paymentMethod' ? a.paymentMethod.localeCompare(b.paymentMethod) : 0;
+      const bv = field === 'timestamp' ? new Date(b.timestamp).getTime() :
+                 field === 'amount' ? b.amount :
+                 field === 'status' ? (b.success ? 1 : 0) :
+                 field === 'paymentMethod' ? b.paymentMethod.localeCompare(a.paymentMethod) : 0;
+      return direction === 'asc' ? av - bv : bv - av;
+    });
+
+    // Pagination defaults
+    const pageSize = (options as any).pageSize || 50;
+    const page = (options as any).page || 1;
+    const start = (page - 1) * pageSize;
+    const paged = items.slice(start, start + pageSize);
+
+    // Map to TransactionSummary
+    const mapped: TransactionSummary[] = paged.map(p => ({
+      id: p.transactionId,
+      timestamp: p.timestamp,
+      amount: p.amount,
+      paymentMethod: p.paymentMethod as UIPaymentMethod,
+      status: (p.success ? 'completed' : 'failed') as UIPaymentStatus,
+      customerEmail: undefined,
+      description: undefined,
+      requiresCompliance: !!p.requiresFintracReport
+    }));
+
+    const result: PaginatedResult<TransactionSummary> = {
+      items: mapped,
+      totalCount: items.length,
+      page,
+      pageSize,
+      hasNextPage: start + pageSize < items.length,
+      hasPreviousPage: page > 1
+    };
+
+    return result;
   }
 
   /**

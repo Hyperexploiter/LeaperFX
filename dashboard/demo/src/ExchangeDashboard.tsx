@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Clock, Sun, Moon, Plus, X, Loader, AlertTriangle, ArrowUp, TrendingUp, ArrowDown } from 'lucide-react';
-import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis } from 'recharts';
+import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis, XAxis, CartesianGrid } from 'recharts';
 import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from './services/exchangeRateService';
 import webSocketService, { WebSocketEvent } from './services/webSocketService';
 
@@ -14,7 +14,7 @@ interface CurrencyInfo { name: string; code: string; }
 interface ChartData { name:string; value: number; }
 
 // --- Sub-Component Prop Types ---
-interface TickerProps { rates: RateData | null; baseCurrency: string; calculateRates: (currency: string) => { customerBuys: string }; }
+interface TickerProps { rates: RateData | null; baseCurrency: string; calculateRates: (currency: string) => { customerBuys: string; change24h: string }; }
 interface DarkModeToggleProps { darkMode: boolean; setDarkMode: (value: boolean) => void; }
 
 // --- Configuration ---
@@ -30,19 +30,24 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
   if (tickerItems.length === 0) return null;
 
   const tickerContent = tickerItems.map(currency => {
-    const { customerBuys } = calculateRates(currency);
+    const { customerBuys, change24h } = calculateRates(currency);
+    const change = parseFloat(change24h);
+    const isPositive = !isNaN(change) && change >= 0;
+    const arrow = isPositive ? '▲' : '▼';
+    const color = isPositive ? 'text-emerald-400' : 'text-rose-400';
     return (
         <div key={currency} className="flex items-center mx-8 text-base flex-shrink-0">
-          <span className="font-semibold text-gray-400">{currency}/{baseCurrency}</span>
-          <span className="ml-3 text-green-400 font-mono text-lg">{customerBuys}</span>
-          <ArrowUp className="h-5 w-5 text-green-400 ml-1.5" />
+          <span className="font-semibold text-orange-400">{currency}</span>
+          <span className="font-semibold text-slate-400">/{baseCurrency}</span>
+          <span className="ml-3 text-slate-100 font-mono text-lg">{customerBuys}</span>
+          <span className={`ml-2 font-semibold ${color}`}>{arrow} {isNaN(change) ? '' : `${Math.abs(change).toFixed(2)}%`}</span>
         </div>
     );
   });
 
   return (
-    <div className="bg-gray-900 dark:bg-black text-white py-4 overflow-hidden w-full shadow-lg rounded-xl">
-      <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation">
+    <div className="bg-slate-950 text-slate-100 py-3 overflow-hidden w-full shadow-xl rounded-xl border border-slate-800">
+      <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation px-4">
         {tickerContent}
         {tickerContent} {/* Duplicate for seamless loop */}
       </div>
@@ -68,6 +73,96 @@ const LiveClock: React.FC = () => {
             {time.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}
         </div>
     );
+};
+
+// Large Yield Chart section with Intraday and 1Y views
+const YieldChart: React.FC = () => {
+  const [view, setView] = useState<'intraday' | '1y'>('intraday');
+  const [data, setData] = useState<Array<{ time: string; value: number }>>([]);
+
+  const generateData = useCallback((mode: 'intraday' | '1y') => {
+    const now = new Date();
+    const points = mode === 'intraday' ? 90 : 240; // 90 x 5min ~ 7.5h, 240 x 1d ~ 8 months
+    const base = 3 + Math.random(); // 3-4% baseline yield
+    const arr: Array<{ time: string; value: number }> = [];
+    for (let i = 0; i < points; i++) {
+      const t = new Date(
+        now.getTime() - (points - i) * (mode === 'intraday' ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000)
+      );
+      const drift = Math.sin(i / 18) * 0.05 + (Math.random() - 0.5) * 0.03; // gentle movement
+      const val = parseFloat((base + drift).toFixed(3));
+      arr.push({
+        time: mode === 'intraday'
+          ? t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : t.toLocaleDateString('en-CA', { month: 'short' }),
+        value: val
+      });
+    }
+    return arr;
+  }, []);
+
+  useEffect(() => {
+    setData(generateData(view));
+  }, [view, generateData]);
+
+  // live update every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setData(prev => {
+        if (!prev.length) return prev;
+        const last = prev[prev.length - 1];
+        const nextVal = parseFloat((last.value * (1 + (Math.random() - 0.5) * 0.002)).toFixed(3));
+        const now = new Date();
+        const nextLabel = view === 'intraday'
+          ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : now.toLocaleDateString('en-CA', { month: 'short' });
+        return [...prev.slice(1), { time: nextLabel, value: nextVal }];
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [view]);
+
+  return (
+    <div className="bg-slate-900/60 rounded-2xl border border-slate-800 shadow-xl mb-8">
+      <div className="flex items-center justify-between p-4">
+        <div>
+          <h2 className="text-xl font-semibold text-cyan-400">Market Yields</h2>
+          <p className="text-sm text-slate-400">One Year and Intraday simulated views</p>
+        </div>
+        <div className="space-x-2">
+          <button
+            className={`px-3 py-1 rounded-md text-sm border ${view === 'intraday' ? 'bg-cyan-600/20 text-cyan-300 border-cyan-700' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}
+            onClick={() => setView('intraday')}
+          >
+            Intraday
+          </button>
+          <button
+            className={`px-3 py-1 rounded-md text-sm border ${view === '1y' ? 'bg-cyan-600/20 text-cyan-300 border-cyan-700' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}
+            onClick={() => setView('1y')}
+          >
+            1Y
+          </button>
+        </div>
+      </div>
+      <div className="h-72 md:h-80 px-2 pb-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="yieldGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="rgba(148,163,184,0.2)" vertical={false} />
+            <XAxis dataKey="time" hide={view === 'intraday'} tick={{ fill: '#94a3b8' }} />
+            <YAxis tick={{ fill: '#94a3b8' }} domain={[ (dataMin: number) => dataMin - 0.1, (dataMax: number) => dataMax + 0.1 ]} />
+            <Tooltip contentStyle={{ backgroundColor: 'rgba(2,6,23,0.9)', border: '1px solid rgba(8,145,178,0.3)', borderRadius: 8 }} labelStyle={{ color: '#67e8f9' }} itemStyle={{ color: '#e2e8f0' }} />
+            <Area type="monotone" dataKey="value" stroke="#22d3ee" strokeWidth={2} fill="url(#yieldGradient)" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
 };
 
 export default function ExchangeDashboard(): React.ReactElement {
@@ -181,6 +276,24 @@ export default function ExchangeDashboard(): React.ReactElement {
     setupWebSocket();
   }, []);
 
+  // Real-time data simulation: gently update rates every 3s
+  useEffect(() => {
+    if (!liveRates) return;
+    const interval = setInterval(() => {
+      setLiveRates(prev => {
+        if (!prev) return prev;
+        const updated: RateData = { ...prev };
+        Object.keys(updated).forEach(k => {
+          if (k === BASE_CURRENCY) return;
+          const drift = 1 + (Math.random() - 0.5) * 0.002; // ±0.1%
+          updated[k] = updated[k] / drift; // adjust inverse rate subtly
+        });
+        return updated;
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [liveRates]);
+
   const handleAddCurrency = () => {
     if (currencyToAdd && !displayedCurrencies.includes(currencyToAdd)) {
       setDisplayedCurrencies(prev => [...prev, currencyToAdd]);
@@ -230,7 +343,7 @@ export default function ExchangeDashboard(): React.ReactElement {
   const availableToAdd = allSupportedCurrencies.filter(c => !displayedCurrencies.includes(c.value) && c.value !== BASE_CURRENCY);
 
   return (
-    <div className="min-h-screen bg-gray-200 dark:bg-black text-gray-800 dark:text-gray-200 p-4 sm:p-6 lg:p-8 font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 font-sans">
       <div className="max-w-screen-xl mx-auto">
         <header className="flex flex-col justify-center items-center mb-6 text-center">
             <div className="flex items-center gap-6 mb-4">
@@ -244,7 +357,8 @@ export default function ExchangeDashboard(): React.ReactElement {
         </div>
         
         <main>
-            <div className="w-full bg-white/30 dark:bg-gray-800/30 rounded-xl shadow-lg p-3 mb-8 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 flex flex-wrap items-center justify-between gap-4">
+            <YieldChart />
+            <div className="w-full bg-slate-900/60 rounded-xl shadow-lg p-3 mb-8 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
                 {/* COMMENTED OUT - Add Currency Section (keeping for future use)
                 <div className="flex items-center gap-2">
                     <label htmlFor="currency-select" className="font-semibold text-nowrap">Add Currency:</label>
@@ -271,18 +385,18 @@ export default function ExchangeDashboard(): React.ReactElement {
                 const isPositive = parseFloat(change24h) >= 0;
 
                 return (
-                  <div key={currency} className="bg-white/50 dark:bg-gray-800/50 rounded-2xl shadow-lg hover:shadow-2xl dark:hover:shadow-blue-500/20 hover:-translate-y-2 transition-all duration-300 ease-in-out border border-white/20 dark:border-gray-700/50 group backdrop-blur-xl overflow-hidden">
+                  <div key={currency} className="bg-slate-900/60 rounded-2xl shadow-xl hover:shadow-cyan-500/10 hover:-translate-y-2 transition-all duration-300 ease-in-out border border-slate-800 group overflow-hidden">
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center">
                           <img src={`https://flagcdn.com/w40/${info.code}.png`} width="40" alt={`${info.name} flag`} className="mr-4 rounded-full shadow-md"/>
-                          <div><h3 className="text-xl font-bold">{currency}</h3><p className="text-sm text-gray-500 dark:text-gray-400">{info.name}</p></div>
+                          <div><h3 className="text-xl font-bold text-orange-400">{currency}</h3><p className="text-sm text-cyan-300/90">{info.name}</p></div>
                         </div>
                         <button onClick={() => handleRemoveCurrency(currency)} className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><X className="h-5 w-5" /></button>
                       </div>
                       <div className="space-y-4 text-lg">
-                        <div className="flex justify-between items-baseline"><span className="text-gray-600 dark:text-gray-300">We Buy</span><span className="font-bold text-blue-600 dark:text-blue-400">{customerSells}</span></div>
-                        <div className="flex justify-between items-baseline"><span className="text-gray-600 dark:text-gray-300">We Sell</span><span className="font-bold text-green-600 dark:text-green-400">{customerBuys}</span></div>
+                        <div className="flex justify-between items-baseline"><span className="text-slate-300">We Buy</span><span className="font-mono font-bold text-sky-400">{customerSells}</span></div>
+                        <div className="flex justify-between items-baseline"><span className="text-slate-300">We Sell</span><span className="font-mono font-bold text-emerald-400">{customerBuys}</span></div>
                       </div>
                     </div>
                     <div className="px-6 pt-2 pb-4">
@@ -302,16 +416,16 @@ export default function ExchangeDashboard(): React.ReactElement {
                             </ResponsiveContainer>
                         </div>
                     </div>
-                    <div className="bg-gray-50/50 dark:bg-gray-900/30 px-6 py-3 border-t border-gray-200 dark:border-gray-700/50 flex justify-between items-center text-sm">
-                      <span className="text-gray-600 dark:text-gray-400 font-semibold">24h Change</span>
+                    <div className="bg-slate-950/40 px-6 py-3 border-t border-slate-800 flex justify-between items-center text-sm">
+                      <span className="text-slate-400 font-semibold">24h Change</span>
                       {change24h === '0.00' ? (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">Market awaiting update</span>
+                        <span className="text-xs text-slate-400/80">Market awaiting update</span>
                       ) : change24h !== 'N/A' ? (
-                        <div className={`flex items-center font-bold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {isPositive ? <TrendingUp className="h-4 w-4 mr-1" /> : <ArrowDown className="h-4 w-4 mr-1" />}
+                        <div className={`flex items-center font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          <span className="mr-1">{isPositive ? '▲' : '▼'}</span>
                           {change24h}%
                         </div>
-                      ) : ( <span className="text-gray-500">N/A</span> )}
+                      ) : ( <span className="text-slate-500">N/A</span> )}
                     </div>
                   </div>
                 );

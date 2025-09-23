@@ -46,9 +46,10 @@ export type {
 export type {
   UnifiedPaymentRequest,
   UnifiedPaymentResult,
-  PaymentSystemStatus,
-  PaymentAnalytics
+  PaymentSystemStatus
 } from './paymentProcessingService';
+
+export type { PaymentAnalytics } from './types';
 
 // --- Convenience Re-exports ---
 export {

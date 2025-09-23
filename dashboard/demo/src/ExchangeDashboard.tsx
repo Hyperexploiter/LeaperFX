@@ -165,6 +165,70 @@ const YieldChart: React.FC = () => {
   );
 };
 
+// --- Market Watch (right sidebar) ---
+
+type Trend = 'up' | 'down';
+
+interface MarketItem {
+  name: string;
+  symbol: string;
+  value: string;
+  change: string;
+  changePercent?: string;
+  trend: Trend;
+}
+
+const generateMiniData = (trend: Trend, points = 20) => {
+  const base = trend === 'up' ? 1.0 + Math.random() * 0.2 : 1.2 - Math.random() * 0.2;
+  return Array.from({ length: points }, (_, i) => ({
+    time: i,
+    value: base + (trend === 'up' ? i : -i) * 0.002 + (Math.random() - 0.5) * 0.006
+  }));
+};
+
+const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
+  const color = item.trend === 'up' ? '#10b981' : '#ef4444';
+  const gradientId = `mw-${item.symbol}-grad`;
+  const data = useMemo(() => generateMiniData(item.trend, 18), [item.trend]);
+
+  return (
+    <div className="bg-slate-950/60 border border-slate-800/50 rounded-lg p-3 hover:border-cyan-600/30 hover:bg-slate-900/40 transition-all duration-300">
+      <div className="flex items-center justify-between">
+        <div className="flex-1 min-w-0">
+          <div className="text-orange-400 font-semibold text-sm truncate">{item.symbol}</div>
+          <div className="text-slate-100 font-mono font-bold text-lg truncate">{item.value}</div>
+          <div className="text-slate-400 text-xs mt-1 truncate">{item.name}</div>
+        </div>
+        <div className="flex items-center space-x-3">
+          <div className="w-16 h-6">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data}>
+                <defs>
+                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={color} stopOpacity={0.4} />
+                    <stop offset="95%" stopColor={color} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <YAxis hide domain={[ 'dataMin - 0.02', 'dataMax + 0.02' ] as any} />
+                <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} fill={`url(#${gradientId})`} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <div className={`text-right ${item.trend === 'up' ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <div className="flex items-center space-x-1 justify-end">
+              <span className="text-xs">{item.trend === 'up' ? '▲' : '▼'}</span>
+              <span className="font-semibold text-sm">{item.change}</span>
+              {item.changePercent && (
+                <span className="text-xs opacity-80">({item.changePercent})</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ExchangeDashboard(): React.ReactElement {
   const [liveRates, setLiveRates] = useState<RateData | null>(null);
   const [historicalRates, setHistoricalRates] = useState<RateData | null>(null);
@@ -340,6 +404,15 @@ export default function ExchangeDashboard(): React.ReactElement {
     };
   }, [liveRates, historicalRates]);
 
+  const marketData = useMemo<MarketItem[]>(() => ([
+    { name: 'GOLD/CAD', symbol: 'GOLD', value: '3,592.80', change: '+12.40', changePercent: '0.35%', trend: 'up' },
+    { name: 'SILVER/CAD', symbol: 'SILVER', value: '43.25', change: '+0.92', changePercent: '2.17%', trend: 'up' },
+    { name: 'BTC/CAD', symbol: 'BTC', value: '86,420', change: '-1,240', changePercent: '-1.42%', trend: 'down' },
+    { name: 'ETH/CAD', symbol: 'ETH', value: '3,580', change: '+85', changePercent: '2.43%', trend: 'up' },
+    { name: 'CA 10Y YIELD', symbol: 'CA10Y', value: '3.15%', change: '+0.01', changePercent: '0.32%', trend: 'up' },
+    { name: 'US 10Y YIELD', symbol: 'US10Y', value: '4.28%', change: '+0.03', changePercent: '0.71%', trend: 'up' }
+  ]), []);
+
   const availableToAdd = allSupportedCurrencies.filter(c => !displayedCurrencies.includes(c.value) && c.value !== BASE_CURRENCY);
 
   return (
@@ -357,7 +430,6 @@ export default function ExchangeDashboard(): React.ReactElement {
         </div>
         
         <main>
-            <YieldChart />
             <div className="w-full bg-slate-900/60 rounded-xl shadow-lg p-3 mb-8 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
                 {/* COMMENTED OUT - Add Currency Section (keeping for future use)
                 <div className="flex items-center gap-2">
@@ -378,58 +450,76 @@ export default function ExchangeDashboard(): React.ReactElement {
           {error && !isLoading && <div className="bg-red-100 dark:bg-red-900/50 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-4 rounded-lg shadow-md flex items-center" role="alert"><AlertTriangle className="h-6 w-6 mr-3" /><div><p className="font-bold">Error:</p><p>{error}</p></div></div>}
           
           {!isLoading && !error && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {displayedCurrencies.map((currency) => {
-                const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
-                const info = getCurrencyInfo(currency);
-                const isPositive = parseFloat(change24h) >= 0;
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Main currencies grid */}
+              <div className="lg:col-span-9">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                  {displayedCurrencies.map((currency) => {
+                    const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
+                    const info = getCurrencyInfo(currency);
+                    const isPositive = parseFloat(change24h) >= 0;
 
-                return (
-                  <div key={currency} className="bg-slate-900/60 rounded-2xl shadow-xl hover:shadow-cyan-500/10 hover:-translate-y-2 transition-all duration-300 ease-in-out border border-slate-800 group overflow-hidden">
-                    <div className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center">
-                          <img src={`https://flagcdn.com/w40/${info.code}.png`} width="40" alt={`${info.name} flag`} className="mr-4 rounded-full shadow-md"/>
-                          <div><h3 className="text-xl font-bold text-orange-400">{currency}</h3><p className="text-sm text-cyan-300/90">{info.name}</p></div>
+                    return (
+                      <div key={currency} className="bg-slate-900/60 rounded-2xl shadow-xl hover:shadow-cyan-500/10 hover:-translate-y-2 transition-all duration-300 ease-in-out border border-slate-800 group overflow-hidden">
+                        <div className="p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center">
+                              <img src={`https://flagcdn.com/w40/${info.code}.png`} width="40" alt={`${info.name} flag`} className="mr-4 rounded-full shadow-md"/>
+                              <div><h3 className="text-xl font-bold text-orange-400">{currency}</h3><p className="text-sm text-cyan-300/90">{info.name}</p></div>
+                            </div>
+                            <button onClick={() => handleRemoveCurrency(currency)} className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><X className="h-5 w-5" /></button>
+                          </div>
+                          <div className="space-y-4 text-lg">
+                            <div className="flex justify-between items-baseline"><span className="text-slate-300">We Buy</span><span className="font-mono font-bold text-sky-400">{customerSells}</span></div>
+                            <div className="flex justify-between items-baseline"><span className="text-slate-300">We Sell</span><span className="font-mono font-bold text-emerald-400">{customerBuys}</span></div>
+                          </div>
                         </div>
-                        <button onClick={() => handleRemoveCurrency(currency)} className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><X className="h-5 w-5" /></button>
-                      </div>
-                      <div className="space-y-4 text-lg">
-                        <div className="flex justify-between items-baseline"><span className="text-slate-300">We Buy</span><span className="font-mono font-bold text-sky-400">{customerSells}</span></div>
-                        <div className="flex justify-between items-baseline"><span className="text-slate-300">We Sell</span><span className="font-mono font-bold text-emerald-400">{customerBuys}</span></div>
-                      </div>
-                    </div>
-                    <div className="px-6 pt-2 pb-4">
-                        <div className="h-20 -mx-6 -mb-4">
+                        <div className="px-6 pt-2 pb-4">
+                          <div className="h-20 -mx-6 -mb-4">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id={`color-${currency}`} x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={isPositive ? '#10B981' : '#EF4444'} stopOpacity={0.4}/>
-                                            <stop offset="95%" stopColor={isPositive ? '#10B981' : '#EF4444'} stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <YAxis hide={true} domain={['dataMin - (dataMax - dataMin) * 0.2', 'dataMax + (dataMax - dataMin) * 0.2']} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'rgba(31, 41, 55, 0.8)', border: 'none', borderRadius: '0.5rem' }} labelStyle={{ color: '#d1d5db' }}/>
-                                    <Area type="monotone" dataKey="value" stroke={isPositive ? '#10B981' : '#EF4444'} strokeWidth={2} fillOpacity={1} fill={`url(#color-${currency})`} />
-                                </AreaChart>
+                              <AreaChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                                <defs>
+                                  <linearGradient id={`color-${currency}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={isPositive ? '#10B981' : '#EF4444'} stopOpacity={0.4}/>
+                                    <stop offset="95%" stopColor={isPositive ? '#10B981' : '#EF4444'} stopOpacity={0}/>
+                                  </linearGradient>
+                                </defs>
+                                <YAxis hide={true} domain={['dataMin - (dataMax - dataMin) * 0.2', 'dataMax + (dataMax - dataMin) * 0.2']} />
+                                <Tooltip contentStyle={{ backgroundColor: 'rgba(31, 41, 55, 0.8)', border: 'none', borderRadius: '0.5rem' }} labelStyle={{ color: '#d1d5db' }}/>
+                                <Area type="monotone" dataKey="value" stroke={isPositive ? '#10B981' : '#EF4444'} strokeWidth={2} fillOpacity={1} fill={`url(#color-${currency})`} />
+                              </AreaChart>
                             </ResponsiveContainer>
+                          </div>
                         </div>
-                    </div>
-                    <div className="bg-slate-950/40 px-6 py-3 border-t border-slate-800 flex justify-between items-center text-sm">
-                      <span className="text-slate-400 font-semibold">24h Change</span>
-                      {change24h === '0.00' ? (
-                        <span className="text-xs text-slate-400/80">Market awaiting update</span>
-                      ) : change24h !== 'N/A' ? (
-                        <div className={`flex items-center font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          <span className="mr-1">{isPositive ? '▲' : '▼'}</span>
-                          {change24h}%
+                        <div className="bg-slate-950/40 px-6 py-3 border-t border-slate-800 flex justify-between items-center text-sm">
+                          <span className="text-slate-400 font-semibold">24h Change</span>
+                          {change24h === '0.00' ? (
+                            <span className="text-xs text-slate-400/80">Market awaiting update</span>
+                          ) : change24h !== 'N/A' ? (
+                            <div className={`flex items-center font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              <span className="mr-1">{isPositive ? '▲' : '▼'}</span>
+                              {change24h}%
+                            </div>
+                          ) : ( <span className="text-slate-500">N/A</span> )}
                         </div>
-                      ) : ( <span className="text-slate-500">N/A</span> )}
-                    </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right sidebar */}
+              <div className="lg:col-span-3 space-y-4">
+                <div className="bg-slate-900/60 rounded-2xl border border-slate-800 shadow-xl p-4">
+                  <h3 className="text-cyan-400 font-semibold mb-3">Market Watch</h3>
+                  <div className="space-y-3">
+                    {marketData.map((item, idx) => (
+                      <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
+                    ))}
                   </div>
-                );
-              })}
+                </div>
+                <YieldChart />
+              </div>
             </div>
           )}
         </main>

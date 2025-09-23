@@ -187,38 +187,53 @@ const generateMiniData = (trend: Trend, points = 20) => {
 };
 
 const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
-  const color = item.trend === 'up' ? '#00FF00' : '#FF0000';
+  const color = item.trend === 'up' ? '#00FF88' : '#FF4444';
   const gradientId = `mw-${item.symbol}-grad`;
-  const data = useMemo(() => generateMiniData(item.trend, 18), [item.trend]);
+  const data = useMemo(() => generateMiniData(item.trend, 20), [item.trend]);
 
   return (
-    <div className="bg-black px-2 py-1.5 hover:bg-gray-950 transition-all duration-100" style={{ borderBottom: '0.5px solid rgba(0, 212, 255, 0.08)' }}>
+    <div className="bg-black px-2 py-1.5 hover:bg-gray-950 transition-all duration-100" style={{
+      borderBottom: '0.5px solid rgba(255, 215, 0, 0.08)',
+      background: 'linear-gradient(90deg, rgba(0, 8, 20, 0.3) 0%, rgba(0, 0, 0, 1) 100%)'
+    }}>
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-xs" style={{ color: '#FFB000' }}>{item.symbol}</div>
+          <div className="font-bold text-xs" style={{ color: '#FFD700', fontFamily: 'monospace' }}>{item.symbol}</div>
           <div className="text-white font-mono font-bold text-sm">{item.value}</div>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="w-14 h-6">
+          <div className="w-16 h-6" style={{
+            background: 'linear-gradient(135deg, rgba(0, 20, 35, 0.2) 0%, rgba(0, 8, 20, 0.3) 100%)',
+            borderRadius: '2px'
+          }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
                 <defs>
+                  {/* Bloomberg Terminal yellow gradient for mini charts */}
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={color} stopOpacity={0} />
+                    <stop offset="0%" stopColor="#FFD700" stopOpacity={0.5} />
+                    <stop offset="50%" stopColor="#FFB000" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#FF8800" stopOpacity={0.05} />
                   </linearGradient>
                 </defs>
-                <YAxis hide domain={[ 'dataMin - 0.02', 'dataMax + 0.02' ] as any} />
-                <Area type="monotone" dataKey="value" stroke={color} strokeWidth={0.5} fill={`url(#${gradientId})`} dot={false} />
+                <YAxis hide domain={[ 'dataMin - 0.015', 'dataMax + 0.015' ] as any} />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#FFD700"
+                  strokeWidth={0.5}
+                  fill={`url(#${gradientId})`}
+                  dot={false}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
           <div className="text-right min-w-[60px]">
-            <div className="flex items-center justify-end" style={{ color: item.trend === 'up' ? '#00FF00' : '#FF0000' }}>
-              <span className="text-xs font-bold">{item.trend === 'up' ? '▲' : '▼'} {item.change}</span>
+            <div className="flex items-center justify-end" style={{ color: item.trend === 'up' ? '#00FF88' : '#FF4444' }}>
+              <span className="text-xs font-bold font-mono">{item.trend === 'up' ? '▲' : '▼'} {item.change}</span>
             </div>
             {item.changePercent && (
-              <span className="text-xs opacity-80" style={{ color: '#666' }}>({item.changePercent})</span>
+              <span className="text-xs opacity-80 font-mono" style={{ color: '#888' }}>({item.changePercent})</span>
             )}
           </div>
         </div>
@@ -385,11 +400,14 @@ export default function ExchangeDashboard(): React.ReactElement {
     if (historicalRates?.[foreignCurrency]) {
         const startRate = 1 / historicalRates[foreignCurrency];
         const endRate = marketRate;
-        const points = 7; 
+        const points = 12; // More data points for smoother Bloomberg Terminal look
         for (let i = 0; i < points; i++) {
-            const linearValue = startRate + (endRate - startRate) * (i / (points - 1));
-            const jitter = (i > 0 && i < points - 1) ? (Math.random() - 0.5) * (Math.abs(endRate - startRate) * 0.15) : 0;
-            chartData.push({ name: `p${i}`, value: linearValue + jitter });
+            const progress = i / (points - 1);
+            const linearValue = startRate + (endRate - startRate) * progress;
+            // Add smooth wave-like movement instead of random jitter
+            const waveOffset = Math.sin(progress * Math.PI * 2) * (Math.abs(endRate - startRate) * 0.08);
+            const smoothJitter = (i > 0 && i < points - 1) ? (Math.random() - 0.5) * (Math.abs(endRate - startRate) * 0.05) : 0;
+            chartData.push({ name: `p${i}`, value: linearValue + waveOffset + smoothJitter });
         }
     }
 
@@ -451,15 +469,17 @@ export default function ExchangeDashboard(): React.ReactElement {
                         boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
                       }}>
                         <div className="p-3">
-                          <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center">
-                              <img src={`https://flagcdn.com/w40/${info.code}.png`} width="28" alt={`${info.name} flag`} className="mr-3 rounded-sm shadow-sm"/>
-                              <div>
-                                <h3 className="text-lg font-bold" style={{
-                                  color: '#00D4FF',
-                                  textShadow: '0 0 10px rgba(0, 212, 255, 0.3)'
+                              <img src={`https://flagcdn.com/w40/${info.code}.png`} width="24" alt={`${info.name} flag`} className="mr-2 rounded-sm shadow-sm"/>
+                              <div className="-mt-0.5">
+                                <h3 className="text-base font-bold leading-tight" style={{
+                                  color: '#FFD700',
+                                  textShadow: '0 0 8px rgba(255, 215, 0, 0.4)',
+                                  fontFamily: 'monospace',
+                                  letterSpacing: '0.5px'
                                 }}>{currency}</h3>
-                                <p className="text-xs font-medium" style={{ color: '#4A90E2' }}>{info.name}</p>
+                                <p className="text-xs font-medium leading-tight -mt-0.5" style={{ color: '#4A90E2' }}>{info.name}</p>
                               </div>
                             </div>
                             <button onClick={() => handleRemoveCurrency(currency)} className="text-gray-600 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
@@ -485,61 +505,76 @@ export default function ExchangeDashboard(): React.ReactElement {
                             </div>
                           </div>
                         </div>
-                        <div className="px-3 pt-2 pb-3">
-                          <div className="h-14 -mx-3 -mb-3">
+                        <div className="px-3 pt-1 pb-3">
+                          <div className="h-16 -mx-3 -mb-3" style={{
+                            background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)',
+                            borderTop: '0.5px solid rgba(0, 212, 255, 0.08)'
+                          }}>
                             <ResponsiveContainer width="100%" height="100%">
                               <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
                                 <defs>
-                                  <linearGradient id={`gradient-${currency}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor={isPositive ? '#FFD700' : '#FF4444'} stopOpacity={0.6}/>
-                                    <stop offset="50%" stopColor={isPositive ? '#FFB000' : '#FF0000'} stopOpacity={0.3}/>
-                                    <stop offset="100%" stopColor={isPositive ? '#FF8C00' : '#8B0000'} stopOpacity={0.05}/>
+                                  {/* Bloomberg Terminal signature yellow-orange gradient */}
+                                  <linearGradient id={`bloomberg-gradient-${currency}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#FFD700" stopOpacity={0.7}/>
+                                    <stop offset="30%" stopColor="#FFB000" stopOpacity={0.5}/>
+                                    <stop offset="70%" stopColor="#FF8C00" stopOpacity={0.3}/>
+                                    <stop offset="100%" stopColor="#FF6B00" stopOpacity={0.05}/>
                                   </linearGradient>
-                                  <linearGradient id={`stroke-${currency}`} x1="0" y1="0" x2="1" y2="0">
-                                    <stop offset="0%" stopColor={isPositive ? '#FFD700' : '#FF4444'} stopOpacity={0.8}/>
-                                    <stop offset="100%" stopColor={isPositive ? '#FFA500' : '#FF0000'} stopOpacity={1}/>
+                                  {/* Ultra-thin line gradient */}
+                                  <linearGradient id={`bloomberg-stroke-${currency}`} x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stopColor="#FFD700" stopOpacity={0.9}/>
+                                    <stop offset="50%" stopColor="#FFAA00" stopOpacity={1}/>
+                                    <stop offset="100%" stopColor="#FF8800" stopOpacity={0.8}/>
                                   </linearGradient>
                                 </defs>
-                                <YAxis hide={true} domain={['dataMin - (dataMax - dataMin) * 0.2', 'dataMax + (dataMax - dataMin) * 0.2']} />
+                                <YAxis hide={true} domain={['dataMin - (dataMax - dataMin) * 0.15', 'dataMax + (dataMax - dataMin) * 0.15']} />
                                 <Tooltip
                                   contentStyle={{
-                                    backgroundColor: 'rgba(0, 8, 20, 0.95)',
-                                    border: '0.5px solid rgba(0, 212, 255, 0.4)',
-                                    borderRadius: '3px',
-                                    padding: '4px 8px',
-                                    backdropFilter: 'blur(10px)'
+                                    backgroundColor: 'rgba(0, 8, 20, 0.98)',
+                                    border: '0.5px solid rgba(255, 215, 0, 0.3)',
+                                    borderRadius: '2px',
+                                    padding: '3px 6px',
+                                    backdropFilter: 'blur(15px)',
+                                    boxShadow: '0 0 10px rgba(255, 215, 0, 0.1)'
                                   }}
-                                  labelStyle={{ color: '#00D4FF', fontSize: 11, fontWeight: 'bold' }}
-                                  itemStyle={{ color: '#FFD700', fontSize: 10 }}
+                                  labelStyle={{ color: '#FFD700', fontSize: 10, fontWeight: 'bold' }}
+                                  itemStyle={{ color: '#FFB000', fontSize: 9 }}
                                 />
                                 <Area
                                   type="monotone"
                                   dataKey="value"
-                                  stroke={`url(#stroke-${currency})`}
-                                  strokeWidth={1.5}
+                                  stroke={`url(#bloomberg-stroke-${currency})`}
+                                  strokeWidth={0.6}
                                   fillOpacity={1}
-                                  fill={`url(#gradient-${currency})`}
+                                  fill={`url(#bloomberg-gradient-${currency})`}
+                                  dot={false}
+                                  activeDot={{ r: 1.5, stroke: '#FFD700', strokeWidth: 0.5, fill: '#FFB000' }}
                                 />
                               </AreaChart>
                             </ResponsiveContainer>
                           </div>
                         </div>
-                        <div className="px-3 py-1.5 flex justify-between items-center" style={{
-                          background: 'linear-gradient(90deg, rgba(0, 20, 40, 0.8) 0%, rgba(0, 8, 20, 0.9) 100%)',
-                          borderTop: '0.5px solid rgba(0, 212, 255, 0.2)'
+                        <div className="px-3 py-1 flex justify-between items-center" style={{
+                          background: 'linear-gradient(90deg, rgba(0, 8, 20, 0.9) 0%, rgba(0, 20, 40, 0.7) 100%)',
+                          borderTop: '0.5px solid rgba(255, 215, 0, 0.15)'
                         }}>
-                          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#4A90E2' }}>24h</span>
+                          <span className="text-xs font-bold uppercase tracking-wider" style={{
+                            color: '#FFD700',
+                            fontFamily: 'monospace',
+                            fontSize: '10px'
+                          }}>24H</span>
                           {change24h === '0.00' ? (
-                            <span className="text-xs" style={{ color: '#666' }}>—</span>
+                            <span className="text-xs font-mono" style={{ color: '#666' }}>—</span>
                           ) : change24h !== 'N/A' ? (
-                            <div className={`flex items-center font-bold text-sm`} style={{
+                            <div className={`flex items-center font-bold text-xs`} style={{
                               color: isPositive ? '#00FF88' : '#FF4444',
-                              textShadow: isPositive ? '0 0 5px rgba(0, 255, 136, 0.4)' : '0 0 5px rgba(255, 68, 68, 0.4)'
+                              textShadow: isPositive ? '0 0 3px rgba(0, 255, 136, 0.5)' : '0 0 3px rgba(255, 68, 68, 0.5)',
+                              fontFamily: 'monospace'
                             }}>
-                              <span className="mr-1" style={{ fontSize: '10px' }}>{isPositive ? '▲' : '▼'}</span>
+                              <span className="mr-0.5" style={{ fontSize: '8px' }}>{isPositive ? '▲' : '▼'}</span>
                               {change24h}%
                             </div>
-                          ) : ( <span className="text-xs" style={{ color: '#666' }}>—</span> )}
+                          ) : ( <span className="text-xs font-mono" style={{ color: '#666' }}>—</span> )}
                         </div>
                       </div>
                     );

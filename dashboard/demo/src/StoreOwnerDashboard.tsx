@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, DollarSign, BarChart2, Package, LogOut, Menu, X, Shield, Globe, Settings, Users, FileText } from 'lucide-react';
+import { Clock, DollarSign, BarChart2, Package, LogOut, Menu, X, Shield, Globe, Settings, Users, FileText, CreditCard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import DraggableCalculator from './components/DraggableCalculator';
@@ -8,6 +8,7 @@ import RateLockModal from './components/RateLockModal';
 import RateAlertModal from './components/RateAlertModal';
 import OwnerSettings from './components/OwnerSettings';
 import websiteService from './services/websiteService';
+import PaymentSettings from './features/payments/components/PaymentSettings';
 
 // Tabs (refactored)
 import InventoryTab from './tabs/Inventory';
@@ -243,11 +244,13 @@ export default function StoreOwnerDashboard(): React.ReactElement {
         return <ComplianceTab />;
       case 'website':
         return (
-          <WebsiteTab 
+          <WebsiteTab
             onViewRateLock={handleViewRateLock}
             onViewRateAlert={handleViewRateAlert}
           />
         );
+      case 'payments':
+        return <PaymentSettings />;
       default:
         return <InventoryTab />;
     }
@@ -333,11 +336,17 @@ export default function StoreOwnerDashboard(): React.ReactElement {
               active={activeTab === 'compliance'} 
               onClick={() => handleTabChange('compliance')} 
             />
-            <NavItem 
-              icon={<Globe className="h-5 w-5" />} 
-              text="Website Activities" 
-              active={activeTab === 'website'} 
-              onClick={() => handleTabChange('website')} 
+            <NavItem
+              icon={<Globe className="h-5 w-5" />}
+              text="Website Activities"
+              active={activeTab === 'website'}
+              onClick={() => handleTabChange('website')}
+            />
+            <NavItem
+              icon={<CreditCard className="h-5 w-5" />}
+              text="Payment Settings"
+              active={activeTab === 'payments'}
+              onClick={() => handleTabChange('payments')}
             />
           </nav>
           
@@ -367,6 +376,7 @@ export default function StoreOwnerDashboard(): React.ReactElement {
                     activeTab === 'forms' ? 'Forms Management' :
                     activeTab === 'compliance' ? 'FINTRAC Compliance' :
                     activeTab === 'website' ? 'Website Activities' :
+                    activeTab === 'payments' ? 'Payment Settings' :
                     'Business Analytics'
                   }</h1>
                   <p className="text-sm lg:text-base text-gray-600 mt-1">
@@ -376,6 +386,7 @@ export default function StoreOwnerDashboard(): React.ReactElement {
                       activeTab === 'forms' ? 'Manage customer forms, QR codes, and ID verification for FINTRAC compliance' :
                       activeTab === 'compliance' ? 'Manage FINTRAC compliance requirements' :
                       activeTab === 'website' ? 'Monitor website orders and activities' :
+                      activeTab === 'payments' ? 'Configure payment methods and terminal settings' :
                       'View business performance metrics and analytics'
                     }
                   </p>

@@ -5,9 +5,11 @@
 import databaseService from './databaseService';
 import webSocketService from './webSocketService';
 import { generateSecureId } from '../utils/security';
+import { cryptoFintracService } from '../features/payments/services/cryptoFintracService';
+import { VCTRReport, LVCTRReport, CryptoSTRReport } from '../models/fintracModels';
 
 // FINTRAC Report Types as per regulations
-export type FINTRACReportType = 'LCTR' | 'LVCTR' | 'STR' | 'EFTR' | 'CTR';
+export type FINTRACReportType = 'LCTR' | 'LVCTR' | 'VCTR' | 'STR' | 'EFTR' | 'CTR';
 
 // FINTRAC Submission Methods
 export type SubmissionMethod = 'FWR' | 'API' | 'PAPER';
@@ -26,6 +28,17 @@ export interface FINTRACSubmissionRecord {
   totalAmount: number;
   currency: string;
   reportData: any; // Complete report data
+
+  // Cryptocurrency-specific fields
+  isCryptoReport?: boolean;
+  cryptocurrencyTypes?: string[]; // BTC, ETH, etc.
+  totalCryptoAmount?: number;
+  walletAddresses?: Array<{
+    address: string;
+    type: string;
+    role: 'sender' | 'receiver';
+  }>;
+  transactionHashes?: string[];
   xmlContent?: string; // XML format for FINTRAC
   jsonContent?: string; // JSON format for FINTRAC
   csvContent?: string; // CSV for internal use
@@ -531,6 +544,354 @@ class FINTRACReportingService {
         record.retentionDate,
         record.auditHash,
         record.createdAt
+      ];
+      rows.push(row.join(','));
+    }
+
+    return rows.join('\n');
+  }
+
+  /**
+   * Submit VCTR (Virtual Currency Transaction Report) to FINTRAC
+   */
+  async submitVCTRReport(report: VCTRReport): Promise<FINTRACSubmissionRecord> {
+    const batchId = `VCTR-BATCH-${Date.now()}-${generateSecureId(8)}`;
+    const submissionDate = new Date().toISOString().split('T')[0];
+    const submissionTime = new Date().toISOString().split('T')[1];
+
+    // Generate XML content for FINTRAC submission
+    const xmlContent = this.generateVCTRXML(report);
+    const jsonContent = JSON.stringify(report, null, 2);
+    const csvContent = this.generateVCTRCSV([report]);
+
+    // Create permanent audit record
+    const submissionRecord: FINTRACSubmissionRecord = {
+      id: generateSecureId(),
+      reportType: 'VCTR',
+      submissionMethod: report.submissionMethod,
+      submissionDate,
+      submissionTime,
+      batchId,
+      reportReference: report.reportReference,
+      transactionIds: [report.transactionId],
+      totalTransactions: 1,
+      totalAmount: report.cadEquivalent,
+      currency: 'CAD',
+      reportData: report,
+
+      // Crypto-specific fields
+      isCryptoReport: true,
+      cryptocurrencyTypes: [report.virtualCurrencyType],
+      totalCryptoAmount: report.virtualCurrencyAmount,
+      walletAddresses: [
+        ...(report.senderWalletAddress ? [{
+          address: report.senderWalletAddress,
+          type: report.virtualCurrencyType,
+          role: 'sender' as const
+        }] : []),
+        {
+          address: report.receiverWalletAddress,
+          type: report.virtualCurrencyType,
+          role: 'receiver' as const
+        }
+      ],
+      transactionHashes: [report.transactionHash],
+
+      xmlContent,
+      jsonContent,
+      csvContent,
+      submissionStatus: 'prepared',
+      submittedBy: report.preparedBy,
+      retentionDate: this.calculateRetentionDate(),
+      auditHash: await this.generateAuditHash(xmlContent + jsonContent),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Store permanent record
+    await this.storeSubmissionRecord(submissionRecord);
+
+    // Mark as submitted (in production, wait for FINTRAC acknowledgment)
+    submissionRecord.submissionStatus = 'submitted';
+    submissionRecord.acknowledgmentReference = `VCTR-ACK-${Date.now()}`;
+    submissionRecord.updatedAt = new Date().toISOString();
+    await this.updateSubmissionRecord(submissionRecord);
+
+    // Broadcast event
+    webSocketService.send({
+      type: 'vctr_report_submitted',
+      data: {
+        reportType: 'VCTR',
+        batchId,
+        reportReference: report.reportReference,
+        transactionId: report.transactionId,
+        cryptocurrency: report.virtualCurrencyType,
+        amount: report.cadEquivalent,
+        submissionDate
+      }
+    });
+
+    return submissionRecord;
+  }
+
+  /**
+   * Submit LVCTR (Large Virtual Currency Transaction Report) to FINTRAC
+   */
+  async submitLVCTRReport(report: LVCTRReport): Promise<FINTRACSubmissionRecord> {
+    const batchId = `LVCTR-BATCH-${Date.now()}-${generateSecureId(8)}`;
+    const submissionDate = new Date().toISOString().split('T')[0];
+    const submissionTime = new Date().toISOString().split('T')[1];
+
+    // Generate content
+    const xmlContent = this.generateLVCTRXML(report);
+    const jsonContent = JSON.stringify(report, null, 2);
+    const csvContent = this.generateVCTRCSV([report]);
+
+    const submissionRecord: FINTRACSubmissionRecord = {
+      id: generateSecureId(),
+      reportType: 'LVCTR',
+      submissionMethod: report.submissionMethod,
+      submissionDate,
+      submissionTime,
+      batchId,
+      reportReference: report.reportReference,
+      transactionIds: [report.transactionId, ...report.aggregateTransactions.map(t => t.transactionId)],
+      totalTransactions: 1 + report.aggregateTransactions.length,
+      totalAmount: report.totalAggregateAmount,
+      currency: 'CAD',
+      reportData: report,
+
+      // Crypto-specific fields
+      isCryptoReport: true,
+      cryptocurrencyTypes: Array.from(new Set([
+        report.virtualCurrencyType,
+        ...report.aggregateTransactions.map(t => t.virtualCurrencyType)
+      ])),
+      totalCryptoAmount: report.virtualCurrencyAmount +
+        report.aggregateTransactions.reduce((sum, t) => sum + t.amount, 0),
+      walletAddresses: [
+        ...(report.senderWalletAddress ? [{
+          address: report.senderWalletAddress,
+          type: report.virtualCurrencyType,
+          role: 'sender' as const
+        }] : []),
+        {
+          address: report.receiverWalletAddress,
+          type: report.virtualCurrencyType,
+          role: 'receiver' as const
+        }
+      ],
+      transactionHashes: [report.transactionHash],
+
+      xmlContent,
+      jsonContent,
+      csvContent,
+      submissionStatus: 'prepared',
+      submittedBy: report.preparedBy,
+      retentionDate: this.calculateRetentionDate(),
+      auditHash: await this.generateAuditHash(xmlContent + jsonContent),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    await this.storeSubmissionRecord(submissionRecord);
+
+    // Mark as submitted
+    submissionRecord.submissionStatus = 'submitted';
+    submissionRecord.acknowledgmentReference = `LVCTR-ACK-${Date.now()}`;
+    submissionRecord.updatedAt = new Date().toISOString();
+    await this.updateSubmissionRecord(submissionRecord);
+
+    // Broadcast event
+    webSocketService.send({
+      type: 'lvctr_report_submitted',
+      data: {
+        reportType: 'LVCTR',
+        batchId,
+        reportReference: report.reportReference,
+        transactionCount: submissionRecord.totalTransactions,
+        totalAmount: report.totalAggregateAmount,
+        cryptocurrency: report.virtualCurrencyType,
+        submissionDate
+      }
+    });
+
+    return submissionRecord;
+  }
+
+  /**
+   * Get all crypto-related submission records
+   */
+  async getCryptoSubmissionRecords(): Promise<FINTRACSubmissionRecord[]> {
+    const allRecords = await this.getAllSubmissionRecords();
+    return allRecords.filter(record => record.isCryptoReport === true);
+  }
+
+  /**
+   * Get pending crypto reports that need submission
+   */
+  async getPendingCryptoReports(): Promise<Array<VCTRReport | LVCTRReport | CryptoSTRReport>> {
+    return await cryptoFintracService.getPendingCryptoReports();
+  }
+
+  /**
+   * Export crypto reports for audit
+   */
+  async exportCryptoAuditRecords(startDate?: string, endDate?: string): Promise<string> {
+    const cryptoRecords = await this.getCryptoSubmissionRecords();
+    const filteredRecords = startDate && endDate
+      ? cryptoRecords.filter(record =>
+          record.submissionDate >= startDate && record.submissionDate <= endDate
+        )
+      : cryptoRecords;
+
+    const headers = [
+      'Submission_ID',
+      'Report_Type',
+      'Report_Reference',
+      'Cryptocurrencies',
+      'Total_Crypto_Amount',
+      'CAD_Equivalent',
+      'Transaction_Hashes',
+      'Wallet_Addresses',
+      'Submission_Date',
+      'Submission_Status',
+      'Acknowledgment_Reference'
+    ];
+
+    const rows = [headers.join(',')];
+
+    for (const record of filteredRecords) {
+      const row = [
+        record.id,
+        record.reportType,
+        record.reportReference,
+        record.cryptocurrencyTypes?.join(';') || '',
+        record.totalCryptoAmount || 0,
+        record.totalAmount,
+        record.transactionHashes?.join(';') || '',
+        record.walletAddresses?.map(w => `${w.address}(${w.role})`).join(';') || '',
+        record.submissionDate,
+        record.submissionStatus,
+        record.acknowledgmentReference || ''
+      ];
+      rows.push(row.join(','));
+    }
+
+    return rows.join('\n');
+  }
+
+  /**
+   * Generate VCTR XML for FINTRAC submission
+   */
+  private generateVCTRXML(report: VCTRReport): string {
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<vctr_report xmlns="http://www.fintrac-canafe.gc.ca/vctr">\n';
+    xml += '  <report_header>\n';
+    xml += `    <report_type>VCTR</report_type>\n`;
+    xml += `    <report_reference>${report.reportReference}</report_reference>\n`;
+    xml += `    <submission_date>${report.submissionDate}</submission_date>\n`;
+    xml += '  </report_header>\n';
+    xml += '  <virtual_currency_transaction>\n';
+    xml += `    <transaction_id>${report.transactionId}</transaction_id>\n`;
+    xml += `    <currency_type>${report.virtualCurrencyType}</currency_type>\n`;
+    xml += `    <amount>${report.virtualCurrencyAmount}</amount>\n`;
+    xml += `    <cad_equivalent>${report.cadEquivalent}</cad_equivalent>\n`;
+    xml += `    <exchange_rate>${report.exchangeRate}</exchange_rate>\n`;
+    xml += `    <transaction_hash>${this.escapeXml(report.transactionHash)}</transaction_hash>\n`;
+    xml += `    <receiver_wallet>${this.escapeXml(report.receiverWalletAddress)}</receiver_wallet>\n`;
+    if (report.senderWalletAddress) {
+      xml += `    <sender_wallet>${this.escapeXml(report.senderWalletAddress)}</sender_wallet>\n`;
+    }
+    if (report.ipAddress) {
+      xml += `    <ip_address>${report.ipAddress}</ip_address>\n`;
+    }
+    xml += `    <network_fee>${report.networkFee}</network_fee>\n`;
+    xml += `    <confirmations>${report.confirmations}</confirmations>\n`;
+    xml += '  </virtual_currency_transaction>\n';
+    xml += '</vctr_report>\n';
+
+    return xml;
+  }
+
+  /**
+   * Generate LVCTR XML for FINTRAC submission
+   */
+  private generateLVCTRXML(report: LVCTRReport): string {
+    let xml = this.generateVCTRXML(report);
+
+    // Add aggregate transactions section
+    xml = xml.replace('</vctr_report>', '');
+    xml += '  <aggregate_transactions>\n';
+    xml += `    <aggregation_period>\n`;
+    xml += `      <start_date>${report.aggregationPeriod.startDate}</start_date>\n`;
+    xml += `      <end_date>${report.aggregationPeriod.endDate}</end_date>\n`;
+    xml += `    </aggregation_period>\n`;
+    xml += `    <total_aggregate_amount>${report.totalAggregateAmount}</total_aggregate_amount>\n`;
+
+    for (const tx of report.aggregateTransactions) {
+      xml += '    <related_transaction>\n';
+      xml += `      <transaction_id>${tx.transactionId}</transaction_id>\n`;
+      xml += `      <date>${tx.date}</date>\n`;
+      xml += `      <amount>${tx.amount}</amount>\n`;
+      xml += `      <currency_type>${tx.virtualCurrencyType}</currency_type>\n`;
+      xml += `      <cad_equivalent>${tx.cadEquivalent}</cad_equivalent>\n`;
+      xml += '    </related_transaction>\n';
+    }
+
+    xml += '  </aggregate_transactions>\n';
+    xml += '</lvctr_report>\n';
+
+    return xml;
+  }
+
+  /**
+   * Generate VCTR CSV format
+   */
+  private generateVCTRCSV(reports: VCTRReport[]): string {
+    const headers = [
+      'Report_Reference',
+      'Transaction_ID',
+      'Currency_Type',
+      'Crypto_Amount',
+      'CAD_Equivalent',
+      'Exchange_Rate',
+      'Transaction_Hash',
+      'Sender_Wallet',
+      'Receiver_Wallet',
+      'Network_Fee',
+      'Confirmations',
+      'IP_Address',
+      'Device_ID',
+      'Customer_ID',
+      'Verification_Level',
+      'Risk_Score',
+      'Suspicious',
+      'Submission_Date'
+    ];
+
+    const rows = [headers.join(',')];
+
+    for (const report of reports) {
+      const row = [
+        report.reportReference,
+        report.transactionId,
+        report.virtualCurrencyType,
+        report.virtualCurrencyAmount,
+        report.cadEquivalent,
+        report.exchangeRate,
+        this.csvEscape(report.transactionHash),
+        this.csvEscape(report.senderWalletAddress || ''),
+        this.csvEscape(report.receiverWalletAddress),
+        report.networkFee,
+        report.confirmations,
+        report.ipAddress || '',
+        report.deviceId || '',
+        report.customerId,
+        report.verificationLevel,
+        report.riskScore,
+        report.suspicious,
+        report.submissionDate
       ];
       rows.push(row.join(','));
     }

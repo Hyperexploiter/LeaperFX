@@ -3,6 +3,7 @@ import databaseService from './databaseService';
 import type { Transaction as DBTransaction } from './databaseService';
 import fintracValidationService from './fintracValidationService';
 import secureDocumentService from './secureDocumentService';
+import type { PaymentMethod, UnifiedPaymentResult } from '../features/payments/types';
 
 // Types
 export interface Transaction {
@@ -14,7 +15,21 @@ export interface Transaction {
   toAmount: number;
   commission: number;
   profit: number;
-  
+
+  // Payment Method Fields
+  paymentMethod?: PaymentMethod;
+  paymentResult?: UnifiedPaymentResult;
+  paymentReferenceId?: string;
+  paymentDetails?: {
+    terminalDeviceId?: string;
+    cardLast4?: string;
+    cardBrand?: string;
+    cryptoTxHash?: string;
+    cryptoWallet?: string;
+    cryptoAmount?: number;
+    exchangeRate?: number;
+  };
+
   // FINTRAC Compliance Fields
   status?: 'pending' | 'locked' | 'completed' | 'submitted';
   requiresLCTR?: boolean;
@@ -39,10 +54,24 @@ export interface CreateTransactionParams {
   fromAmount: number;
   toAmount: number;
   commission: number;
-  
+
   // Optional customer linkage at creation time
   customerId?: string | null;
-  
+
+  // Payment Method Fields
+  paymentMethod?: PaymentMethod;
+  paymentResult?: UnifiedPaymentResult;
+  paymentReferenceId?: string;
+  paymentDetails?: {
+    terminalDeviceId?: string;
+    cardLast4?: string;
+    cardBrand?: string;
+    cryptoTxHash?: string;
+    cryptoWallet?: string;
+    cryptoAmount?: number;
+    exchangeRate?: number;
+  };
+
   // FINTRAC Compliance Fields
   status?: 'pending' | 'locked' | 'completed' | 'submitted';
   requiresLCTR?: boolean;
@@ -78,6 +107,10 @@ class TransactionService {
       profit: dbTransaction.profit,
       status: dbTransaction.status,
       customerId: (dbTransaction as any).customerId,
+      paymentMethod: (dbTransaction as any).paymentMethod || 'cash',
+      paymentResult: (dbTransaction as any).paymentResult,
+      paymentReferenceId: (dbTransaction as any).paymentReferenceId,
+      paymentDetails: (dbTransaction as any).paymentDetails,
       requiresLCTR: dbTransaction.complianceStatus === 'lctr_required',
       requiresEnhancedRecords: dbTransaction.complianceStatus === 'enhanced_records',
       lctrDeadline: dbTransaction.lctrDeadline,
@@ -123,7 +156,7 @@ class TransactionService {
       amount: params.toAmount,
       currency: params.toCurrency,
       customerId: (params.customerId ?? undefined) as string | undefined,
-      paymentMethod: 'cash', // Default, should be passed in params
+      paymentMethod: params.paymentMethod || 'cash',
       conductorType: 'individual' as const,
       thirdPartyInvolved: false,
       country: 'Canada',
@@ -141,10 +174,14 @@ class TransactionService {
       status: requiresCompliance.requiresLCTR ? 'locked' : 'completed',
       complianceStatus: requiresCompliance.requiresLCTR ? 'lctr_required' : 
                        requiresCompliance.requiresEnhancedRecords ? 'enhanced_records' : 'none',
-      lctrDeadline: requiresCompliance.requiresLCTR ? 
+      lctrDeadline: requiresCompliance.requiresLCTR ?
         new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString() : // 15 days from now
         undefined,
-      customerId: params.customerId || undefined
+      customerId: params.customerId || undefined,
+      paymentMethod: params.paymentMethod,
+      paymentResult: params.paymentResult,
+      paymentReferenceId: params.paymentReferenceId,
+      paymentDetails: params.paymentDetails
     });
     
     // Run FINTRAC validation if compliance is required

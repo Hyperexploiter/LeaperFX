@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, User, Plus } from 'lucide-react';
 import { fetchLatestRates } from '../../services/exchangeRateService';
 import { Modal, Toast } from '../Modal';
+import PaymentProcessingModal from '../../tabs/Transactions/components/PaymentProcessingModal';
+import type { PaymentMethod } from '../../features/payments/types';
 
 // SmartCalculator Component
 const SmartCalculator: React.FC = () => {
@@ -38,6 +40,8 @@ const SmartCalculator: React.FC = () => {
   // Modal and Toast states
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
+  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
+  const [pendingTransactionData, setPendingTransactionData] = useState<any>(null);
   const [toast, setToast] = useState<{type: 'success' | 'error' | 'warning' | 'info', message: string, visible: boolean}>({
     type: 'success',
     message: '',
@@ -191,36 +195,56 @@ const SmartCalculator: React.FC = () => {
       showToast('error', 'Please calculate the exchange rate first');
       return;
     }
-    
+
+    const fromAmountValue = parseFloat(amount);
+    const toAmountValue = parseFloat(calculatedAmount);
+    const commissionValue = parseFloat(profit);
+
+    // Store transaction data for payment processing
+    setPendingTransactionData({
+      fromCurrency,
+      toCurrency,
+      fromAmount: fromAmountValue,
+      toAmount: toAmountValue,
+      commission: commissionValue,
+      customerId: selectedCustomer || null
+    });
+
+    // Show payment modal
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentCompleted = async (paymentData: any) => {
+    if (!pendingTransactionData) return;
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Import the transaction service dynamically to avoid circular dependencies
       const { default: transactionService } = await import('../../services/transactionService');
-      
-      const fromAmountValue = parseFloat(amount);
-      const toAmountValue = parseFloat(calculatedAmount);
-      const commissionValue = parseFloat(profit);
-      
+
+      const { fromAmount, toAmount, commission } = pendingTransactionData;
+
       // Check if transaction requires FINTRAC compliance
-      const requiresLCTR = toAmountValue >= 10000;
-      const requiresEnhancedRecords = toAmountValue >= 3000;
-      
+      const requiresLCTR = toAmount >= 10000;
+      const requiresEnhancedRecords = toAmount >= 3000;
+
       // Calculate LCTR deadline (15 days from now)
       const now = new Date();
       const lctrDeadline = new Date(now);
       lctrDeadline.setDate(lctrDeadline.getDate() + 15);
-      
-      // Create transaction with FINTRAC compliance fields and customer information
+
+      // Create transaction with payment data and FINTRAC compliance fields
       const transaction = await transactionService.createTransaction({
-        fromCurrency,
-        toCurrency,
-        fromAmount: fromAmountValue,
-        toAmount: toAmountValue,
-        commission: commissionValue,
-        customerId: selectedCustomer || null,
-        
+        ...pendingTransactionData,
+
+        // Payment Information
+        paymentMethod: paymentData.paymentMethod,
+        paymentResult: paymentData.paymentResult,
+        paymentReferenceId: paymentData.paymentReferenceId,
+        paymentDetails: paymentData.paymentDetails,
+
         // FINTRAC Compliance Fields
         status: requiresLCTR || requiresEnhancedRecords ? 'locked' : 'completed',
         requiresLCTR,
@@ -228,27 +252,28 @@ const SmartCalculator: React.FC = () => {
         lctrDeadline: lctrDeadline.toISOString().split('T')[0],
         daysUntilDeadline: 15
       });
-      
+
       // Reset form
       setCalculatedAmount('');
       setProfit('');
-      
+      setPendingTransactionData(null);
+
       // Show success message with modal and toast
       setShowSuccessModal(true);
-      
+
       // If transaction requires compliance, show additional information
       if (requiresLCTR || requiresEnhancedRecords) {
         showToast('warning', 'This transaction requires FINTRAC compliance. Please collect customer information.');
-        
+
         // In a real implementation, we would use a global state management solution
         // to communicate between components. For now, we'll use localStorage as a simple solution.
         localStorage.setItem('pendingComplianceTransaction', JSON.stringify({
           id: transaction.id,
-          amount: toAmountValue,
+          amount: toAmount,
           requiresLCTR,
           timestamp: new Date().toISOString()
         }));
-        
+
         // Dispatch a custom event that the StoreOwnerDashboard can listen for
         const event = new CustomEvent('fintracComplianceRequired', {
           detail: {
@@ -258,7 +283,10 @@ const SmartCalculator: React.FC = () => {
         });
         window.dispatchEvent(event);
       } else {
-        showToast('success', 'Transaction added successfully!');
+        const paymentMethodName = paymentData.paymentMethod === 'cash' ? 'cash' :
+                                paymentData.paymentMethod === 'stripe_terminal' ? 'card' :
+                                paymentData.paymentMethod === 'cryptocurrency' ? 'crypto' : 'payment';
+        showToast('success', `Transaction completed successfully with ${paymentMethodName} payment!`);
       }
     } catch (err) {
       setError('Failed to add transaction');
@@ -402,7 +430,7 @@ const SmartCalculator: React.FC = () => {
                 <span className="text-gray-600">Profit:</span>
                 <span className="font-bold text-green-600">{profit} {toCurrency}</span>
               </div>
-              <button 
+              <button
                 onClick={handleAddToSale}
                 disabled={isLoading}
                 className={`w-full mt-4 flex items-center justify-center py-2 px-4 rounded-lg text-white transition-colors ${
@@ -418,7 +446,7 @@ const SmartCalculator: React.FC = () => {
                     Processing...
                   </>
                 ) : (
-                  'Add to Sale'
+                  'Complete Sale'
                 )}
               </button>
             </div>
@@ -662,6 +690,18 @@ const SmartCalculator: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Payment Processing Modal */}
+      <PaymentProcessingModal
+        isOpen={showPaymentModal}
+        onClose={() => {
+          setShowPaymentModal(false);
+          setPendingTransactionData(null);
+        }}
+        amount={pendingTransactionData?.toAmount || 0}
+        currency={pendingTransactionData?.toCurrency || 'CAD'}
+        onPaymentCompleted={handlePaymentCompleted}
+      />
 
       {/* Toast Notification */}
       <Toast

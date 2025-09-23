@@ -417,7 +417,34 @@ const TransactionHistory: React.FC = () => {
     const customerName = getCustomerName(tx.customerId);
     const rate = tx.fromAmount > 0 ? (tx.toAmount / tx.fromAmount) : 0;
     const type = `${tx.fromCurrency}→${tx.toCurrency}`;
-    
+
+    // Get payment method display name
+    const getPaymentMethodDisplay = (paymentMethod: string) => {
+      switch (paymentMethod) {
+        case 'cash': return 'Cash';
+        case 'stripe_terminal': return 'Card Payment';
+        case 'cryptocurrency': return 'Cryptocurrency';
+        case 'interac': return 'Interac';
+        default: return 'Cash';
+      }
+    };
+
+    const paymentMethodName = getPaymentMethodDisplay(tx.paymentMethod || 'cash');
+
+    // Build payment details section
+    let paymentDetailsHTML = '';
+    if (tx.paymentDetails) {
+      if (tx.paymentMethod === 'stripe_terminal' && tx.paymentDetails.cardLast4) {
+        paymentDetailsHTML = `
+          <div class="row"><div class="muted">Card</div><div class="muted">${tx.paymentDetails.cardBrand || 'Card'} ****${tx.paymentDetails.cardLast4}</div></div>`;
+      } else if (tx.paymentMethod === 'cryptocurrency' && tx.paymentDetails.cryptoTxHash) {
+        paymentDetailsHTML = `
+          <div class="row"><div class="muted">Crypto Amount</div><div class="muted">${tx.paymentDetails.cryptoAmount ? tx.paymentDetails.cryptoAmount.toFixed(8) : 'N/A'}</div></div>
+          <div class="row"><div class="muted">Wallet</div><div class="muted">${tx.paymentDetails.cryptoWallet ? tx.paymentDetails.cryptoWallet.substring(0, 12) + '...' : 'N/A'}</div></div>
+          <div class="row"><div class="muted">TX Hash</div><div class="muted">${tx.paymentDetails.cryptoTxHash.substring(0, 12)}...</div></div>`;
+      }
+    }
+
     return `<!doctype html><html><head><title>Receipt ${tx.id}</title>
       <style>
         body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto; padding:16px;color:#111}
@@ -426,6 +453,7 @@ const TransactionHistory: React.FC = () => {
         .row{display:flex;justify-content:space-between;margin:6px 0}
         .muted{color:#666}
         .total{font-weight:700}
+        .payment{background:#f8f9fa;padding:8px;border-radius:4px;margin:8px 0}
         hr{border:none;border-top:1px solid #e5e7eb;margin:12px 0}
         .center{text-align:center}
       </style>
@@ -440,6 +468,12 @@ const TransactionHistory: React.FC = () => {
       <div class="row"><div>To</div><div>${tx.toAmount.toLocaleString()} ${tx.toCurrency}</div></div>
       <div class="row"><div>Rate</div><div>${rate.toFixed(6)}</div></div>
       <div class="row"><div class="muted">Commission</div><div class="muted">$${(tx.commission ?? 0).toFixed(2)}</div></div>
+      <hr/>
+      <div class="payment">
+        <div class="row"><div><strong>Payment Method</strong></div><div><strong>${paymentMethodName}</strong></div></div>
+        ${paymentDetailsHTML}
+        ${tx.paymentReferenceId ? `<div class="row"><div class="muted">Reference</div><div class="muted">${tx.paymentReferenceId}</div></div>` : ''}
+      </div>
       <hr/>
       <div class="row total"><div>Total</div><div>${tx.toAmount.toLocaleString()} ${tx.toCurrency}</div></div>
       <div class="center muted" style="margin-top:16px">Thank you</div>
@@ -799,9 +833,27 @@ const TransactionHistory: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{tx.fromAmount.toLocaleString()} {tx.fromCurrency}</div>
+                      {tx.paymentMethod && tx.paymentMethod !== 'cash' && (
+                        <div className="text-xs text-gray-500 flex items-center mt-1">
+                          <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                            tx.paymentMethod === 'stripe_terminal' ? 'bg-blue-500' :
+                            tx.paymentMethod === 'cryptocurrency' ? 'bg-orange-500' :
+                            tx.paymentMethod === 'interac' ? 'bg-red-500' : 'bg-green-500'
+                          }`}></span>
+                          {tx.paymentMethod === 'stripe_terminal' ? 'Card' :
+                           tx.paymentMethod === 'cryptocurrency' ? 'Crypto' :
+                           tx.paymentMethod === 'interac' ? 'Interac' : 'Cash'}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{tx.toAmount.toLocaleString()} {tx.toCurrency}</div>
+                      {tx.paymentDetails?.cardLast4 && (
+                        <div className="text-xs text-gray-500 mt-1">****{tx.paymentDetails.cardLast4}</div>
+                      )}
+                      {tx.paymentDetails?.cryptoAmount && (
+                        <div className="text-xs text-gray-500 mt-1">{tx.paymentDetails.cryptoAmount.toFixed(4)} crypto</div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col space-y-2">

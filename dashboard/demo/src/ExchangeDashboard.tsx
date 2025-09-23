@@ -583,9 +583,8 @@ export default function ExchangeDashboard(): React.ReactElement {
 
               {/* Right sidebar */}
               <div className="w-96 space-y-4">
-                <div className="bg-black border p-6" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
-                  <h3 className="text-lg font-bold uppercase tracking-wider mb-4" style={{ color: '#00D4FF' }}>Market Watch</h3>
-                  <div className="space-y-2">
+                <div className="bg-black border" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
+                  <div className="space-y-0">
                     {marketData.map((item, idx) => (
                       <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
                     ))}

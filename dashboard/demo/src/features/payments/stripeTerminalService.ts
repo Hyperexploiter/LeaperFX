@@ -154,6 +154,11 @@ class StripeTerminalService {
           ? { discoveryMethod: 'simulated' }
           : { discoveryMethod: 'internet' };
 
+        // If a locationId is provided, scope discovery to that location (for cloud readers)
+        if (!useSim && this.configuration?.locationId) {
+          discoveryConfig.location = this.configuration.locationId;
+        }
+
         const { readers } = await this.terminal.discoverReaders(discoveryConfig);
         this.realReaders = readers || [];
         this.readerMap.clear();
@@ -597,12 +602,14 @@ class StripeTerminalService {
     const body = {
       amount: request.amount,
       currency: request.currency,
+      // Stripe Terminal requires card_present payment method type
+      payment_method_types: ['card_present'],
       capture_method: request['captureMethod'] || 'automatic',
       description: request.description,
       metadata: request.metadata,
       receipt_email: request.receiptEmail,
       on_behalf_of: request.onBehalfOf
-    };
+    } as any;
 
     const candidates: string[] = [];
     const base = this.getApiBaseUrl();

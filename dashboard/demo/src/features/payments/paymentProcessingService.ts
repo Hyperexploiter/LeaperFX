@@ -162,10 +162,14 @@ class PaymentProcessingService {
       console.log('🔄 Initializing Payment Processing Service...');
 
       // Initialize Stripe Terminal
+      const w: any = (typeof window !== 'undefined') ? (window as any) : {};
+      const envMode = (w.__ENV__?.STRIPE_TERMINAL_ENV || w.__ENV__?.STRIPE_MODE || w.__ENV__?.MODE || (typeof process !== 'undefined' ? ((process as any).env?.STRIPE_TERMINAL_ENV || (process as any).env?.STRIPE_MODE || (process as any).env?.NODE_ENV) : 'test')) as string | undefined;
+      const environment = envMode && ['live', 'production', 'prod'].includes(envMode.toLowerCase()) ? 'live' : 'test';
       const terminalConfig = {
-        apiKey: (typeof window !== 'undefined' ? (window as any).__ENV__?.STRIPE_PUBLISHABLE_KEY : undefined) || (typeof process !== 'undefined' ? (process as any).env?.STRIPE_PUBLISHABLE_KEY : undefined) || 'pk_test_simulated',
-        environment: 'test' as const,
-        merchantDisplayName: 'LeaperFX Store'
+        apiKey: ((typeof window !== 'undefined' ? (window as any).__ENV__?.STRIPE_PUBLISHABLE_KEY : undefined) || (typeof process !== 'undefined' ? (process as any).env?.STRIPE_PUBLISHABLE_KEY : undefined) || 'pk_test_simulated'),
+        environment: environment as 'test' | 'live',
+        merchantDisplayName: (w.__ENV__?.STRIPE_MERCHANT_NAME || (typeof process !== 'undefined' ? (process as any).env?.STRIPE_MERCHANT_NAME : undefined) || 'LeaperFX Store'),
+        locationId: (w.__ENV__?.STRIPE_TERMINAL_LOCATION || (typeof process !== 'undefined' ? (process as any).env?.STRIPE_TERMINAL_LOCATION : undefined))
       };
 
       const terminalInitialized = await stripeTerminalService.initialize(terminalConfig);

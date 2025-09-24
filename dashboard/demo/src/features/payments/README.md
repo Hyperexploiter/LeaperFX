@@ -304,7 +304,7 @@ This module is ready to connect to Stripe Terminal cloud readers. The frontend a
 
 1) Backend endpoints required
 - POST /api/terminal/connection_token → returns { secret: string }
-- POST /api/terminal/payment_intents → body { amount, currency, capture_method?, description?, metadata?, receipt_email? } → returns { client_secret, id, status }
+- POST /api/terminal/payment_intents → body { amount, currency, payment_method_types: ['card_present'], capture_method?, description?, metadata?, receipt_email? } → returns { client_secret, id, status }
 - POST /api/terminal/payment_intents/:id/capture → returns { success: true }
 
 Alternative base path: If your API is not reverse-proxied under /api, set API_BASE_URL and expose equivalent endpoints under:
@@ -316,7 +316,9 @@ Alternative base path: If your API is not reverse-proxied under /api, set API_BA
 Expose runtime env vars either via process.env (Node/Electron) or window.__ENV__ (browser):
 - API_BASE_URL=https://api.leaperfx.com/v1    # or set window.__ENV__ = { VITE_API_BASE_URL: '...' }
 - STRIPE_PUBLISHABLE_KEY=pk_live_xxx (if needed elsewhere)
-- STRIPE_TERMINAL_LOCATION=loc_123 (optional)
+- STRIPE_TERMINAL_ENV=live                    # 'test' | 'live' (also accepts STRIPE_MODE=production|live)
+- STRIPE_TERMINAL_LOCATION=loc_123            # optional, scopes cloud reader discovery by location
+- STRIPE_MERCHANT_NAME="LeaperFX Store"       # optional display name for readers
 
 3) Reader connection (cloud/internet)
 - In Test mode, discovery uses the simulator by default.
@@ -329,6 +331,12 @@ Expose runtime env vars either via process.env (Node/Electron) or window.__ENV__
 
 5) Simulator
 - When the real SDK is not available, a simulator is used so the UI remains functional. This allows development without hardware.
+
+6) Important Stripe requirements and references
+- PaymentIntent must be created with payment_method_types: ['card_present'] for Terminal transactions.
+- Ensure your network meets the Terminal network requirements: https://docs.stripe.com/terminal/network-requirements
+- Manage reader locations and zones to scope discovery: https://docs.stripe.com/terminal/fleet/locations-and-zones
+- Receipt options and best practices: https://docs.stripe.com/terminal/features/receipts
 
 ### Data Protection
 - No storage of sensitive payment data

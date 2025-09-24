@@ -446,221 +446,193 @@ export default function ExchangeDashboard(): React.ReactElement {
           {!isLoading && !error && (
             <div className="flex-1">
               <div className="flex flex-col xl:flex-row gap-4">
-                {/* Left column - Currency rectangles */}
-                <div className="w-full xl:w-[400px] 2xl:w-[450px] space-y-2">
+                {/* Left column - Currency rectangles + Daily Bulletin */}
+                <div className="w-full xl:w-[400px] 2xl:w-[450px]">
+                  <div className="space-y-2">
                   {displayedCurrencies.map((currency) => {
                     const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
                     const info = getCurrencyInfo(currency);
                     const isPositive = parseFloat(change24h) >= 0;
 
                     return (
-                      <div key={currency} className="relative group overflow-hidden transition-all duration-200" style={{
+                      <div key={currency} className="h-[120px] relative group overflow-hidden transition-all duration-200" style={{
                         background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
                         border: '0.5px solid rgba(0, 150, 255, 0.2)',
                         boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
                       }}>
-                        <div className="flex flex-col">
-                          <div className="p-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center">
-                                <img src={`https://flagcdn.com/w40/${info.code}.png`} width="20" alt={`${info.name} flag`} className="mr-2"/>
-                                <h3 className="text-sm font-bold" style={{
-                                  color: '#FFA500',
-                                  fontFamily: 'monospace'
-                                }}>{currency}</h3>
-                              </div>
-                              <button onClick={() => handleRemoveCurrency(currency)} className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
+                        <button onClick={() => handleRemoveCurrency(currency)} className="absolute top-2 right-2 z-10 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
+                        <div className="h-full flex items-center px-4">
+                          {/* Left section - Currency info */}
+                          <div className="flex-1">
+                            <div className="flex items-center mb-3">
+                              <img src={`https://flagcdn.com/w40/${info.code}.png`} width="24" alt={`${info.name} flag`} className="mr-2"/>
+                              <h3 className="text-base font-bold" style={{
+                                color: '#FFA500',
+                                fontFamily: 'monospace'
+                              }}>{currency}</h3>
                             </div>
-                            <div className="flex justify-between text-xs mt-2">
-                              <div>
-                                <span style={{ color: '#4A90E2' }}>Buy </span>
+                            <div className="space-y-1">
+                              <div className="text-sm">
+                                <span style={{ color: '#4A90E2' }}>We Buy: </span>
                                 <span className="font-mono font-bold text-white">{customerSells}</span>
                               </div>
-                              <div>
-                                <span style={{ color: '#4A90E2' }}>Sell </span>
+                              <div className="text-sm">
+                                <span style={{ color: '#4A90E2' }}>We Sell: </span>
                                 <span className="font-mono font-bold" style={{ color: '#00FF88' }}>{customerBuys}</span>
-                              </div>
-                              <div className="font-bold" style={{
-                                color: isPositive ? '#00FF88' : '#FF4444'
-                              }}>
-                                {isPositive ? '▲' : '▼'} {change24h !== 'N/A' ? `${change24h}%` : '—'}
                               </div>
                             </div>
                           </div>
-                          <div className="h-16 -mx-[1px] -mb-[1px]" style={{
-                            background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)',
-                            borderTop: '0.5px solid rgba(0, 212, 255, 0.08)'
+
+                          {/* Center section - Mini chart */}
+                          <div className="w-32 h-16 mx-4" style={{
+                            background: 'rgba(0, 20, 40, 0.4)',
+                            border: '0.5px solid rgba(255, 215, 0, 0.15)'
                           }}>
                             <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                              <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                                 <defs>
-                                  {/* Bloomberg Terminal signature yellow-orange gradient */}
                                   <linearGradient id={`bloomberg-gradient-${currency}`} x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="0%" stopColor="#FFD700" stopOpacity={0.7}/>
-                                    <stop offset="30%" stopColor="#FFB000" stopOpacity={0.5}/>
-                                    <stop offset="70%" stopColor="#FF8C00" stopOpacity={0.3}/>
-                                    <stop offset="100%" stopColor="#FF6B00" stopOpacity={0.05}/>
-                                  </linearGradient>
-                                  {/* Ultra-thin line gradient */}
-                                  <linearGradient id={`bloomberg-stroke-${currency}`} x1="0" y1="0" x2="1" y2="0">
-                                    <stop offset="0%" stopColor="#FFD700" stopOpacity={0.9}/>
-                                    <stop offset="50%" stopColor="#FFAA00" stopOpacity={1}/>
-                                    <stop offset="100%" stopColor="#FF8800" stopOpacity={0.8}/>
+                                    <stop offset="50%" stopColor="#FFB000" stopOpacity={0.4}/>
+                                    <stop offset="100%" stopColor="#FF6B00" stopOpacity={0.1}/>
                                   </linearGradient>
                                 </defs>
-                                <YAxis hide={true} domain={['dataMin - (dataMax - dataMin) * 0.15', 'dataMax + (dataMax - dataMin) * 0.15']} />
-                                <Tooltip
-                                  contentStyle={{
-                                    backgroundColor: 'rgba(0, 8, 20, 0.98)',
-                                    border: '0.5px solid rgba(255, 215, 0, 0.3)',
-                                    borderRadius: '2px',
-                                    padding: '3px 6px',
-                                    backdropFilter: 'blur(15px)',
-                                    boxShadow: '0 0 10px rgba(255, 215, 0, 0.1)'
-                                  }}
-                                  labelStyle={{ color: '#FFD700', fontSize: 10, fontWeight: 'bold' }}
-                                  itemStyle={{ color: '#FFB000', fontSize: 9 }}
-                                />
+                                <YAxis hide domain={['dataMin', 'dataMax']} />
                                 <Area
                                   type="monotone"
                                   dataKey="value"
-                                  stroke={`url(#bloomberg-stroke-${currency})`}
-                                  strokeWidth={0.6}
+                                  stroke="#FFD700"
+                                  strokeWidth={0.8}
                                   fillOpacity={1}
                                   fill={`url(#bloomberg-gradient-${currency})`}
                                   dot={false}
-                                  activeDot={{ r: 1.5, stroke: '#FFD700', strokeWidth: 0.5, fill: '#FFB000' }}
                                 />
                               </AreaChart>
                             </ResponsiveContainer>
+                          </div>
+
+                          {/* Right section - 24h change */}
+                          <div className="text-right">
+                            <div className="font-bold text-lg" style={{
+                              color: isPositive ? '#00FF88' : '#FF4444'
+                            }}>
+                              {isPositive ? '▲' : '▼'} {change24h !== 'N/A' ? `${change24h}%` : '—'}
+                            </div>
+                            <div className="text-xs" style={{ color: '#666' }}>24h</div>
                           </div>
                         </div>
                       </div>
                     );
                   })}
+                  </div>
+
+                  {/* Daily Bulletin - Under currency column */}
+                  <div className="mt-3 bg-black border" style={{
+                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                    border: '0.5px solid rgba(255, 165, 0, 0.2)',
+                    borderLeftWidth: '4px',
+                    borderLeftColor: '#FFA500'
+                  }}>
+                    <div className="p-3">
+                      <div className="flex flex-col sm:flex-row items-start sm:space-x-3">
+                        <span className="text-xs font-bold uppercase" style={{
+                          color: '#FFA500',
+                          fontFamily: 'monospace',
+                          minWidth: '100px'
+                        }}>DAILY BULLETIN</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-white mb-1">Federal Reserve holds interest rates steady at 5.25-5.50%</p>
+                          <p className="text-xs" style={{ color: '#666' }}>Markets react positively • USD weakens • Gold surges to $2,050/oz • CAD strengthens to 1.35 • Oil prices climb 2.3%</p>
+                        </div>
+                        <span className="text-xs" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>14:32 EST</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Middle column - Crypto rectangles */}
-                <div className="flex-1 space-y-2">
-                  {/* BTC/CAD */}
-                  <div className="bg-black border" style={{
-                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                    border: '0.5px solid rgba(0, 150, 255, 0.2)',
-                    boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
-                  }}>
-                    <div className="flex items-center h-[100px] px-3">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>BTC/CAD</h3>
-                          <span className="text-xs" style={{ color: '#666' }}>Bitcoin</span>
-                        </div>
-                        <div className="flex justify-between text-xs mt-2">
-                          <div>
-                            <span style={{ color: '#4A90E2' }}>Price </span>
-                            <span className="font-mono font-bold text-white text-base">86,420</span>
+                {/* Middle column - Crypto rectangles + CAD Yield */}
+                <div className="flex-1">
+                  <div className="space-y-2" style={{ maxHeight: 'calc(100vh - 400px)', overflowY: 'auto' }}>
+                  {[
+                    { symbol: 'BTC/CAD', name: 'Bitcoin', price: '86,420', change: -1.42, trend: 'down' },
+                    { symbol: 'ETH/CAD', name: 'Ethereum', price: '3,580', change: 2.43, trend: 'up' },
+                    { symbol: 'SOL/CAD', name: 'Solana', price: '142.85', change: 5.21, trend: 'up' },
+                    { symbol: 'AVAX/CAD', name: 'Avalanche', price: '51.30', change: -0.85, trend: 'down' },
+                    { symbol: 'MATIC/CAD', name: 'Polygon', price: '0.872', change: 3.15, trend: 'up' },
+                    { symbol: 'ADA/CAD', name: 'Cardano', price: '0.512', change: -2.14, trend: 'down' },
+                    { symbol: 'DOT/CAD', name: 'Polkadot', price: '8.94', change: 1.28, trend: 'up' },
+                    { symbol: 'LINK/CAD', name: 'Chainlink', price: '18.65', change: -0.42, trend: 'down' },
+                    { symbol: 'UNI/CAD', name: 'Uniswap', price: '10.28', change: 2.95, trend: 'up' },
+                    { symbol: 'XRP/CAD', name: 'Ripple', price: '0.689', change: -1.18, trend: 'down' }
+                  ].map((crypto, idx) => {
+                    const isPositive = crypto.change >= 0;
+                    const cryptoData = generateMiniData(crypto.trend, 12);
+                    return (
+                      <div key={crypto.symbol} className="h-[100px] relative group overflow-hidden transition-all duration-200" style={{
+                        background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                        border: '0.5px solid rgba(0, 150, 255, 0.2)',
+                        boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
+                      }}>
+                        <div className="h-full flex items-center px-4">
+                          {/* Left section - Crypto info */}
+                          <div className="flex-1">
+                            <div className="mb-2">
+                              <h3 className="text-base font-bold" style={{
+                                color: '#FFA500',
+                                fontFamily: 'monospace'
+                              }}>{crypto.symbol}</h3>
+                              <span className="text-xs" style={{ color: '#666' }}>{crypto.name}</span>
+                            </div>
+                            <div className="text-sm">
+                              <span style={{ color: '#4A90E2' }}>Price: </span>
+                              <span className="font-mono font-bold text-white text-base">{crypto.price}</span>
+                            </div>
                           </div>
-                          <div className="font-bold" style={{ color: '#FF0000' }}>
-                            ▼ -1.42%
+
+                          {/* Center section - Mini chart */}
+                          <div className="w-32 h-16 mx-4" style={{
+                            background: 'rgba(0, 20, 40, 0.4)',
+                            border: '0.5px solid rgba(255, 215, 0, 0.15)'
+                          }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <AreaChart data={cryptoData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                                <defs>
+                                  <linearGradient id={`crypto-gradient-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor={isPositive ? '#00FF88' : '#FF4444'} stopOpacity={0.7}/>
+                                    <stop offset="100%" stopColor={isPositive ? '#00FF88' : '#FF4444'} stopOpacity={0.1}/>
+                                  </linearGradient>
+                                </defs>
+                                <YAxis hide domain={['dataMin', 'dataMax']} />
+                                <Area
+                                  type="monotone"
+                                  dataKey="value"
+                                  stroke={isPositive ? '#00FF88' : '#FF4444'}
+                                  strokeWidth={0.8}
+                                  fillOpacity={1}
+                                  fill={`url(#crypto-gradient-${idx})`}
+                                  dot={false}
+                                />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+
+                          {/* Right section - 24h change */}
+                          <div className="text-right">
+                            <div className="font-bold text-lg" style={{
+                              color: isPositive ? '#00FF88' : '#FF4444'
+                            }}>
+                              {isPositive ? '▲' : '▼'} {Math.abs(crypto.change).toFixed(2)}%
+                            </div>
+                            <div className="text-xs" style={{ color: '#666' }}>24h</div>
                           </div>
                         </div>
                       </div>
-                      <div className="w-32 h-16">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={generateMiniData('down', 12).map((d, i) => ({ ...d, value: 86420 + (d.value - 1) * 1000 }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="crypto-btc" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#FF4444" stopOpacity={0.6}/>
-                                <stop offset="100%" stopColor="#FF4444" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <YAxis hide domain={['dataMin', 'dataMax']} />
-                            <Area type="monotone" dataKey="value" stroke="#FF4444" strokeWidth={0.6} fill="url(#crypto-btc)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
+                    );
+                  })}
                   </div>
 
-                  {/* ETH/CAD */}
-                  <div className="bg-black border" style={{
-                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                    border: '0.5px solid rgba(0, 150, 255, 0.2)',
-                    boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
-                  }}>
-                    <div className="flex items-center h-[100px] px-3">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>ETH/CAD</h3>
-                          <span className="text-xs" style={{ color: '#666' }}>Ethereum</span>
-                        </div>
-                        <div className="flex justify-between text-xs mt-2">
-                          <div>
-                            <span style={{ color: '#4A90E2' }}>Price </span>
-                            <span className="font-mono font-bold text-white text-base">3,580</span>
-                          </div>
-                          <div className="font-bold" style={{ color: '#00FF00' }}>
-                            ▲ +2.43%
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-32 h-16">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={generateMiniData('up', 12).map((d, i) => ({ ...d, value: 3580 + (d.value - 1) * 50 }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="crypto-eth" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#00FF88" stopOpacity={0.6}/>
-                                <stop offset="100%" stopColor="#00FF88" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <YAxis hide domain={['dataMin', 'dataMax']} />
-                            <Area type="monotone" dataKey="value" stroke="#00FF88" strokeWidth={0.6} fill="url(#crypto-eth)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SOL/CAD */}
-                  <div className="bg-black border" style={{
-                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                    border: '0.5px solid rgba(0, 150, 255, 0.2)',
-                    boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
-                  }}>
-                    <div className="flex items-center h-[100px] px-3">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>SOL/CAD</h3>
-                          <span className="text-xs" style={{ color: '#666' }}>Solana</span>
-                        </div>
-                        <div className="flex justify-between text-xs mt-2">
-                          <div>
-                            <span style={{ color: '#4A90E2' }}>Price </span>
-                            <span className="font-mono font-bold text-white text-base">142.85</span>
-                          </div>
-                          <div className="font-bold" style={{ color: '#00FF00' }}>
-                            ▲ +5.21%
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-32 h-16">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={generateMiniData('up', 12).map((d, i) => ({ ...d, value: 142 + (d.value - 1) * 5 }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="crypto-sol" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#00FF88" stopOpacity={0.6}/>
-                                <stop offset="100%" stopColor="#00FF88" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <YAxis hide domain={['dataMin', 'dataMax']} />
-                            <Area type="monotone" dataKey="value" stroke="#00FF88" strokeWidth={0.6} fill="url(#crypto-sol)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CAD Yield Chart - moved to crypto section */}
-                  <div className="mt-2">
+                  {/* CAD Yield Chart - Aligned with Daily Bulletin */}
+                  <div className="mt-3">
                     <YieldChart />
                   </div>
                 </div>
@@ -696,32 +668,6 @@ export default function ExchangeDashboard(): React.ReactElement {
                 </div>
               </div>
 
-              {/* Bottom sections */}
-              <div className="mt-2 sm:mt-3 md:mt-4 space-y-2 sm:space-y-3">
-                {/* Daily Bulletin */}
-                <div className="bg-black border" style={{
-                  background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                  border: '0.5px solid rgba(255, 165, 0, 0.2)',
-                  borderLeftWidth: '4px',
-                  borderLeftColor: '#FFA500'
-                }}>
-                  <div className="p-2 sm:p-3">
-                    <div className="flex flex-col sm:flex-row items-start sm:space-x-3">
-                      <span className="text-xs font-bold uppercase" style={{
-                        color: '#FFA500',
-                        fontFamily: 'monospace',
-                        minWidth: '100px'
-                      }}>DAILY BULLETIN</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-white mb-1">Federal Reserve holds interest rates steady at 5.25-5.50%</p>
-                        <p className="text-xs" style={{ color: '#666' }}>Markets react positively • USD weakens • Gold surges to $2,050/oz • CAD strengthens to 1.35 • Oil prices climb 2.3%</p>
-                      </div>
-                      <span className="text-xs" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>14:32 EST</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
             </div>
           )}
         </main>

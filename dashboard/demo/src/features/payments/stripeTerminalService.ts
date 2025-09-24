@@ -77,6 +77,8 @@ class StripeTerminalService {
   private connectionStatus: ConnectionStatus = { status: 'not_connected' };
   private configuration: TerminalConfiguration | null = null;
   private discoveredDevices: TerminalDevice[] = [];
+  private realReaders: any[] = [];
+  private readerMap: Map<string, any> = new Map();
   private connectionAttempts = 0;
   private maxConnectionAttempts = 3;
 
@@ -89,20 +91,40 @@ class StripeTerminalService {
 
       this.configuration = config;
 
-      // In a real implementation, this would load the Stripe Terminal SDK
-      // For now, we'll simulate the initialization
       if (typeof window !== 'undefined') {
-        // Simulate loading Stripe Terminal
+        // Try to load and initialize the real Stripe Terminal SDK first
+        try {
+          await this.loadStripeTerminalScript();
+          // @ts-ignore
+          const StripeTerminal = (window as any).StripeTerminal;
+          if (StripeTerminal && typeof StripeTerminal.create === 'function') {
+            this.terminal = StripeTerminal.create({
+              onFetchConnectionToken: async () => {
+                const token = await this.fetchConnectionToken();
+                if (!token) throw new Error('No connection token received');
+                return token;
+              },
+              onUnexpectedReaderDisconnect: () => {
+                console.warn('⚠️ Reader unexpectedly disconnected');
+                this.connectionStatus = { status: 'not_connected', connectionError: 'Reader disconnected' };
+                this.broadcastPaymentEvent('terminal_disconnected', { success: false });
+              }
+            });
+            this.setupEventListeners();
+            this.isInitialized = true;
+            console.log('✅ Stripe Terminal SDK (real) initialized successfully');
+            return true;
+          }
+        } catch (e) {
+          console.warn('Stripe Terminal JS SDK not available or failed to initialize. Falling back to simulator.', e);
+        }
+
+        // Fall back to simulator if real SDK isn't available
         await this.simulateSDKLoad();
-
-        // Create terminal instance (simulated)
         this.terminal = this.createSimulatedTerminal();
-
-        // Set up event listeners
         this.setupEventListeners();
-
         this.isInitialized = true;
-        console.log('✅ Stripe Terminal SDK initialized successfully');
+        console.log('✅ Stripe Terminal SDK (simulated) initialized successfully');
         return true;
       }
 
@@ -125,32 +147,40 @@ class StripeTerminalService {
     try {
       console.log('🔍 Discovering terminal devices...');
 
-      // Simulate device discovery
-      await this.delay(2000);
+      // If real SDK is available, use it
+      if (this.terminal && typeof this.terminal.discoverReaders === 'function') {
+        const useSim = (this.configuration?.environment || 'test') === 'test';
+        const discoveryConfig: any = useSim
+          ? { discoveryMethod: 'simulated' }
+          : { discoveryMethod: 'internet' };
 
-      // Mock discovered devices
+        const { readers } = await this.terminal.discoverReaders(discoveryConfig);
+        this.realReaders = readers || [];
+        this.readerMap.clear();
+
+        this.discoveredDevices = (readers || []).map((r: any, idx: number) => {
+          const id = r.id || r.serial_number || r.serialNumber || `reader_${idx}`;
+          this.readerMap.set(id, r);
+          return {
+            id,
+            label: r.label || r.device_type || 'Stripe Reader',
+            deviceType: (r.device_type || 'simulated_wisepos_e') as any,
+            status: (r.status || 'online') as any,
+            batteryLevel: r.battery_level || r.batteryLevel,
+            serialNumber: r.serial_number || r.serialNumber || id,
+            softwareVersion: r.firmware_version || r.softwareVersion || 'unknown',
+            ipAddress: r.ip_address || r.ipAddress,
+            lastSeen: new Date().toISOString()
+          } as TerminalDevice;
+        });
+
+        console.log(`✅ Discovered ${this.discoveredDevices.length} terminal devices`);
+        return this.discoveredDevices;
+      }
+
+      // Fallback: Simulate device discovery
+      await this.delay(1000);
       this.discoveredDevices = [
-        {
-          id: 'tmr_verifone_001',
-          label: 'Verifone P400 - Counter 1',
-          deviceType: 'verifone_P400',
-          status: 'online',
-          batteryLevel: 85,
-          serialNumber: 'VF400-2024-001',
-          softwareVersion: '2.15.0',
-          ipAddress: '192.168.1.100',
-          lastSeen: new Date().toISOString()
-        },
-        {
-          id: 'tmr_bbpos_001',
-          label: 'BBPOS WisePad 3 - Mobile',
-          deviceType: 'bbpos_wisepad3',
-          status: 'online',
-          batteryLevel: 92,
-          serialNumber: 'BP3-2024-001',
-          softwareVersion: '1.8.2',
-          lastSeen: new Date().toISOString()
-        },
         {
           id: 'tmr_sim_001',
           label: 'Simulated Device - Testing',
@@ -161,8 +191,7 @@ class StripeTerminalService {
           lastSeen: new Date().toISOString()
         }
       ];
-
-      console.log(`✅ Discovered ${this.discoveredDevices.length} terminal devices`);
+      console.log(`✅ Discovered ${this.discoveredDevices.length} simulated device(s)`);
       return this.discoveredDevices;
     } catch (error) {
       console.error('❌ Failed to discover devices:', error);
@@ -183,6 +212,28 @@ class StripeTerminalService {
       throw new Error(`Device not found: ${deviceId}`);
     }
 
+    // If real SDK is available and we have a reader reference, connect via SDK
+    const readerObj = this.readerMap.get(deviceId);
+    if (this.terminal && readerObj && typeof this.terminal.connectReader === 'function') {
+      try {
+        this.connectionStatus = { status: 'connecting', device };
+        const { reader, error } = await this.terminal.connectReader(readerObj);
+        if (error) {
+          console.error('❌ Failed to connect to reader:', error);
+          this.connectionStatus = { status: 'not_connected', connectionError: error.message };
+          return false;
+        }
+        this.connectionStatus = { status: 'connected', device, lastConnected: new Date().toISOString() };
+        this.broadcastPaymentEvent('terminal_connected', { deviceId: deviceId, label: device.label });
+        return true;
+      } catch (err: any) {
+        console.error('❌ Reader connection error:', err);
+        this.connectionStatus = { status: 'not_connected', connectionError: String(err?.message || err) };
+        return false;
+      }
+    }
+
+    // Fallback to simulated connection logic
     this.connectionAttempts = 0;
     return this.attemptConnection(device);
   }
@@ -267,7 +318,67 @@ class StripeTerminalService {
     try {
       console.log(`💳 Processing payment for ${request.currency.toUpperCase()} ${request.amount / 100}`);
 
-      // Create payment intent
+      // Real SDK flow if available
+      if (this.terminal && typeof this.terminal.collectPaymentMethod === 'function') {
+        // 1) Create a PaymentIntent on the server
+        const pi = await this.createPaymentIntentOnServer(request);
+        if (!pi?.client_secret) {
+          throw new Error('Failed to create PaymentIntent');
+        }
+
+        // 2) Collect payment method on the reader
+        const collectResult = await this.terminal.collectPaymentMethod(pi.client_secret);
+        if (collectResult?.error) {
+          console.error('❌ collectPaymentMethod error:', collectResult.error);
+          const result: TerminalPaymentResult = { success: false, error: collectResult.error.message, errorType: 'processing_error' };
+          this.broadcastPaymentEvent('payment_failed', result);
+          return result;
+        }
+
+        // 3) Process the payment on the reader
+        const processResult = await this.terminal.processPayment(collectResult.paymentIntent);
+        if (processResult?.error) {
+          console.error('❌ processPayment error:', processResult.error);
+          const result: TerminalPaymentResult = { success: false, error: processResult.error.message, errorType: 'processing_error' };
+          this.broadcastPaymentEvent('payment_failed', result);
+          return result;
+        }
+
+        const finalPi = processResult.paymentIntent;
+        // 4) Capture if required
+        if (finalPi?.status === 'requires_capture') {
+          await this.capturePaymentIntentOnServer(finalPi.id);
+        }
+
+        const result: TerminalPaymentResult = {
+          success: true,
+          paymentIntent: {
+            id: finalPi.id,
+            amount: finalPi.amount,
+            currency: finalPi.currency,
+            status: (finalPi.status || 'succeeded') as any,
+            description: request.description,
+            metadata: request.metadata,
+            receiptEmail: request.receiptEmail
+          },
+          paymentMethod: finalPi.charges?.data?.[0]?.payment_method_details ? {
+            id: finalPi.charges.data[0].payment_method || 'pm_unknown',
+            type: finalPi.charges.data[0].payment_method_details.type || 'card',
+            cardDetails: finalPi.charges.data[0].payment_method_details.card_present ? {
+              last4: finalPi.charges.data[0].payment_method_details.card_present.last4,
+              brand: finalPi.charges.data[0].payment_method_details.card_present.brand,
+              expMonth: finalPi.charges.data[0].payment_method_details.card_present.exp_month,
+              expYear: finalPi.charges.data[0].payment_method_details.card_present.exp_year,
+            } : undefined
+          } : undefined
+        } as any;
+
+        console.log(`✅ Payment successful: ${finalPi.id}`);
+        this.broadcastPaymentEvent('payment_success', result);
+        return result;
+      }
+
+      // Fallback: Simulated flow
       const paymentIntent: PaymentIntent = {
         id: `pi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         amount: request.amount,
@@ -278,64 +389,36 @@ class StripeTerminalService {
         receiptEmail: request.receiptEmail
       };
 
-      // Simulate payment processing
-      console.log('🔄 Collecting payment method...');
-      await this.delay(5000); // Simulate card insertion/tap
-
-      // Simulate payment confirmation
+      console.log('🔄 Collecting payment method (simulated)...');
+      await this.delay(2000);
       paymentIntent.status = 'processing';
-      console.log('🔄 Processing payment...');
-      await this.delay(3000);
+      console.log('🔄 Processing payment (simulated)...');
+      await this.delay(1500);
 
-      // Simulate success/failure (95% success rate)
       const paymentSuccess = Math.random() > 0.05;
-
       if (paymentSuccess) {
         paymentIntent.status = 'succeeded';
-
         const result: TerminalPaymentResult = {
           success: true,
           paymentIntent,
           paymentMethod: {
             id: `pm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             type: 'card',
-            cardDetails: {
-              last4: '4242',
-              brand: 'visa',
-              expMonth: 12,
-              expYear: 2025
-            }
+            cardDetails: { last4: '4242', brand: 'visa', expMonth: 12, expYear: 2025 }
           }
         };
-
-        console.log(`✅ Payment successful: ${paymentIntent.id}`);
-
-        // Broadcast payment success event
+        console.log(`✅ Payment successful (sim): ${paymentIntent.id}`);
         this.broadcastPaymentEvent('payment_success', result);
-
         return result;
       } else {
-        // Simulate card decline
-        const result: TerminalPaymentResult = {
-          success: false,
-          error: 'Your card was declined',
-          errorType: 'card_declined'
-        };
-
-        console.log('❌ Payment declined');
+        const result: TerminalPaymentResult = { success: false, error: 'Your card was declined', errorType: 'card_declined' };
+        console.log('❌ Payment declined (sim)');
         this.broadcastPaymentEvent('payment_failed', result);
-
         return result;
       }
     } catch (error) {
       console.error('❌ Payment processing error:', error);
-
-      const result: TerminalPaymentResult = {
-        success: false,
-        error: `Payment processing failed: ${error}`,
-        errorType: 'processing_error'
-      };
-
+      const result: TerminalPaymentResult = { success: false, error: `Payment processing failed: ${error}`, errorType: 'processing_error' };
       this.broadcastPaymentEvent('payment_failed', result);
       return result;
     }
@@ -348,8 +431,15 @@ class StripeTerminalService {
     try {
       console.log('🔄 Canceling payment operation...');
 
-      // Simulate cancellation
-      await this.delay(1000);
+      if (this.terminal && typeof this.terminal.cancelCollectPaymentMethod === 'function') {
+        const res = await this.terminal.cancelCollectPaymentMethod();
+        if (res?.error) {
+          console.warn('⚠️ cancelCollectPaymentMethod error:', res.error);
+        }
+      } else {
+        // Simulate cancellation
+        await this.delay(500);
+      }
 
       console.log('✅ Payment operation canceled');
       this.broadcastPaymentEvent('payment_canceled', { success: false, errorType: 'canceled' });
@@ -436,6 +526,131 @@ class StripeTerminalService {
   }
 
   // --- Private Helper Methods ---
+
+  private async loadStripeTerminalScript(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    // @ts-ignore
+    if ((window as any).StripeTerminal) return;
+    const src = 'https://js.stripe.com/terminal/v1/';
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
+      if (existing) {
+        existing.addEventListener('load', () => resolve());
+        existing.addEventListener('error', () => reject(new Error('Stripe Terminal script failed to load')));
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Stripe Terminal script failed to load'));
+      document.head.appendChild(script);
+    });
+  }
+
+  private getApiBaseUrl(): string {
+    try {
+      const w: any = (typeof window !== 'undefined') ? (window as any) : {};
+      // Allow front-end to inject envs via window.__ENV__
+      const uiBase = w.__ENV__?.VITE_API_BASE_URL || w.__ENV__?.VITE_BACKEND_URL || w.__API_BASE_URL__;
+      const nodeBase = (typeof process !== 'undefined') ? ((process as any).env?.API_BASE_URL || (process as any).env?.BACKEND_URL) : undefined;
+      return (uiBase || nodeBase || '').toString();
+    } catch {
+      return '';
+    }
+  }
+
+  private getEnv(key: string): string | undefined {
+    try {
+      const w: any = (typeof window !== 'undefined') ? (window as any) : {};
+      const node = (typeof process !== 'undefined') ? (process as any).env : undefined;
+      return w.__ENV__?.[key] || node?.[key];
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async fetchConnectionToken(): Promise<string> {
+    const candidates: string[] = [];
+    const base = this.getApiBaseUrl();
+    candidates.push('/api/terminal/connection_token');
+    if (base) {
+      candidates.push(`${base.replace(/\/$/, '')}/payments/terminal/connection_token`);
+      candidates.push(`${base.replace(/\/$/, '')}/terminal/connection_token`);
+    }
+
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, { method: 'POST', credentials: 'include' });
+        if (!res.ok) continue;
+        const json = await res.json();
+        const token = json?.secret || json?.client_secret || json?.token || json?.connection_token;
+        if (typeof token === 'string' && token.length > 0) return token;
+      } catch {
+        // try next
+      }
+    }
+    throw new Error('Unable to fetch Stripe Terminal connection token');
+  }
+
+  private async createPaymentIntentOnServer(request: TerminalPaymentRequest): Promise<any> {
+    const body = {
+      amount: request.amount,
+      currency: request.currency,
+      capture_method: request['captureMethod'] || 'automatic',
+      description: request.description,
+      metadata: request.metadata,
+      receipt_email: request.receiptEmail,
+      on_behalf_of: request.onBehalfOf
+    };
+
+    const candidates: string[] = [];
+    const base = this.getApiBaseUrl();
+    candidates.push('/api/terminal/payment_intents');
+    if (base) {
+      candidates.push(`${base.replace(/\/$/, '')}/payments/terminal/payment_intents`);
+      candidates.push(`${base.replace(/\/$/, '')}/terminal/payment_intents`);
+    }
+
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) continue;
+        const json = await res.json();
+        return json?.data || json;
+      } catch {
+        // try next
+      }
+    }
+    throw new Error('Unable to create PaymentIntent on server');
+  }
+
+  private async capturePaymentIntentOnServer(paymentIntentId: string): Promise<boolean> {
+    const candidates: string[] = [];
+    const base = this.getApiBaseUrl();
+    candidates.push(`/api/terminal/payment_intents/${paymentIntentId}/capture`);
+    if (base) {
+      candidates.push(`${base.replace(/\/$/, '')}/payments/terminal/payment_intents/${paymentIntentId}/capture`);
+      candidates.push(`${base.replace(/\/$/, '')}/terminal/payment_intents/${paymentIntentId}/capture`);
+    }
+
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, { method: 'POST', credentials: 'include' });
+        if (!res.ok) continue;
+        const json = await res.json();
+        return !!(json?.success ?? true);
+      } catch {
+        // try next
+      }
+    }
+    return false;
+  }
 
   private async simulateSDKLoad(): Promise<void> {
     return new Promise((resolve) => {

@@ -298,6 +298,38 @@ try {
 
 ## 🔐 Security Considerations
 
+## 🧲 Stripe Terminal Integration Guide
+
+This module is ready to connect to Stripe Terminal cloud readers. The frontend automatically attempts to use the real Stripe Terminal JS SDK and falls back to a simulator when unavailable.
+
+1) Backend endpoints required
+- POST /api/terminal/connection_token → returns { secret: string }
+- POST /api/terminal/payment_intents → body { amount, currency, capture_method?, description?, metadata?, receipt_email? } → returns { client_secret, id, status }
+- POST /api/terminal/payment_intents/:id/capture → returns { success: true }
+
+Alternative base path: If your API is not reverse-proxied under /api, set API_BASE_URL and expose equivalent endpoints under:
+- ${API_BASE_URL}/payments/terminal/connection_token
+- ${API_BASE_URL}/payments/terminal/payment_intents
+- ${API_BASE_URL}/payments/terminal/payment_intents/:id/capture
+
+2) Environment configuration
+Expose runtime env vars either via process.env (Node/Electron) or window.__ENV__ (browser):
+- API_BASE_URL=https://api.leaperfx.com/v1    # or set window.__ENV__ = { VITE_API_BASE_URL: '...' }
+- STRIPE_PUBLISHABLE_KEY=pk_live_xxx (if needed elsewhere)
+- STRIPE_TERMINAL_LOCATION=loc_123 (optional)
+
+3) Reader connection (cloud/internet)
+- In Test mode, discovery uses the simulator by default.
+- In Live mode, discovery uses { discoveryMethod: 'internet' } and lists cloud readers assigned to your Stripe account/location.
+- Use Payment Settings → Stripe Terminal to Discover → Connect to a reader, then run a test charge.
+
+4) Payment flow (real SDK)
+- Create PaymentIntent on server → collectPaymentMethod(client_secret) → processPayment(paymentIntent)
+- If status === requires_capture, the service will call your backend to capture.
+
+5) Simulator
+- When the real SDK is not available, a simulator is used so the UI remains functional. This allows development without hardware.
+
 ### Data Protection
 - No storage of sensitive payment data
 - PCI DSS compliance for card processing

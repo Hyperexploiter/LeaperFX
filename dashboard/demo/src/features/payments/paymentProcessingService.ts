@@ -163,7 +163,7 @@ class PaymentProcessingService {
 
       // Initialize Stripe Terminal
       const terminalConfig = {
-        apiKey: process.env.STRIPE_PUBLISHABLE_KEY || 'pk_test_simulated',
+        apiKey: (typeof window !== 'undefined' ? (window as any).__ENV__?.STRIPE_PUBLISHABLE_KEY : undefined) || (typeof process !== 'undefined' ? (process as any).env?.STRIPE_PUBLISHABLE_KEY : undefined) || 'pk_test_simulated',
         environment: 'test' as const,
         merchantDisplayName: 'LeaperFX Store'
       };

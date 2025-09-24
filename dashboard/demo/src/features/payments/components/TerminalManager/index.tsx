@@ -80,7 +80,7 @@ const TerminalManager: React.FC<TerminalManagerProps> = ({ className = '' }) => 
     setError(null);
     try {
       const testRequest: TerminalPaymentRequest = {
-        amount: 1.00, // $1.00 test payment
+        amount: 100, // $1.00 test payment (in cents)
         currency: 'CAD',
         description: 'Terminal test payment',
         metadata: { test: 'true' },

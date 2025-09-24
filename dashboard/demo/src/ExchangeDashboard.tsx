@@ -189,15 +189,15 @@ const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
   const data = useMemo(() => generateMiniData(item.trend, 20), [item.trend]);
 
   return (
-    <div className="bg-black border aspect-square" style={{
+    <div className="bg-black border aspect-square xl:aspect-square" style={{
       background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
       border: '0.5px solid rgba(0, 150, 255, 0.2)',
       boxShadow: '0 0 15px rgba(0, 150, 255, 0.03)'
     }}>
-      <div className="p-2 h-full flex flex-col justify-between">
+      <div className="p-1 sm:p-2 h-full flex flex-col justify-between">
         <div>
           <div className="font-bold text-xs" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{item.symbol}</div>
-          <div className="text-white font-mono font-bold text-sm mt-0.5">{item.value}</div>
+          <div className="text-white font-mono font-bold text-xs sm:text-sm mt-0.5">{item.value}</div>
         </div>
         <div className="h-8 my-1">
           <ResponsiveContainer width="100%" height="100%">
@@ -427,9 +427,9 @@ export default function ExchangeDashboard(): React.ReactElement {
     <div className="min-h-screen bg-black text-gray-100 font-sans">
       <div className="min-h-screen flex flex-col">
         {/* Header Bar */}
-        <header className="bg-black px-4 py-2" style={{ borderBottom: '0.5px solid rgba(0, 212, 255, 0.3)' }}>
+        <header className="bg-black px-2 sm:px-3 md:px-4 py-2" style={{ borderBottom: '0.5px solid rgba(0, 212, 255, 0.3)' }}>
           <div className="flex items-center justify-between">
-            <div className="font-bold text-2xl tracking-wider" style={{
+            <div className="font-bold text-lg sm:text-xl md:text-2xl tracking-wider" style={{
               color: '#00D4FF',
               textShadow: '0 0 10px rgba(0, 212, 255, 0.3)',
               fontFamily: 'monospace'
@@ -441,65 +441,55 @@ export default function ExchangeDashboard(): React.ReactElement {
           </div>
         </header>
         
-        <main className="flex-1 flex flex-col p-4 overflow-auto">
+        <main className="flex-1 flex flex-col p-2 sm:p-3 md:p-4 overflow-auto">
           {isLoading && <div className="flex justify-center items-center p-10 bg-gray-900 rounded-lg shadow-md"><Loader className="h-12 w-12 mr-4 animate-spin text-cyan-400" /><span className="text-lg text-white">Loading rates...</span></div>}
           {error && !isLoading && <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 p-4 rounded-lg shadow-md flex items-center" role="alert"><AlertTriangle className="h-6 w-6 mr-3" /><div><p className="font-bold">Error:</p><p>{error}</p></div></div>}
           
           {!isLoading && !error && (
-            <div className="flex flex-1 gap-3">
-              {/* Main content area - currency rectangles */}
-              <div className="flex-1 space-y-3">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="flex-1">
+              <div className="flex flex-col xl:flex-row gap-3 mb-3">
+                {/* Left column - Currency rectangles */}
+                <div className="w-full xl:flex-1 space-y-2">
                   {displayedCurrencies.map((currency) => {
                     const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
                     const info = getCurrencyInfo(currency);
                     const isPositive = parseFloat(change24h) >= 0;
 
                     return (
-                      <div key={currency} className="relative group overflow-hidden hover:scale-[1.02] transition-all duration-200" style={{
+                      <div key={currency} className="relative group overflow-hidden transition-all duration-200" style={{
                         background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
                         border: '0.5px solid rgba(0, 150, 255, 0.2)',
                         boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
                       }}>
-                        <div className="p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center">
-                              <img src={`https://flagcdn.com/w40/${info.code}.png`} width="24" alt={`${info.name} flag`} className="mr-2 rounded-sm shadow-sm"/>
-                              <div className="-mt-0.5">
-                                <h3 className="text-base font-bold leading-tight" style={{
+                        <div className="flex flex-col sm:flex-row h-auto sm:h-24">
+                          <div className="flex-1 p-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center">
+                                <img src={`https://flagcdn.com/w40/${info.code}.png`} width="20" alt={`${info.name} flag`} className="mr-2"/>
+                                <h3 className="text-sm font-bold" style={{
                                   color: '#FFA500',
-                                  textShadow: '0 0 8px rgba(255, 165, 0, 0.4)',
-                                  fontFamily: 'monospace',
-                                  letterSpacing: '0.5px'
+                                  fontFamily: 'monospace'
                                 }}>{currency}</h3>
-                                <p className="text-xs font-medium leading-tight -mt-0.5" style={{ color: '#4A90E2' }}>{info.name}</p>
+                              </div>
+                              <button onClick={() => handleRemoveCurrency(currency)} className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
+                            </div>
+                            <div className="flex justify-between text-xs mt-2">
+                              <div>
+                                <span style={{ color: '#4A90E2' }}>Buy </span>
+                                <span className="font-mono font-bold text-white">{customerSells}</span>
+                              </div>
+                              <div>
+                                <span style={{ color: '#4A90E2' }}>Sell </span>
+                                <span className="font-mono font-bold" style={{ color: '#00FF88' }}>{customerBuys}</span>
+                              </div>
+                              <div className="font-bold" style={{
+                                color: isPositive ? '#00FF88' : '#FF4444'
+                              }}>
+                                {isPositive ? '▲' : '▼'} {change24h !== 'N/A' ? `${change24h}%` : '—'}
                               </div>
                             </div>
-                            <button onClick={() => handleRemoveCurrency(currency)} className="text-gray-600 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
                           </div>
-                          <div className="space-y-2.5">
-                            <div className="flex justify-between items-baseline">
-                              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#4A90E2' }}>We Buy</span>
-                              <span className="font-mono font-bold text-lg tabular-nums" style={{
-                                background: 'linear-gradient(90deg, #FFFFFF 0%, #E0E0E0 100%)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                textShadow: '0 0 20px rgba(255, 255, 255, 0.3)'
-                              }}>{customerSells}</span>
-                            </div>
-                            <div className="flex justify-between items-baseline">
-                              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#4A90E2' }}>We Sell</span>
-                              <span className="font-mono font-bold text-lg tabular-nums" style={{
-                                background: 'linear-gradient(90deg, #00FF88 0%, #00D4FF 100%)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                textShadow: '0 0 20px rgba(0, 255, 136, 0.3)'
-                              }}>{customerBuys}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="px-3 pt-1 pb-3">
-                          <div className="h-16 -mx-3 -mb-3" style={{
+                          <div className="w-full sm:w-32 h-20 sm:h-full" style={{
                             background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)',
                             borderTop: '0.5px solid rgba(0, 212, 255, 0.08)'
                           }}>
@@ -547,42 +537,186 @@ export default function ExchangeDashboard(): React.ReactElement {
                             </ResponsiveContainer>
                           </div>
                         </div>
-                        <div className="px-3 py-1 flex justify-between items-center" style={{
-                          background: 'linear-gradient(90deg, rgba(0, 8, 20, 0.9) 0%, rgba(0, 20, 40, 0.7) 100%)',
-                          borderTop: '0.5px solid rgba(255, 215, 0, 0.15)'
-                        }}>
-                          <span className="text-xs font-bold uppercase tracking-wider" style={{
-                            color: '#FFD700',
-                            fontFamily: 'monospace',
-                            fontSize: '10px'
-                          }}>24H</span>
-                          {change24h === '0.00' ? (
-                            <span className="text-xs font-mono" style={{ color: '#666' }}>—</span>
-                          ) : change24h !== 'N/A' ? (
-                            <div className={`flex items-center font-bold text-xs`} style={{
-                              color: isPositive ? '#00FF88' : '#FF4444',
-                              textShadow: isPositive ? '0 0 3px rgba(0, 255, 136, 0.5)' : '0 0 3px rgba(255, 68, 68, 0.5)',
-                              fontFamily: 'monospace'
-                            }}>
-                              <span className="mr-0.5" style={{ fontSize: '10px' }}>{isPositive ? '▲' : '▼'}</span>
-                              {change24h}%
-                            </div>
-                          ) : ( <span className="text-xs font-mono" style={{ color: '#666' }}>—</span> )}
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Daily Bulletin - Under currencies */}
+                {/* Middle column - Crypto rectangles */}
+                <div className="w-full xl:flex-1 space-y-2">
+                  {/* BTC/CAD */}
+                  <div className="bg-black border" style={{
+                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                    border: '0.5px solid rgba(0, 150, 255, 0.2)',
+                    boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
+                  }}>
+                    <div className="flex flex-col sm:flex-row h-auto sm:h-24">
+                      <div className="flex-1 p-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>BTC/CAD</h3>
+                          <span className="text-xs" style={{ color: '#666' }}>Bitcoin</span>
+                        </div>
+                        <div className="flex justify-between text-xs mt-2">
+                          <div>
+                            <span style={{ color: '#4A90E2' }}>Price </span>
+                            <span className="font-mono font-bold text-white text-base">86,420</span>
+                          </div>
+                          <div className="font-bold" style={{ color: '#FF0000' }}>
+                            ▼ -1.42%
+                          </div>
+                        </div>
+                      </div>
+                      <div className="w-full sm:w-32 h-16 sm:h-full" style={{
+                        background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)',
+                        borderLeft: '0.5px solid rgba(0, 212, 255, 0.08)'
+                      }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={generateMiniData('down', 12).map((d, i) => ({ ...d, value: 86420 + (d.value - 1) * 1000 }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="crypto-btc" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#FF4444" stopOpacity={0.6}/>
+                                <stop offset="100%" stopColor="#FF4444" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <YAxis hide domain={['dataMin', 'dataMax']} />
+                            <Area type="monotone" dataKey="value" stroke="#FF4444" strokeWidth={0.6} fill="url(#crypto-btc)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ETH/CAD */}
+                  <div className="bg-black border" style={{
+                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                    border: '0.5px solid rgba(0, 150, 255, 0.2)',
+                    boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
+                  }}>
+                    <div className="flex h-24">
+                      <div className="flex-1 p-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>ETH/CAD</h3>
+                          <span className="text-xs" style={{ color: '#666' }}>Ethereum</span>
+                        </div>
+                        <div className="flex justify-between text-xs mt-2">
+                          <div>
+                            <span style={{ color: '#4A90E2' }}>Price </span>
+                            <span className="font-mono font-bold text-white text-base">3,580</span>
+                          </div>
+                          <div className="font-bold" style={{ color: '#00FF00' }}>
+                            ▲ +2.43%
+                          </div>
+                        </div>
+                      </div>
+                      <div className="w-full sm:w-32 h-16 sm:h-full" style={{
+                        background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)',
+                        borderLeft: '0.5px solid rgba(0, 212, 255, 0.08)'
+                      }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={generateMiniData('up', 12).map((d, i) => ({ ...d, value: 3580 + (d.value - 1) * 50 }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="crypto-eth" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#00FF88" stopOpacity={0.6}/>
+                                <stop offset="100%" stopColor="#00FF88" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <YAxis hide domain={['dataMin', 'dataMax']} />
+                            <Area type="monotone" dataKey="value" stroke="#00FF88" strokeWidth={0.6} fill="url(#crypto-eth)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SOL/CAD */}
+                  <div className="bg-black border" style={{
+                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                    border: '0.5px solid rgba(0, 150, 255, 0.2)',
+                    boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
+                  }}>
+                    <div className="flex h-24">
+                      <div className="flex-1 p-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>SOL/CAD</h3>
+                          <span className="text-xs" style={{ color: '#666' }}>Solana</span>
+                        </div>
+                        <div className="flex justify-between text-xs mt-2">
+                          <div>
+                            <span style={{ color: '#4A90E2' }}>Price </span>
+                            <span className="font-mono font-bold text-white text-base">142.85</span>
+                          </div>
+                          <div className="font-bold" style={{ color: '#00FF00' }}>
+                            ▲ +5.21%
+                          </div>
+                        </div>
+                      </div>
+                      <div className="w-full sm:w-32 h-16 sm:h-full" style={{
+                        background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)',
+                        borderLeft: '0.5px solid rgba(0, 212, 255, 0.08)'
+                      }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={generateMiniData('up', 12).map((d, i) => ({ ...d, value: 142 + (d.value - 1) * 5 }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="crypto-sol" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#00FF88" stopOpacity={0.6}/>
+                                <stop offset="100%" stopColor="#00FF88" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <YAxis hide domain={['dataMin', 'dataMax']} />
+                            <Area type="monotone" dataKey="value" stroke="#00FF88" strokeWidth={0.6} fill="url(#crypto-sol)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Weather Widget - moved here */}
+                  <div className="bg-black border" style={{
+                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                    border: '0.5px solid rgba(0, 150, 255, 0.2)',
+                    boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
+                  }}>
+                    <div className="p-3">
+                      <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#00D4FF' }}>Weather Toronto</h3>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <span style={{ fontSize: '28px' }}>☀️</span>
+                          <div>
+                            <div className="font-mono font-bold text-xl" style={{ color: '#FFD700' }}>22°C</div>
+                            <div className="text-xs" style={{ color: '#666' }}>Clear Sky</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs" style={{ color: '#FFB000' }}>H: 24°</div>
+                          <div className="text-xs" style={{ color: '#4A90E2' }}>L: 18°</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right column - commodities squares (one per line) */}
+                <div className="w-full xl:w-40 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-1 gap-2">
+                  {marketData.map((item, idx) => (
+                    <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+              {/* Bottom sections */}
+              <div className="mt-2 sm:mt-3 md:mt-4 space-y-2 sm:space-y-3">
+                {/* Daily Bulletin */}
                 <div className="bg-black border" style={{
-                  borderColor: 'rgba(255, 165, 0, 0.2)',
-                  borderWidth: '0.5px',
+                  background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                  border: '0.5px solid rgba(255, 165, 0, 0.2)',
                   borderLeftWidth: '4px',
                   borderLeftColor: '#FFA500'
                 }}>
-                  <div className="p-3">
-                    <div className="flex items-start space-x-3">
+                  <div className="p-2 sm:p-3">
+                    <div className="flex flex-col sm:flex-row items-start sm:space-x-3">
                       <span className="text-xs font-bold uppercase" style={{
                         color: '#FFA500',
                         fontFamily: 'monospace',
@@ -590,136 +724,15 @@ export default function ExchangeDashboard(): React.ReactElement {
                       }}>DAILY BULLETIN</span>
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-white mb-1">Federal Reserve holds interest rates steady at 5.25-5.50%</p>
-                        <p className="text-xs" style={{ color: '#666' }}>Markets react positively • USD weakens • Gold surges to $2,050/oz • CAD strengthens to 1.35</p>
+                        <p className="text-xs" style={{ color: '#666' }}>Markets react positively • USD weakens • Gold surges to $2,050/oz • CAD strengthens to 1.35 • Oil prices climb 2.3%</p>
                       </div>
-                      <span className="text-xs" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>14:32</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Crypto section - middle */}
-              <div className="w-64 space-y-3">
-                {/* BTC/CAD */}
-                <div className="bg-black border" style={{
-                  background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                  border: '0.5px solid rgba(0, 150, 255, 0.2)',
-                  boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
-                }}>
-                  <div className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>BTC/CAD</h3>
-                      <span className="text-xs" style={{ color: '#666' }}>Bitcoin</span>
-                    </div>
-                    <div className="flex justify-between items-baseline mb-2">
-                      <span className="text-xs" style={{ color: '#4A90E2' }}>Price</span>
-                      <span className="font-mono font-bold text-base text-white">86,420</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs" style={{ color: '#666' }}>24h</span>
-                      <span className="font-bold text-xs" style={{ color: '#FF0000' }}>▼ -1.42%</span>
+                      <span className="text-xs" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>14:32 EST</span>
                     </div>
                   </div>
                 </div>
 
-                {/* ETH/CAD */}
-                <div className="bg-black border" style={{
-                  background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                  border: '0.5px solid rgba(0, 150, 255, 0.2)',
-                  boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
-                }}>
-                  <div className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>ETH/CAD</h3>
-                      <span className="text-xs" style={{ color: '#666' }}>Ethereum</span>
-                    </div>
-                    <div className="flex justify-between items-baseline mb-2">
-                      <span className="text-xs" style={{ color: '#4A90E2' }}>Price</span>
-                      <span className="font-mono font-bold text-base text-white">3,580</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs" style={{ color: '#666' }}>24h</span>
-                      <span className="font-bold text-xs" style={{ color: '#00FF00' }}>▲ +2.43%</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SOL/CAD */}
-                <div className="bg-black border" style={{
-                  background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                  border: '0.5px solid rgba(0, 150, 255, 0.2)',
-                  boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
-                }}>
-                  <div className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>SOL/CAD</h3>
-                      <span className="text-xs" style={{ color: '#666' }}>Solana</span>
-                    </div>
-                    <div className="flex justify-between items-baseline mb-2">
-                      <span className="text-xs" style={{ color: '#4A90E2' }}>Price</span>
-                      <span className="font-mono font-bold text-base text-white">142.85</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs" style={{ color: '#666' }}>24h</span>
-                      <span className="font-bold text-xs" style={{ color: '#00FF00' }}>▲ +5.21%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right sidebar - commodities squares */}
-              <div className="w-48 space-y-2">
-                {/* Commodities grid - squares */}
-                <div className="grid grid-cols-2 gap-2">
-                  {marketData.map((item, idx) => (
-                    <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
-                  ))}
-                </div>
+                {/* CAD Yield Chart */}
                 <YieldChart />
-                {/* Weather Widget - square */}
-                <div className="bg-black border aspect-square col-span-2" style={{
-                  background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                  border: '0.5px solid rgba(0, 150, 255, 0.2)',
-                  boxShadow: '0 0 15px rgba(0, 150, 255, 0.03)'
-                }}>
-                  <div className="p-2 h-full flex flex-col justify-center">
-                    <h3 className="text-xs font-bold uppercase tracking-wider mb-2 text-center" style={{ color: '#00D4FF' }}>Toronto</h3>
-                    <div className="text-center">
-                      <span style={{ fontSize: '28px' }}>☀️</span>
-                      <div className="font-mono font-bold text-xl mt-1" style={{ color: '#FFD700' }}>22°C</div>
-                      <div className="text-xs" style={{ color: '#666' }}>Clear Sky</div>
-                      <div className="mt-2 flex justify-around">
-                        <span className="text-xs" style={{ color: '#FFB000' }}>H: 24°</span>
-                        <span className="text-xs" style={{ color: '#4A90E2' }}>L: 18°</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Daily Bulletin Section - Moved to bottom */}
-          {!isLoading && !error && (
-            <div className="mx-4 mb-4 bg-black border" style={{
-              borderColor: 'rgba(255, 165, 0, 0.2)',
-              borderWidth: '0.5px',
-              borderLeftWidth: '4px',
-              borderLeftColor: '#FFA500'
-            }}>
-              <div className="p-4">
-                <div className="flex items-start space-x-4">
-                  <span className="text-sm font-bold uppercase" style={{
-                    color: '#FFA500',
-                    fontFamily: 'monospace',
-                    minWidth: '120px'
-                  }}>DAILY BULLETIN</span>
-                  <div className="flex-1">
-                    <p className="text-base font-semibold text-white mb-2">Federal Reserve holds interest rates steady at 5.25-5.50%</p>
-                    <p className="text-sm" style={{ color: '#666' }}>Markets react positively to dovish tone in Powell's statement • USD weakens against major currencies • Gold surges to $2,050/oz • Canadian dollar strengthens to 1.35 against USD • Oil prices climb 2.3% on supply concerns</p>
-                  </div>
-                  <span className="text-sm" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>14:32 EST</span>
-                </div>
               </div>
             </div>
           )}

@@ -461,19 +461,19 @@ export default function ExchangeDashboard(): React.ReactElement {
                         border: '0.5px solid rgba(0, 150, 255, 0.2)',
                         boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
                       }}>
-                        <div className="flex flex-col sm:flex-row h-auto sm:h-24">
-                          <div className="flex-1 p-2">
-                            <div className="flex items-center justify-between mb-1">
+                        <div className="flex flex-col sm:flex-row h-auto sm:h-16">
+                          <div className="flex-1 p-1.5">
+                            <div className="flex items-center justify-between mb-0.5">
                               <div className="flex items-center">
-                                <img src={`https://flagcdn.com/w40/${info.code}.png`} width="20" alt={`${info.name} flag`} className="mr-2"/>
-                                <h3 className="text-sm font-bold" style={{
+                                <img src={`https://flagcdn.com/w40/${info.code}.png`} width="16" alt={`${info.name} flag`} className="mr-1.5"/>
+                                <h3 className="text-xs font-bold" style={{
                                   color: '#FFA500',
                                   fontFamily: 'monospace'
                                 }}>{currency}</h3>
                               </div>
                               <button onClick={() => handleRemoveCurrency(currency)} className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
                             </div>
-                            <div className="flex justify-between text-xs mt-2">
+                            <div className="flex justify-between text-xs mt-1">
                               <div>
                                 <span style={{ color: '#4A90E2' }}>Buy </span>
                                 <span className="font-mono font-bold text-white">{customerSells}</span>
@@ -489,7 +489,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                               </div>
                             </div>
                           </div>
-                          <div className="w-full sm:w-32 h-20 sm:h-full" style={{
+                          <div className="w-full sm:w-36 h-16 sm:h-full" style={{
                             background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)',
                             borderTop: '0.5px solid rgba(0, 212, 255, 0.08)'
                           }}>
@@ -537,7 +537,6 @@ export default function ExchangeDashboard(): React.ReactElement {
                             </ResponsiveContainer>
                           </div>
                         </div>
-                        </div>
                       </div>
                     );
                   })}
@@ -551,8 +550,8 @@ export default function ExchangeDashboard(): React.ReactElement {
                     border: '0.5px solid rgba(0, 150, 255, 0.2)',
                     boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
                   }}>
-                    <div className="flex flex-col sm:flex-row h-auto sm:h-24">
-                      <div className="flex-1 p-2">
+                    <div className="flex flex-col sm:flex-row h-auto sm:h-20">
+                      <div className="flex-1 p-1.5">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>BTC/CAD</h3>
                           <span className="text-xs" style={{ color: '#666' }}>Bitcoin</span>
@@ -567,7 +566,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                           </div>
                         </div>
                       </div>
-                      <div className="w-full sm:w-32 h-16 sm:h-full" style={{
+                      <div className="w-full sm:w-36 h-16 sm:h-full" style={{
                         background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)',
                         borderLeft: '0.5px solid rgba(0, 212, 255, 0.08)'
                       }}>
@@ -593,8 +592,8 @@ export default function ExchangeDashboard(): React.ReactElement {
                     border: '0.5px solid rgba(0, 150, 255, 0.2)',
                     boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
                   }}>
-                    <div className="flex h-24">
-                      <div className="flex-1 p-2">
+                    <div className="flex flex-col sm:flex-row h-auto sm:h-20">
+                      <div className="flex-1 p-1.5">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>ETH/CAD</h3>
                           <span className="text-xs" style={{ color: '#666' }}>Ethereum</span>
@@ -609,7 +608,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                           </div>
                         </div>
                       </div>
-                      <div className="w-full sm:w-32 h-16 sm:h-full" style={{
+                      <div className="w-full sm:w-36 h-16 sm:h-full" style={{
                         background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)',
                         borderLeft: '0.5px solid rgba(0, 212, 255, 0.08)'
                       }}>
@@ -635,8 +634,8 @@ export default function ExchangeDashboard(): React.ReactElement {
                     border: '0.5px solid rgba(0, 150, 255, 0.2)',
                     boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
                   }}>
-                    <div className="flex h-24">
-                      <div className="flex-1 p-2">
+                    <div className="flex flex-col sm:flex-row h-auto sm:h-20">
+                      <div className="flex-1 p-1.5">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>SOL/CAD</h3>
                           <span className="text-xs" style={{ color: '#666' }}>Solana</span>
@@ -651,7 +650,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                           </div>
                         </div>
                       </div>
-                      <div className="w-full sm:w-32 h-16 sm:h-full" style={{
+                      <div className="w-full sm:w-36 h-16 sm:h-full" style={{
                         background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)',
                         borderLeft: '0.5px solid rgba(0, 212, 255, 0.08)'
                       }}>
@@ -671,28 +670,9 @@ export default function ExchangeDashboard(): React.ReactElement {
                     </div>
                   </div>
 
-                  {/* Weather Widget - moved here */}
-                  <div className="bg-black border" style={{
-                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                    border: '0.5px solid rgba(0, 150, 255, 0.2)',
-                    boxShadow: '0 0 20px rgba(0, 150, 255, 0.05)'
-                  }}>
-                    <div className="p-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#00D4FF' }}>Weather Toronto</h3>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <span style={{ fontSize: '28px' }}>☀️</span>
-                          <div>
-                            <div className="font-mono font-bold text-xl" style={{ color: '#FFD700' }}>22°C</div>
-                            <div className="text-xs" style={{ color: '#666' }}>Clear Sky</div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs" style={{ color: '#FFB000' }}>H: 24°</div>
-                          <div className="text-xs" style={{ color: '#4A90E2' }}>L: 18°</div>
-                        </div>
-                      </div>
-                    </div>
+                  {/* CAD Yield Chart - moved to crypto section */}
+                  <div className="mt-2">
+                    <YieldChart />
                   </div>
                 </div>
 
@@ -701,10 +681,33 @@ export default function ExchangeDashboard(): React.ReactElement {
                   {marketData.map((item, idx) => (
                     <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
                   ))}
+                  {/* Weather Widget - moved here under commodities */}
+                  <div className="bg-black border aspect-square xl:aspect-auto" style={{
+                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                    border: '0.5px solid rgba(0, 150, 255, 0.2)',
+                    boxShadow: '0 0 15px rgba(0, 150, 255, 0.03)'
+                  }}>
+                    <div className="p-1 sm:p-2 h-full flex flex-col justify-between">
+                      <div>
+                        <div className="font-bold text-xs" style={{ color: '#FFA500', fontFamily: 'monospace' }}>WEATHER</div>
+                        <div className="text-white font-mono font-bold text-xs sm:text-sm mt-0.5">Toronto</div>
+                      </div>
+                      <div className="flex items-center justify-center my-1">
+                        <span style={{ fontSize: '24px' }}>☀️</span>
+                        <div className="ml-2">
+                          <div className="font-mono font-bold text-sm" style={{ color: '#FFD700' }}>22°C</div>
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold text-xs" style={{ color: '#00FF88' }}>
+                          Clear Sky
+                        </div>
+                        <span className="text-xs" style={{ color: '#666' }}>H:24° L:18°</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
 
               {/* Bottom sections */}
               <div className="mt-2 sm:mt-3 md:mt-4 space-y-2 sm:space-y-3">
@@ -731,8 +734,6 @@ export default function ExchangeDashboard(): React.ReactElement {
                   </div>
                 </div>
 
-                {/* CAD Yield Chart */}
-                <YieldChart />
               </div>
             </div>
           )}

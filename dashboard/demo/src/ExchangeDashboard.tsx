@@ -455,7 +455,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                     const isPositive = parseFloat(change24h) >= 0;
 
                     return (
-                      <div key={currency} className="h-[120px] relative group overflow-hidden transition-all duration-200" style={{
+                      <div key={currency} className="h-[132px] relative group overflow-hidden transition-all duration-200" style={{
                         background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
                         border: '0.5px solid rgba(0, 150, 255, 0.2)',
                         boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
@@ -484,7 +484,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                           </div>
 
                           {/* Center section - Mini chart */}
-                          <div className="w-32 h-16 mx-4" style={{
+                          <div className="w-28 h-14 mx-4" style={{
                             background: 'rgba(0, 20, 40, 0.4)',
                             border: '0.5px solid rgba(255, 215, 0, 0.15)'
                           }}>
@@ -513,12 +513,14 @@ export default function ExchangeDashboard(): React.ReactElement {
 
                           {/* Right section - 24h change */}
                           <div className="text-right">
-                            <div className="font-bold text-lg" style={{
-                              color: isPositive ? '#00FF88' : '#FF4444'
+                            <div className="font-mono font-extrabold text-lg tabular-nums" style={{
+                              color: isPositive ? '#00FF88' : '#FF4444',
+                              textShadow: isPositive ? '0 0 3px rgba(0, 255, 136, 0.45)' : '0 0 3px rgba(255, 68, 68, 0.45)'
                             }}>
-                              {isPositive ? '▲' : '▼'} {change24h !== 'N/A' ? `${change24h}%` : '—'}
+                              <span className="mr-1 align-middle text-[10px]">{isPositive ? '▲' : '▼'}</span>
+                              {change24h !== 'N/A' ? `${change24h}%` : '—'}
                             </div>
-                            <div className="text-xs" style={{ color: '#666' }}>24h</div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#666', letterSpacing: '0.08em' }}>24H</div>
                           </div>
                         </div>
                       </div>
@@ -552,7 +554,7 @@ export default function ExchangeDashboard(): React.ReactElement {
 
                 {/* Middle column - Crypto rectangles + CAD Yield */}
                 <div className="flex-1">
-                  <div className="space-y-2" style={{ maxHeight: 'calc(100vh - 400px)', overflowY: 'auto' }}>
+                  <div className="space-y-2">
                   {[
                     { symbol: 'BTC/CAD', name: 'Bitcoin', price: '86,420', change: -1.42, trend: 'down' },
                     { symbol: 'ETH/CAD', name: 'Ethereum', price: '3,580', change: 2.43, trend: 'up' },
@@ -568,7 +570,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                     const isPositive = crypto.change >= 0;
                     const cryptoData = generateMiniData(crypto.trend, 12);
                     return (
-                      <div key={crypto.symbol} className="h-[100px] relative group overflow-hidden transition-all duration-200" style={{
+                      <div key={crypto.symbol} className="h-[92px] relative group overflow-hidden transition-all duration-200" style={{
                         background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
                         border: '0.5px solid rgba(0, 150, 255, 0.2)',
                         boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
@@ -590,7 +592,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                           </div>
 
                           {/* Center section - Mini chart */}
-                          <div className="w-32 h-16 mx-4" style={{
+                          <div className="w-28 h-12 mx-4" style={{
                             background: 'rgba(0, 20, 40, 0.4)',
                             border: '0.5px solid rgba(255, 215, 0, 0.15)'
                           }}>

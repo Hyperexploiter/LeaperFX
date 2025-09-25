@@ -445,7 +445,7 @@ export const RealTimeCryptoSection: React.FC = () => {
   return (
     <div className="w-full flex flex-col">
       {/* Fixed height container for crypto rotation - exactly 5 items */}
-      <div className="h-[425px] overflow-hidden flex-shrink-0" style={{
+      <div className="h-[457px] overflow-hidden flex-shrink-0" style={{
         background: 'transparent'
       }}>
         <div className="space-y-2">

@@ -150,3 +150,203 @@
   height: 0.5px;
   width: 100%;
 }
+
+/* Advanced Bloomberg Terminal Animations */
+@keyframes positiveGlow {
+  0% {
+    box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), inset 0 0 15px rgba(255, 215, 0, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+  }
+}
+
+@keyframes negativeGlow {
+  0% {
+    box-shadow: 0 0 5px rgba(139, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(139, 0, 0, 0.6), inset 0 0 15px rgba(139, 0, 0, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(139, 0, 0, 0.3);
+  }
+}
+
+@keyframes dataRefresh {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(-1px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes priceFlash {
+  0% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+  50% {
+    background-color: rgba(255, 215, 0, 0.2);
+    transform: scale(1.02);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+/* Chart enhancements */
+.chart-positive {
+  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.4));
+  animation: positiveGlow 2s ease-in-out infinite;
+}
+
+.chart-negative {
+  filter: drop-shadow(0 0 3px rgba(139, 0, 0, 0.4));
+  animation: negativeGlow 2s ease-in-out infinite;
+}
+
+.chart-container {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-container:hover {
+  transform: scale(1.02);
+  z-index: 10;
+}
+
+.data-update {
+  animation: dataRefresh 0.5s ease-out;
+}
+
+/* Professional Bloomberg Terminal card styling */
+.bloomberg-terminal-card {
+  background: linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%);
+  border: 0.5px solid rgba(0, 150, 255, 0.2);
+  box-shadow: 0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.bloomberg-terminal-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+  transition: left 0.5s ease;
+}
+
+.bloomberg-terminal-card:hover::before {
+  left: 100%;
+}
+
+.bloomberg-terminal-card:hover {
+  border-color: rgba(0, 212, 255, 0.4);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.1), inset 0 0 40px rgba(0, 30, 50, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Price change animations */
+.price-positive {
+  animation: positiveGlow 1.5s ease-in-out;
+}
+
+.price-negative {
+  animation: negativeGlow 1.5s ease-in-out;
+}
+
+.price-update {
+  animation: priceFlash 0.6s ease-out;
+}
+
+/* Enhanced transitions */
+.slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.6s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Chart line smoothing */
+.smooth-path {
+  transition: d 0.3s ease-in-out;
+}
+
+/* Number counter animation */
+.number-counter {
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s ease;
+}
+
+.number-positive {
+  color: #FFD700;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+.number-negative {
+  color: #8B0000;
+  text-shadow: 0 0 8px rgba(139, 0, 0, 0.4);
+}
+
+/* Bloomberg Terminal borders */
+.bloomberg-border-sharp {
+  border: 0.5px solid rgba(0, 212, 255, 0.3);
+  border-radius: 0;
+}
+
+.bloomberg-border-accent {
+  border: 0.5px solid rgba(255, 165, 0, 0.3);
+  border-radius: 0;
+}
+
+/* Monospace number displays */
+.bloomberg-mono {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+
+/* Enhanced hover effects for charts */
+.mini-chart-hover:hover {
+  filter: brightness(1.1) contrast(1.05);
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}

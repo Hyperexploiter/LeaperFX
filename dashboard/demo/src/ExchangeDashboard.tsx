@@ -3,6 +3,8 @@ import { Clock, Sun, Moon, Plus, X, Loader, AlertTriangle, ArrowUp, TrendingUp, 
 import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis, XAxis, CartesianGrid } from 'recharts';
 import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from './services/exchangeRateService';
 import webSocketService, { WebSocketEvent } from './services/webSocketService';
+import { RealTimeCryptoSection } from './components/RealTimeCryptoSection';
+import { useMarketHealth } from './hooks/useRealTimeData';
 import './styles/sexymodal.css';
 
 import logoWhite from './assets/logo_white.jpg';
@@ -24,6 +26,48 @@ const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const DEFAULT_SPREAD_PERCENT = 1.5;
 
 // --- Sub-Components ---
+
+// Connection Status Indicator
+interface ConnectionStatusProps {
+  isConnected: boolean;
+  health: 'healthy' | 'degraded' | 'unhealthy';
+  error?: string | null;
+}
+
+const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ isConnected, health, error }) => {
+  const getStatusColor = () => {
+    if (!isConnected) return '#FF4444';
+    switch (health) {
+      case 'healthy': return '#00FF88';
+      case 'degraded': return '#FFB000';
+      case 'unhealthy': return '#FF4444';
+      default: return '#666';
+    }
+  };
+
+  const getStatusText = () => {
+    if (!isConnected) return 'DISCONNECTED';
+    switch (health) {
+      case 'healthy': return 'LIVE';
+      case 'degraded': return 'DEGRADED';
+      case 'unhealthy': return 'UNHEALTHY';
+      default: return 'UNKNOWN';
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1 border border-opacity-30" style={{
+      borderColor: getStatusColor(),
+      background: `rgba(${getStatusColor() === '#00FF88' ? '0, 255, 136' : getStatusColor() === '#FFB000' ? '255, 176, 0' : '255, 68, 68'}, 0.1)`
+    }}>
+      <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: getStatusColor() }}></div>
+      <span className="text-xs font-mono font-bold" style={{ color: getStatusColor() }}>{getStatusText()}</span>
+      {error && (
+        <span className="text-xs text-red-400 ml-2" title={error}>⚠</span>
+      )}
+    </div>
+  );
+};
 
 const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) => {
   if (!rates) return null;
@@ -135,13 +179,20 @@ const YieldChart: React.FC = () => {
           <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="yieldGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FFD700" stopOpacity={0.7} />
-                <stop offset="30%" stopColor="#FFB000" stopOpacity={0.5} />
-                <stop offset="70%" stopColor="#FF8C00" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#FF6B00" stopOpacity={0.05} />
+                <stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
+                <stop offset="25%" stopColor="#FFB000" stopOpacity={0.6} />
+                <stop offset="50%" stopColor="#FF8C00" stopOpacity={0.4} />
+                <stop offset="75%" stopColor="#FF6B00" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="#FF4500" stopOpacity={0.05} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="rgba(0, 212, 255, 0.05)" vertical={false} strokeDasharray="3 3" />
+            <CartesianGrid
+              stroke="rgba(255, 255, 255, 0.05)"
+              strokeWidth={0.5}
+              vertical={false}
+              horizontal={true}
+              strokeDasharray="2 2"
+            />
             <XAxis dataKey="time" hide tick={{ fill: '#666', fontSize: 9 }} />
             <YAxis tick={{ fill: '#666', fontSize: 9 }} domain={[ (dataMin: number) => dataMin - 0.1, (dataMax: number) => dataMax + 0.1 ]} />
             <Tooltip
@@ -154,7 +205,14 @@ const YieldChart: React.FC = () => {
               labelStyle={{ color: '#FFD700', fontSize: 10 }}
               itemStyle={{ color: '#FFB000', fontSize: 9 }}
             />
-            <Area type="monotone" dataKey="value" stroke="#FFD700" strokeWidth={0.8} fill="url(#yieldGradient)" />
+            <Area
+              type="monotoneX"
+              dataKey="value"
+              stroke="#FFD700"
+              strokeWidth={1.2}
+              fill="url(#yieldGradient)"
+              filter="drop-shadow(0 0 2px rgba(255, 215, 0, 0.3))"
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -189,7 +247,7 @@ const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
   const data = useMemo(() => generateMiniData(item.trend, 20), [item.trend]);
 
   return (
-    <div className="bg-black border h-[90px]" style={{
+    <div className="bg-black border h-[110px]" style={{
       background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
       border: '0.5px solid rgba(0, 150, 255, 0.2)',
       boxShadow: '0 0 15px rgba(0, 150, 255, 0.03)'
@@ -210,19 +268,32 @@ const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
             <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#FFD700" stopOpacity={0.6} />
-                  <stop offset="50%" stopColor="#FFB000" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#FF8800" stopOpacity={0.05} />
+                  {item.trend === 'up' ? (
+                    <>
+                      <stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
+                      <stop offset="30%" stopColor="#FFB000" stopOpacity={0.6} />
+                      <stop offset="70%" stopColor="#FF8C00" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#FF6B00" stopOpacity={0.1} />
+                    </>
+                  ) : (
+                    <>
+                      <stop offset="0%" stopColor="#8B0000" stopOpacity={0.8} />
+                      <stop offset="30%" stopColor="#B22222" stopOpacity={0.6} />
+                      <stop offset="70%" stopColor="#DC143C" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#FF4444" stopOpacity={0.1} />
+                    </>
+                  )}
                 </linearGradient>
               </defs>
               <YAxis hide domain={['dataMin', 'dataMax']} />
               <Area
-                type="monotone"
+                type="monotoneX"
                 dataKey="value"
-                stroke="#FFD700"
-                strokeWidth={0.8}
+                stroke={item.trend === 'up' ? '#FFD700' : '#8B0000'}
+                strokeWidth={1.0}
                 fill={`url(#${gradientId})`}
                 dot={false}
+                filter={`drop-shadow(0 0 2px ${item.trend === 'up' ? 'rgba(255, 215, 0, 0.3)' : 'rgba(139, 0, 0, 0.3)'})`}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -241,7 +312,10 @@ export default function ExchangeDashboard(): React.ReactElement {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState<boolean>(true);
-  const [cryptoRotationIndex, setCryptoRotationIndex] = useState<number>(0);
+  const [commodityRotationIndex, setCommodityRotationIndex] = useState<number>(0);
+
+  // Real-time data integration
+  const { health, isConnected, error: marketError } = useMarketHealth();
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -362,10 +436,10 @@ export default function ExchangeDashboard(): React.ReactElement {
     return () => clearInterval(interval);
   }, [liveRates]);
 
-  // Crypto rotation: rotate bottom 3 cryptos every 21 seconds
+  // Commodity rotation: rotate commodities every 21 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setCryptoRotationIndex((prev) => (prev + 3) % 7); // Rotate through 7 additional cryptos (10 total - 3 fixed = 7)
+      setCommodityRotationIndex((prev) => (prev + 1) % 3); // Rotate through 3 additional commodities (7 total - 4 fixed = 3)
     }, 21000);
     return () => clearInterval(interval);
   }, []);
@@ -419,30 +493,34 @@ export default function ExchangeDashboard(): React.ReactElement {
     };
   }, [liveRates, historicalRates]);
 
-  const marketData = useMemo<MarketItem[]>(() => ([
+  const allCommodities = useMemo<MarketItem[]>(() => ([
     { name: 'GOLD', symbol: 'GOLD', value: '3547.35', change: '+14.51', changePercent: '0.41%', trend: 'up' },
     { name: 'SILVER', symbol: 'SILVER', value: '41.72', change: '+0.13', changePercent: '0.32%', trend: 'up' },
     { name: 'COPPER', symbol: 'COPPER', value: '403.65', change: '-1.45', changePercent: '0.36%', trend: 'down' },
     { name: 'ALUM.FUT', symbol: 'ALUM', value: '2678.50', change: '-5.50', changePercent: '0.21%', trend: 'down' },
     { name: 'PLAT.', symbol: 'PLAT', value: '1408.97', change: '-2.25', changePercent: '0.16%', trend: 'down' },
-    { name: 'VIX', symbol: 'VIX', value: '17.14', change: '-0.03', changePercent: '0.17%', trend: 'down' }
+    { name: 'CRUDE', symbol: 'CRUDE', value: '89.24', change: '+2.13', changePercent: '2.44%', trend: 'up' },
+    { name: 'NAT.GAS', symbol: 'NGAS', value: '2.876', change: '-0.08', changePercent: '2.87%', trend: 'down' }
   ]), []);
+
+  // Get visible commodities (4 at a time with rotation)
+  const visibleCommodities = useMemo(() => {
+    const rotatedCommodities = allCommodities.slice(commodityRotationIndex).concat(allCommodities.slice(0, commodityRotationIndex));
+    return rotatedCommodities.slice(0, 4);
+  }, [allCommodities, commodityRotationIndex]);
 
   const availableToAdd = allSupportedCurrencies.filter(c => !displayedCurrencies.includes(c.value) && c.value !== BASE_CURRENCY);
 
   return (
     <div className="h-screen bg-black text-gray-100 font-sans overflow-hidden">
-      <div className="h-screen flex flex-col">
-        {/* Header Bar */}
+      <div className="h-screen flex flex-col min-h-0">
+        {/* Header Bar - Simplified without SAADAT text */}
         <header className="bg-black px-2 sm:px-3 md:px-4 py-2" style={{ borderBottom: '0.5px solid rgba(0, 212, 255, 0.3)' }}>
           <div className="flex items-center justify-between">
-            <div className="font-bold text-lg sm:text-xl md:text-2xl tracking-wider" style={{
-              color: '#00D4FF',
-              textShadow: '0 0 10px rgba(0, 212, 255, 0.3)',
-              fontFamily: 'monospace'
-            }}>SAADAT EXCHANGE</div>
             <div className="flex items-center gap-4">
-              <LiveClock />
+              <ConnectionStatus isConnected={isConnected} health={health} error={marketError} />
+            </div>
+            <div className="flex items-center gap-4">
               <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
             </div>
           </div>
@@ -493,28 +571,59 @@ export default function ExchangeDashboard(): React.ReactElement {
                           </div>
 
                           {/* Center section - Mini chart */}
-                          <div className="w-28 h-14 mx-4" style={{
-                            background: 'rgba(0, 20, 40, 0.4)',
-                            border: '0.5px solid rgba(255, 215, 0, 0.15)'
+                          <div className="w-[120px] h-[50px] mx-4" style={{
+                            background: 'linear-gradient(135deg, rgba(0, 8, 20, 0.6) 0%, rgba(0, 20, 40, 0.4) 100%)',
+                            border: '0.5px solid rgba(255, 215, 0, 0.2)',
+                            borderRadius: '0px',
+                            boxShadow: 'inset 0 0 10px rgba(0, 20, 40, 0.3)'
                           }}>
                             <ResponsiveContainer width="100%" height="100%">
                               <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                                 <defs>
                                   <linearGradient id={`bloomberg-gradient-${currency}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#FFD700" stopOpacity={0.7}/>
-                                    <stop offset="50%" stopColor="#FFB000" stopOpacity={0.4}/>
-                                    <stop offset="100%" stopColor="#FF6B00" stopOpacity={0.1}/>
+                                    {isPositive ? (
+                                      <>
+                                        <stop offset="0%" stopColor="#FFD700" stopOpacity={0.9}/>
+                                        <stop offset="25%" stopColor="#FFB000" stopOpacity={0.7}/>
+                                        <stop offset="50%" stopColor="#FF8C00" stopOpacity={0.5}/>
+                                        <stop offset="75%" stopColor="#FF6B00" stopOpacity={0.3}/>
+                                        <stop offset="100%" stopColor="#FF4500" stopOpacity={0.1}/>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <stop offset="0%" stopColor="#8B0000" stopOpacity={0.9}/>
+                                        <stop offset="25%" stopColor="#A52A2A" stopOpacity={0.7}/>
+                                        <stop offset="50%" stopColor="#DC143C" stopOpacity={0.5}/>
+                                        <stop offset="75%" stopColor="#FF4444" stopOpacity={0.3}/>
+                                        <stop offset="100%" stopColor="#FF6666" stopOpacity={0.1}/>
+                                      </>
+                                    )}
                                   </linearGradient>
+                                  <filter id={`glow-${currency}`}>
+                                    <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+                                    <feMerge>
+                                      <feMergeNode in="coloredBlur"/>
+                                      <feMergeNode in="SourceGraphic"/>
+                                    </feMerge>
+                                  </filter>
                                 </defs>
+                                <CartesianGrid
+                                  stroke="rgba(255, 255, 255, 0.05)"
+                                  strokeWidth={0.5}
+                                  vertical={false}
+                                  horizontal={true}
+                                  strokeDasharray="1 1"
+                                />
                                 <YAxis hide domain={['dataMin', 'dataMax']} />
                                 <Area
-                                  type="monotone"
+                                  type="monotoneX"
                                   dataKey="value"
-                                  stroke="#FFD700"
-                                  strokeWidth={0.8}
+                                  stroke={isPositive ? '#FFD700' : '#8B0000'}
+                                  strokeWidth={1.2}
                                   fillOpacity={1}
                                   fill={`url(#bloomberg-gradient-${currency})`}
                                   dot={false}
+                                  filter={`url(#glow-${currency})`}
                                 />
                               </AreaChart>
                             </ResponsiveContainer>
@@ -561,125 +670,43 @@ export default function ExchangeDashboard(): React.ReactElement {
                   </div>
                 </div>
 
-                {/* Middle column - Crypto rectangles + CAD Yield */}
-                <div className="w-full xl:w-[440px] 2xl:w-[480px]">
-                  <div className="space-y-2">
-                  {(() => {
-                    const allCryptos = [
-                      { symbol: 'BTC/CAD', name: 'Bitcoin', price: '86,420', change: -1.42, trend: 'down' },
-                      { symbol: 'ETH/CAD', name: 'Ethereum', price: '3,580', change: 2.43, trend: 'up' },
-                      { symbol: 'SOL/CAD', name: 'Solana', price: '142.85', change: 5.21, trend: 'up' },
-                      { symbol: 'AVAX/CAD', name: 'Avalanche', price: '51.30', change: -0.85, trend: 'down' },
-                      { symbol: 'MATIC/CAD', name: 'Polygon', price: '0.872', change: 3.15, trend: 'up' },
-                      { symbol: 'ADA/CAD', name: 'Cardano', price: '0.512', change: -2.14, trend: 'down' },
-                      { symbol: 'DOT/CAD', name: 'Polkadot', price: '8.94', change: 1.28, trend: 'up' },
-                      { symbol: 'LINK/CAD', name: 'Chainlink', price: '18.65', change: -0.42, trend: 'down' },
-                      { symbol: 'UNI/CAD', name: 'Uniswap', price: '10.28', change: 2.95, trend: 'up' },
-                      { symbol: 'XRP/CAD', name: 'Ripple', price: '0.689', change: -1.18, trend: 'down' }
-                    ];
-
-                    // Show first 3 fixed, then 3 rotating from the rest
-                    const fixedCryptos = allCryptos.slice(0, 3);
-                    const rotatableCryptos = allCryptos.slice(3);
-                    const rotatingCryptos = rotatableCryptos.slice(cryptoRotationIndex, cryptoRotationIndex + 3);
-                    const visibleCryptos = [...fixedCryptos, ...rotatingCryptos];
-
-                    return visibleCryptos.map((crypto, idx) => {
-                    const isPositive = crypto.change >= 0;
-                    const cryptoData = generateMiniData(crypto.trend, 12);
-                    return (
-                      <div key={crypto.symbol} className="h-[85px] relative group overflow-hidden transition-all duration-200" style={{
-                        background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                        border: '0.5px solid rgba(0, 150, 255, 0.2)',
-                        boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
-                      }}>
-                        <div className="h-full flex items-center px-4">
-                          {/* Left section - Crypto info */}
-                          <div className="flex-1">
-                            <div className="mb-2">
-                              <h3 className="text-base font-bold" style={{
-                                color: '#FFA500',
-                                fontFamily: 'monospace'
-                              }}>{crypto.symbol}</h3>
-                              <span className="text-xs" style={{ color: '#666' }}>{crypto.name}</span>
-                            </div>
-                            <div className="text-sm">
-                              <span style={{ color: '#4A90E2' }}>Price: </span>
-                              <span className="font-mono font-bold text-white text-base">{crypto.price}</span>
-                            </div>
-                          </div>
-
-                          {/* Center section - Mini chart */}
-                          <div className="w-28 h-12 mx-4" style={{
-                            background: 'rgba(0, 20, 40, 0.4)',
-                            border: '0.5px solid rgba(255, 215, 0, 0.15)'
-                          }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={cryptoData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                                <defs>
-                                  <linearGradient id={`crypto-gradient-${idx}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor={isPositive ? '#00FF88' : '#FF4444'} stopOpacity={0.7}/>
-                                    <stop offset="100%" stopColor={isPositive ? '#00FF88' : '#FF4444'} stopOpacity={0.1}/>
-                                  </linearGradient>
-                                </defs>
-                                <YAxis hide domain={['dataMin', 'dataMax']} />
-                                <Area
-                                  type="monotone"
-                                  dataKey="value"
-                                  stroke={isPositive ? '#00FF88' : '#FF4444'}
-                                  strokeWidth={0.8}
-                                  fillOpacity={1}
-                                  fill={`url(#crypto-gradient-${idx})`}
-                                  dot={false}
-                                />
-                              </AreaChart>
-                            </ResponsiveContainer>
-                          </div>
-
-                          {/* Right section - 24h change */}
-                          <div className="text-right">
-                            <div className="font-bold text-lg" style={{
-                              color: isPositive ? '#00FF88' : '#FF4444'
-                            }}>
-                              {isPositive ? '▲' : '▼'} {Math.abs(crypto.change).toFixed(2)}%
-                            </div>
-                            <div className="text-xs" style={{ color: '#666' }}>24h</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-                </div>
-
-                  {/* CAD Yield Chart - Aligned with Daily Bulletin */}
-                  <div className="mt-3">
-                    <YieldChart />
-                  </div>
-                </div>
+                {/* Middle column - Real-Time Crypto Section + CAD Yield */}
+                <RealTimeCryptoSection />
 
                 {/* Right column - commodities squares (one per line) */}
                 <div className="w-full xl:w-[200px] 2xl:w-[220px] flex flex-col gap-2">
-                  {marketData.map((item, idx) => (
-                    <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
-                  ))}
-                  {/* Weather Widget - smaller and at bottom */}
-                  <div className="bg-black border h-[80px] mt-auto" style={{
+                  {/* Fixed height container for commodity rotation */}
+                  <div className="h-[458px] overflow-hidden flex flex-col gap-2">
+                    {visibleCommodities.map((item, idx) => (
+                      <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
+                    ))}
+                  </div>
+                  {/* Weather & Time Widget - Combined */}
+                  <div className="bg-black border h-[100px] mt-auto" style={{
                     background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
                     border: '0.5px solid rgba(0, 150, 255, 0.2)',
                     boxShadow: '0 0 15px rgba(0, 150, 255, 0.03)'
                   }}>
-                    <div className="p-1.5 h-full flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="font-bold text-[10px]" style={{ color: '#FFA500', fontFamily: 'monospace' }}>WEATHER</div>
-                        <div className="text-white font-mono font-bold text-xs">Toronto</div>
-                        <div className="text-[10px] mt-0.5" style={{ color: '#00FF88' }}>Clear</div>
+                    <div className="p-2 h-full flex flex-col">
+                      {/* Time Display */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-bold text-[10px]" style={{ color: '#FFA500', fontFamily: 'monospace' }}>CURRENT TIME</div>
+                        <LiveClock />
                       </div>
-                      <div className="flex items-center">
-                        <span style={{ fontSize: '20px', marginRight: '4px' }}>☀️</span>
-                        <div>
-                          <div className="font-mono font-bold text-sm" style={{ color: '#FFD700' }}>22°C</div>
-                          <div className="text-[9px]" style={{ color: '#666' }}>H:24° L:18°</div>
+
+                      {/* Weather Display */}
+                      <div className="flex items-center justify-between flex-1">
+                        <div className="flex-1">
+                          <div className="font-bold text-[10px] mb-1" style={{ color: '#FFA500', fontFamily: 'monospace' }}>WEATHER</div>
+                          <div className="text-white font-mono font-bold text-xs">Toronto</div>
+                          <div className="text-[10px]" style={{ color: '#00FF88' }}>Clear</div>
+                        </div>
+                        <div className="flex items-center">
+                          <span style={{ fontSize: '18px', marginRight: '4px' }}>☀️</span>
+                          <div>
+                            <div className="font-mono font-bold text-sm" style={{ color: '#FFD700' }}>22°C</div>
+                            <div className="text-[8px]" style={{ color: '#666' }}>H:24° L:18°</div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -691,17 +718,23 @@ export default function ExchangeDashboard(): React.ReactElement {
           )}
         </main>
 
-        {/* Bottom ticker with logo */}
+        {/* Bottom ticker with logo - Origin point for price ticker */}
         <footer className="bg-black relative" style={{
-          borderTop: '0.5px solid rgba(255, 165, 0, 0.3)',
+          borderTop: '0.5px solid rgba(0, 212, 255, 0.4)',
           background: 'linear-gradient(90deg, rgba(0, 0, 0, 1) 0%, rgba(0, 8, 20, 0.5) 50%, rgba(0, 0, 0, 1) 100%)'
         }}>
           <div className="flex items-center">
-            <div className="px-3 py-1 flex items-center" style={{
-              borderRight: '0.5px solid rgba(255, 165, 0, 0.3)',
-              background: 'rgba(0, 8, 20, 0.8)'
+            <div className="px-4 py-2 flex items-center gap-3" style={{
+              borderRight: '0.5px solid rgba(0, 212, 255, 0.4)',
+              background: 'rgba(0, 8, 20, 0.9)',
+              boxShadow: '0 0 15px rgba(0, 212, 255, 0.1)'
             }}>
-              <img src={darkMode ? saadatBlack : saadatWhite} alt="SAADAT" className="h-7 w-auto" />
+              <img src={darkMode ? saadatBlack : saadatWhite} alt="SAADAT" className="h-8 w-auto" />
+              <div className="font-bold text-lg tracking-wider" style={{
+                color: '#00D4FF',
+                textShadow: '0 0 8px rgba(0, 212, 255, 0.4)',
+                fontFamily: 'monospace'
+              }}>SAADAT EXCHANGE</div>
             </div>
             <div className="flex-1">
               <Ticker rates={liveRates} baseCurrency={BASE_CURRENCY} calculateRates={calculateRates}/>

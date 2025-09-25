@@ -86,7 +86,7 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
   });
 
   return (
-    <div className="bg-black text-white py-2.5 overflow-hidden w-full">
+    <div className="bg-black text-white py-1.5 overflow-hidden w-full">
       <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation px-4">
         {tickerContent}
         {tickerContent} {/* Duplicate for seamless loop */}
@@ -310,7 +310,7 @@ const DynamicBulletin: React.FC = () => {
   };
 
   return (
-    <div className="mt-3 bg-black border transition-all duration-1000" style={{
+    <div className="mt-3 bg-black border transition-all duration-1000 h-full flex flex-col" style={{
       background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
       border: '0.5px solid rgba(255, 165, 0, 0.2)',
       borderLeftWidth: '4px',
@@ -338,6 +338,8 @@ const DynamicBulletin: React.FC = () => {
           </span>
         </div>
       </div>
+      {/* Additional space filler to extend to full height */}
+      <div className="flex-1"></div>
     </div>
   );
 };
@@ -651,7 +653,7 @@ export default function ExchangeDashboard(): React.ReactElement {
             <div className="flex-1 overflow-hidden">
               <div className="h-full flex flex-col xl:flex-row gap-3">
                 {/* Left column - Currency rectangles + Daily Bulletin */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 flex flex-col">
                   <div className="space-y-2">
                   {displayedCurrencies.map((currency) => {
                     const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
@@ -765,8 +767,10 @@ export default function ExchangeDashboard(): React.ReactElement {
                   })}
                   </div>
 
-                  {/* Dynamic Bulletin - Under currency column */}
-                  <DynamicBulletin />
+                  {/* Dynamic Bulletin - Under currency column, extends to fill space */}
+                  <div className="flex-1 min-h-0">
+                    <DynamicBulletin />
+                  </div>
                 </div>
 
                 {/* Middle column - Real-Time Crypto Section + CAD Yield */}
@@ -825,14 +829,14 @@ export default function ExchangeDashboard(): React.ReactElement {
           background: 'linear-gradient(90deg, #FFD700 0%, #FFA500 30%, #FF8C00 60%, #FF6B00 100%)'
         }}>
           <div className="flex items-center">
-            <div className="px-6 py-3 flex items-center justify-center" style={{
+            <div className="px-6 py-2 flex items-center justify-center" style={{
               borderRight: '0.5px solid rgba(0, 212, 255, 0.4)',
               background: 'linear-gradient(90deg, #FFD700 0%, #FFA500 30%, #FF8C00 60%, #FF6B00 100%)',
               boxShadow: '0 0 20px rgba(255, 165, 0, 0.5)'
             }}>
               <div className="font-bold text-lg tracking-wider" style={{
-                color: '#00D4FF',
-                textShadow: '0 0 8px rgba(0, 212, 255, 0.4)',
+                color: '#FFA500',
+                textShadow: '0 0 8px rgba(255, 165, 0, 0.4)',
                 fontFamily: 'monospace'
               }}>SAADAT EXCHANGE</div>
             </div>

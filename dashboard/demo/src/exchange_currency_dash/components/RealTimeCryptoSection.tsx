@@ -372,30 +372,30 @@ export const RealTimeCryptoSection: React.FC = () => {
     return staticCryptos;
   }, [cryptoData, staticCryptos]);
 
-  // Rotation logic for displaying 6 cryptos at a time
+  // Rotation logic for displaying 5 cryptos at a time
   useEffect(() => {
-    if (displayCryptos.length <= 6) return;
+    if (displayCryptos.length <= 5) return;
 
     const interval = setInterval(() => {
-      setRotationIndex((prev) => (prev + 3) % Math.max(1, displayCryptos.length - 3));
+      setRotationIndex((prev) => (prev + 2) % Math.max(1, displayCryptos.length - 2));
     }, 21000); // Rotate every 21 seconds
 
     return () => clearInterval(interval);
   }, [displayCryptos.length]);
 
-  // Get visible cryptos (first 3 fixed + 3 rotating)
+  // Get visible cryptos (first 3 fixed + 2 rotating = 5 total)
   const visibleCryptos = useMemo(() => {
-    if (displayCryptos.length <= 6) {
-      return displayCryptos;
+    if (displayCryptos.length <= 5) {
+      return displayCryptos.slice(0, 5);
     }
 
     const fixed = displayCryptos.slice(0, 3);
     const rotating = displayCryptos.slice(3);
-    const rotatingVisible = rotating.slice(rotationIndex, rotationIndex + 3);
+    const rotatingVisible = rotating.slice(rotationIndex, rotationIndex + 2);
 
     // If we don't have enough rotating items, wrap around
-    if (rotatingVisible.length < 3) {
-      const remaining = 3 - rotatingVisible.length;
+    if (rotatingVisible.length < 2) {
+      const remaining = 2 - rotatingVisible.length;
       rotatingVisible.push(...rotating.slice(0, remaining));
     }
 
@@ -406,7 +406,7 @@ export const RealTimeCryptoSection: React.FC = () => {
   if (isLoading) {
     return (
       <div className="w-full">
-        <div className="h-[510px] flex items-center justify-center" style={{
+        <div className="h-[425px] flex items-center justify-center" style={{
           background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
           border: '0.5px solid rgba(0, 150, 255, 0.2)'
         }}>
@@ -423,7 +423,7 @@ export const RealTimeCryptoSection: React.FC = () => {
   if (error) {
     return (
       <div className="w-full">
-        <div className="h-[510px] flex items-center justify-center" style={{
+        <div className="h-[425px] flex items-center justify-center" style={{
           background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
           border: '0.5px solid rgba(255, 0, 0, 0.2)'
         }}>
@@ -445,7 +445,7 @@ export const RealTimeCryptoSection: React.FC = () => {
   return (
     <div className="w-full">
       {/* Fixed height container for crypto rotation */}
-      <div className="h-[510px] overflow-hidden" style={{
+      <div className="h-[425px] overflow-hidden" style={{
         background: 'transparent'
       }}>
         <div className="space-y-2">

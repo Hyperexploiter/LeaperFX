@@ -76,17 +76,17 @@ const Ticker: React.FC<TickerProps> = ({ rates, baseCurrency, calculateRates }) 
     const isPositive = !isNaN(change) && change >= 0;
     const arrow = isPositive ? '▲' : '▼';
     return (
-        <div key={currency} className="flex items-center mx-6 text-sm flex-shrink-0">
-          <span className="font-bold text-base" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{currency}</span>
-          <span className="font-semibold" style={{ color: '#666' }}>/{baseCurrency}</span>
-          <span className="ml-3 text-white font-mono text-base font-bold">{customerBuys}</span>
-          <span className={`ml-2 font-bold text-sm`} style={{ color: isPositive ? '#00FF00' : '#FF0000' }}>{arrow} {isNaN(change) ? '' : `${Math.abs(change).toFixed(2)}%`}</span>
+        <div key={currency} className="flex items-center mx-6 text-xs flex-shrink-0">
+          <span className="font-bold text-sm" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{currency}</span>
+          <span className="font-semibold text-xs" style={{ color: '#666' }}>/{baseCurrency}</span>
+          <span className="ml-2 text-white font-mono text-sm font-bold">{customerBuys}</span>
+          <span className={`ml-2 font-bold text-xs`} style={{ color: isPositive ? '#00FF00' : '#FF0000' }}>{arrow} {isNaN(change) ? '' : `${Math.abs(change).toFixed(2)}%`}</span>
         </div>
     );
   });
 
   return (
-    <div className="bg-black text-white py-1.5 overflow-hidden w-full">
+    <div className="bg-black text-white overflow-hidden w-full h-full flex items-center">
       <div className="flex whitespace-nowrap animate-ticker-scroll hover:pause-animation px-4">
         {tickerContent}
         {tickerContent} {/* Duplicate for seamless loop */}
@@ -826,21 +826,21 @@ export default function ExchangeDashboard(): React.ReactElement {
         {/* Bottom ticker with logo - Origin point for price ticker */}
         <footer className="bg-black relative" style={{
           borderTop: '0.5px solid rgba(0, 212, 255, 0.4)',
-          background: 'linear-gradient(90deg, #FFD700 0%, #FFA500 30%, #FF8C00 60%, #FF6B00 100%)'
+          background: 'black'
         }}>
-          <div className="flex items-center">
-            <div className="px-6 py-2 flex items-center justify-center" style={{
+          <div className="flex items-center h-8">
+            <div className="px-4 flex items-center justify-center h-full" style={{
               borderRight: '0.5px solid rgba(0, 212, 255, 0.4)',
-              background: 'linear-gradient(90deg, #FFD700 0%, #FFA500 30%, #FF8C00 60%, #FF6B00 100%)',
-              boxShadow: '0 0 20px rgba(255, 165, 0, 0.5)'
+              background: 'black',
+              minWidth: '180px'
             }}>
-              <div className="font-bold text-lg tracking-wider" style={{
+              <div className="font-bold text-sm tracking-wider" style={{
                 color: '#FFA500',
                 textShadow: '0 0 8px rgba(255, 165, 0, 0.4)',
                 fontFamily: 'monospace'
               }}>SAADAT EXCHANGE</div>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 h-full">
               <Ticker rates={liveRates} baseCurrency={BASE_CURRENCY} calculateRates={calculateRates}/>
             </div>
           </div>

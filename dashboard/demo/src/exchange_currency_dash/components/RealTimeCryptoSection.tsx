@@ -459,8 +459,8 @@ export const RealTimeCryptoSection: React.FC = () => {
         </div>
       </div>
 
-      {/* CAD Yield Chart - Aligned with Daily Bulletin */}
-      <div className="mt-3">
+      {/* CAD Yield Chart - Indented below crypto rectangles */}
+      <div className="mt-8">
         <YieldChart />
       </div>
     </div>

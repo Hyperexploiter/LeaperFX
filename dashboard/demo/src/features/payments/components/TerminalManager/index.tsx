@@ -32,6 +32,8 @@ const TerminalManager: React.FC<TerminalManagerProps> = ({ className = '' }) => 
   const [isTestingPayment, setIsTestingPayment] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isEnablingSim, setIsEnablingSim] = useState(false);
+  const [isRunningDemo, setIsRunningDemo] = useState(false);
 
   useEffect(() => {
     loadTerminalData();
@@ -100,6 +102,73 @@ const TerminalManager: React.FC<TerminalManagerProps> = ({ className = '' }) => 
       console.error('Error testing payment:', err);
     } finally {
       setIsTestingPayment(false);
+    }
+  };
+
+  const handleEnableSimulator = async () => {
+    setIsEnablingSim(true);
+    setError(null);
+    try {
+      paymentServices.terminal.setForceSimulator?.(true);
+      const discoveredDevices = await paymentServices.terminal.discoverDevices();
+      setDevices(discoveredDevices);
+      setSuccess(`Simulator enabled. ${discoveredDevices.length} simulated device(s) ready.`);
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err) {
+      setError('Failed to enable simulator');
+      console.error('Error enabling simulator:', err);
+    } finally {
+      setIsEnablingSim(false);
+    }
+  };
+
+  const handleRunDemoFlow = async () => {
+    setIsRunningDemo(true);
+    setError(null);
+    try {
+      // Ensure simulator is on and at least one device is available
+      paymentServices.terminal.setForceSimulator?.(true);
+      let status = paymentServices.terminal.getConnectionStatus();
+      if (status.status !== 'connected') {
+        const discovered = await paymentServices.terminal.discoverDevices();
+        setDevices(discovered);
+        const device = discovered[0];
+        if (device) {
+          await paymentServices.terminal.connectToDevice(device.id);
+          status = paymentServices.terminal.getConnectionStatus();
+          setConnectionStatus(status);
+        }
+      }
+
+      if (status.status !== 'connected') {
+        throw new Error('Unable to connect to a simulated device');
+      }
+
+      const results: Array<{ label: string; ok: boolean; err?: string }> = [];
+
+      // 1) Successful small payment
+      paymentServices.terminal.setSimulationOptions?.({ nextResult: 'success' });
+      const r1 = await paymentServices.terminal.processPayment({ amount: 123, currency: 'CAD', description: 'Demo #1' });
+      results.push({ label: 'Demo #1 ($1.23)', ok: !!r1.success, err: r1.error });
+
+      // 2) Forced decline
+      paymentServices.terminal.setSimulationOptions?.({ nextResult: 'card_declined' });
+      const r2 = await paymentServices.terminal.processPayment({ amount: 234, currency: 'CAD', description: 'Demo #2' });
+      results.push({ label: 'Demo #2 ($2.34)', ok: !!r2.success, err: r2.error });
+
+      // 3) Successful payment again
+      paymentServices.terminal.setSimulationOptions?.({ nextResult: 'success' });
+      const r3 = await paymentServices.terminal.processPayment({ amount: 345, currency: 'CAD', description: 'Demo #3' });
+      results.push({ label: 'Demo #3 ($3.45)', ok: !!r3.success, err: r3.error });
+
+      const summary = results.map(r => `${r.label}: ${r.ok ? 'OK' : `Failed (${r.err})`}`).join(' • ');
+      setSuccess(`Demo flow complete — ${summary}`);
+      setTimeout(() => setSuccess(null), 7000);
+    } catch (err) {
+      setError('Demo flow failed');
+      console.error('Demo flow error:', err);
+    } finally {
+      setIsRunningDemo(false);
     }
   };
 
@@ -173,6 +242,33 @@ const TerminalManager: React.FC<TerminalManagerProps> = ({ className = '' }) => 
                 <AlertTriangle className="h-8 w-8 text-red-500" />
               )}
             </div>
+          </div>
+
+          {/* Simulation Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <button
+              onClick={handleEnableSimulator}
+              disabled={isEnablingSim}
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+            >
+              <Wifi className={`h-6 w-6 text-indigo-600 mr-3 ${isEnablingSim ? 'animate-pulse' : ''}`} />
+              <div className="text-left">
+                <div className="font-medium text-gray-900">Enable Simulator</div>
+                <div className="text-sm text-gray-500">Use simulated reader without hardware</div>
+              </div>
+            </button>
+
+            <button
+              onClick={handleRunDemoFlow}
+              disabled={isRunningDemo}
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-emerald-300 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+            >
+              <Activity className={`h-6 w-6 text-emerald-600 mr-3 ${isRunningDemo ? 'animate-pulse' : ''}`} />
+              <div className="text-left">
+                <div className="font-medium text-gray-900">Run Demo Flow</div>
+                <div className="text-sm text-gray-500">Connect + 3 demo payments</div>
+              </div>
+            </button>
           </div>
         </div>
 

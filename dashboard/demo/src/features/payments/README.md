@@ -196,6 +196,34 @@ const config = {
 
 ## 🧪 Testing
 
+### Simulate without hardware (no card reader)
+
+1) Open Payment Settings → Terminal Manager (or use the Terminal Manager component directly).
+2) Click "Enable Simulator". This forces the frontend simulator and discovers a simulated reader.
+3) Click "Run Demo Flow" to auto-connect and execute three demo payments (success → decline → success).
+4) Or click "Test Payment" to run a $1.00 test on the currently connected (simulated) device.
+
+Advanced options (for developers):
+- Programmatically force simulation and outcomes:
+```ts
+import { paymentServices } from '@/features/payments';
+
+// Ensure simulator is enabled
+paymentServices.terminal.setForceSimulator?.(true);
+
+// Force next payment to be declined
+paymentServices.terminal.setSimulationOptions?.({ nextResult: 'card_declined' });
+
+// Run a payment (amount in cents)
+await paymentServices.terminal.processPayment({ amount: 299, currency: 'CAD', description: 'Latte' });
+```
+- Use successRate to bias random outcomes during longer demos:
+```ts
+paymentServices.terminal.setSimulationOptions?.({ successRate: 0.9 });
+```
+
+Note: In test mode with the real Stripe Terminal JS SDK available, discovery will use the official SDK's `simulated` reader. If the SDK isn't available or you enable "Force Simulator", the built-in simulator runs entirely in the browser with no backend.
+
 ### Mock Data
 All services include comprehensive mock data for testing:
 - Simulated terminal devices

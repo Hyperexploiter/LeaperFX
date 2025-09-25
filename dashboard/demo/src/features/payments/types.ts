@@ -375,6 +375,8 @@ export interface TerminalConfiguration {
   locationId?: string;
   autoConnect?: boolean;
   defaultReceiptEmail?: string;
+  // Simulation controls (frontend-only)
+  forceSimulator?: boolean;
 }
 
 export interface CryptoConfiguration {
@@ -467,6 +469,9 @@ export interface TerminalService {
   disconnect(): Promise<void>;
   processPayment(request: TerminalPaymentRequest): Promise<TerminalPaymentResult>;
   getConnectionStatus(): ConnectionStatus;
+  // Simulation controls (optional, no-op in real SDK)
+  setForceSimulator?(flag: boolean): void;
+  setSimulationOptions?(opts: { successRate?: number; nextResult?: 'success' | 'card_declined' | 'network_error' | 'canceled' | 'timeout' }): void;
 }
 
 export interface CryptoService {

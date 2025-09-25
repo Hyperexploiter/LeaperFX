@@ -61,6 +61,12 @@ export interface TerminalConfiguration {
   environment: 'test' | 'live';
   merchantDisplayName: string;
   locationId?: string;
+  // Simulation controls (optional)
+  forceSimulator?: boolean;
+  simulation?: {
+    successRate?: number; // 0..1
+    nextResult?: 'success' | 'card_declined' | 'network_error' | 'canceled' | 'timeout';
+  };
 }
 
 export interface ConnectionStatus {
@@ -81,6 +87,9 @@ class StripeTerminalService {
   private readerMap: Map<string, any> = new Map();
   private connectionAttempts = 0;
   private maxConnectionAttempts = 3;
+  // Simulation state
+  private forceSimulator: boolean = false;
+  private simOptions: { successRate: number; nextResult?: 'success' | 'card_declined' | 'network_error' | 'canceled' | 'timeout' } = { successRate: 0.95 };
 
   /**
    * Initialize the Stripe Terminal SDK
@@ -90,8 +99,25 @@ class StripeTerminalService {
       console.log('🔄 Initializing Stripe Terminal SDK...');
 
       this.configuration = config;
+      this.forceSimulator = !!config.forceSimulator;
+      if (config.simulation) {
+        this.simOptions = {
+          ...this.simOptions,
+          ...config.simulation
+        };
+      }
 
       if (typeof window !== 'undefined') {
+        // If simulator forced, skip real SDK
+        if (this.forceSimulator) {
+          await this.simulateSDKLoad();
+          this.terminal = this.createSimulatedTerminal();
+          this.setupEventListeners();
+          this.isInitialized = true;
+          console.log('✅ Stripe Terminal SDK (simulated) initialized (forceSimulator)');
+          return true;
+        }
+
         // Try to load and initialize the real Stripe Terminal SDK first
         try {
           await this.loadStripeTerminalScript();
@@ -146,6 +172,23 @@ class StripeTerminalService {
 
     try {
       console.log('🔍 Discovering terminal devices...');
+
+      // If simulator is forced, always return simulated devices
+      if (this.forceSimulator) {
+        await this.delay(500);
+        this.discoveredDevices = [
+          {
+            id: 'tmr_sim_001',
+            label: 'Simulated Device - Testing',
+            deviceType: 'simulated_wisepos_e',
+            status: 'online',
+            serialNumber: 'SIM-TEST-001',
+            softwareVersion: '1.0.0',
+            lastSeen: new Date().toISOString()
+          }
+        ];
+        return this.discoveredDevices;
+      }
 
       // If real SDK is available, use it
       if (this.terminal && typeof this.terminal.discoverReaders === 'function') {
@@ -309,6 +352,23 @@ class StripeTerminalService {
   }
 
   /**
+   * Enable/disable simulator at runtime
+   */
+  setForceSimulator(flag: boolean): void {
+    this.forceSimulator = flag;
+  }
+
+  /**
+   * Configure simulation options (e.g., next forced outcome)
+   */
+  setSimulationOptions(opts: { successRate?: number; nextResult?: 'success' | 'card_declined' | 'network_error' | 'canceled' | 'timeout' }): void {
+    this.simOptions = {
+      ...this.simOptions,
+      ...opts
+    };
+  }
+
+  /**
    * Process a payment through the connected terminal
    */
   async processPayment(request: TerminalPaymentRequest): Promise<TerminalPaymentResult> {
@@ -400,8 +460,28 @@ class StripeTerminalService {
       console.log('🔄 Processing payment (simulated)...');
       await this.delay(1500);
 
-      const paymentSuccess = Math.random() > 0.05;
-      if (paymentSuccess) {
+      // Determine outcome using configured simulation options
+      let next = this.simOptions.nextResult;
+      // Clear single-use instruction
+      if (next) {
+        this.simOptions.nextResult = undefined;
+      }
+
+      const successRate = typeof this.simOptions.successRate === 'number' ? this.simOptions.successRate : 0.95;
+
+      const decideSuccess = () => Math.random() < successRate;
+
+      const makeErrorResult = (type: 'card_declined' | 'network_error' | 'canceled' | 'timeout', message?: string): TerminalPaymentResult => ({
+        success: false,
+        errorType: type,
+        error: message || (
+          type === 'card_declined' ? 'Your card was declined' :
+          type === 'network_error' ? 'Network error occurred' :
+          type === 'timeout' ? 'Payment timed out' : 'Payment was canceled'
+        )
+      });
+
+      if (next === 'success' || (!next && decideSuccess())) {
         paymentIntent.status = 'succeeded';
         const result: TerminalPaymentResult = {
           success: true,
@@ -415,12 +495,21 @@ class StripeTerminalService {
         console.log(`✅ Payment successful (sim): ${paymentIntent.id}`);
         this.broadcastPaymentEvent('payment_success', result);
         return result;
-      } else {
-        const result: TerminalPaymentResult = { success: false, error: 'Your card was declined', errorType: 'card_declined' };
-        console.log('❌ Payment declined (sim)');
+      }
+
+      // Produce specific error if requested
+      if (next && next !== 'success') {
+        const result = makeErrorResult(next);
+        console.log(`❌ Payment failed (sim - ${next})`);
         this.broadcastPaymentEvent('payment_failed', result);
         return result;
       }
+
+      // Otherwise fall back to declined
+      const result: TerminalPaymentResult = makeErrorResult('card_declined');
+      console.log('❌ Payment declined (sim)');
+      this.broadcastPaymentEvent('payment_failed', result);
+      return result;
     } catch (error) {
       console.error('❌ Payment processing error:', error);
       const result: TerminalPaymentResult = { success: false, error: `Payment processing failed: ${error}`, errorType: 'processing_error' };

@@ -649,8 +649,8 @@ export default function ExchangeDashboard(): React.ReactElement {
                       </div>
                     );
                   });
-                  })()}
-                  </div>
+                })()}
+                </div>
 
                   {/* CAD Yield Chart - Aligned with Daily Bulletin */}
                   <div className="mt-3">

@@ -7,10 +7,6 @@ import { RealTimeCryptoSection } from './components/RealTimeCryptoSection';
 import { useMarketHealth } from './hooks/useRealTimeData';
 import './styles/sexymodal.css';
 
-import logoWhite from '../assets/logo_white.jpg';
-import logoBlack from '../assets/logo_black.PNG';
-import saadatWhite from '../assets/saadat_white.PNG';
-import saadatBlack from '../assets/saadat_black.PNG';
 
 // --- Type Definitions for TypeScript ---
 interface CurrencyInfo { name: string; code: string; }
@@ -318,12 +314,12 @@ const DynamicBulletin: React.FC = () => {
       background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
       border: '0.5px solid rgba(255, 165, 0, 0.2)',
       borderLeftWidth: '4px',
-      borderLeftColor: showGainers ? '#00FF88' : '#FF4444'
+      borderLeftColor: '#FFA500'
     }}>
       <div className="p-3">
         <div className="flex flex-col sm:flex-row items-start sm:space-x-3">
           <span className="text-xs font-bold uppercase transition-colors duration-500" style={{
-            color: showGainers ? '#00FF88' : '#FF4444',
+            color: '#FFA500',
             fontFamily: 'monospace',
             minWidth: '120px'
           }}>
@@ -333,7 +329,7 @@ const DynamicBulletin: React.FC = () => {
             <p className="text-sm font-semibold text-white mb-1 transition-all duration-500">
               {showGainers ? 'Crypto Market Surge' : 'Crypto Market Decline'}
             </p>
-            <p className="text-xs font-mono transition-all duration-500" style={{ color: showGainers ? '#00FF88' : '#FF4444' }}>
+            <p className="text-xs font-mono transition-all duration-500" style={{ color: '#FFA500' }}>
               {formatCryptoList(currentData)}
             </p>
           </div>
@@ -379,9 +375,9 @@ const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
 
   return (
     <div className="bg-black border h-[110px]" style={{
-      background: 'linear-gradient(135deg, rgba(40, 20, 0, 0.3) 0%, rgba(50, 28, 0, 0.35) 50%, rgba(65, 35, 0, 0.4) 100%)',
-      border: '0.5px solid rgba(0, 150, 255, 0.2)',
-      boxShadow: '0 0 15px rgba(0, 150, 255, 0.03)'
+      background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+      border: '0.5px solid rgba(0, 212, 255, 0.15)',
+      boxShadow: '0 0 15px rgba(0, 212, 255, 0.03)'
     }}>
       <div className="p-2 h-full flex items-center justify-between">
         <div className="flex-1">
@@ -655,7 +651,7 @@ export default function ExchangeDashboard(): React.ReactElement {
             <div className="flex-1 overflow-hidden">
               <div className="h-full flex flex-col xl:flex-row gap-3">
                 {/* Left column - Currency rectangles + Daily Bulletin */}
-                <div className="w-full xl:w-[480px] 2xl:w-[540px]">
+                <div className="flex-1 min-w-0">
                   <div className="space-y-2">
                   {displayedCurrencies.map((currency) => {
                     const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
@@ -664,9 +660,9 @@ export default function ExchangeDashboard(): React.ReactElement {
 
                     return (
                       <div key={currency} className="h-[105px] relative group overflow-hidden transition-all duration-200" style={{
-                        background: 'linear-gradient(135deg, rgba(0, 20, 40, 0.3) 0%, rgba(0, 28, 50, 0.35) 50%, rgba(0, 35, 65, 0.4) 100%)',
-                        border: '0.5px solid rgba(0, 150, 255, 0.2)',
-                        boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
+                        background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                        border: '0.5px solid rgba(0, 212, 255, 0.15)',
+                        boxShadow: '0 0 20px rgba(0, 212, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
                       }}>
                         <button onClick={() => handleRemoveCurrency(currency)} className="absolute top-2 right-2 z-10 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
                         <div className="h-full flex items-center px-4">
@@ -694,7 +690,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                           {/* Center section - Mini chart */}
                           <div className="w-[120px] h-[50px] mx-4" style={{
                             background: 'linear-gradient(135deg, rgba(0, 8, 20, 0.6) 0%, rgba(0, 20, 40, 0.4) 100%)',
-                            border: '0.5px solid rgba(255, 215, 0, 0.2)',
+                            border: '0.5px solid rgba(0, 212, 255, 0.2)',
                             borderRadius: '0px',
                             boxShadow: 'inset 0 0 10px rgba(0, 20, 40, 0.3)'
                           }}>
@@ -740,11 +736,13 @@ export default function ExchangeDashboard(): React.ReactElement {
                                   type="monotoneX"
                                   dataKey="value"
                                   stroke={isPositive ? '#FFD700' : '#8B0000'}
-                                  strokeWidth={1.2}
+                                  strokeWidth={1.5}
                                   fillOpacity={1}
                                   fill={`url(#bloomberg-gradient-${currency})`}
                                   dot={false}
                                   filter={`url(#glow-${currency})`}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
                                 />
                               </AreaChart>
                             </ResponsiveContainer>
@@ -772,10 +770,12 @@ export default function ExchangeDashboard(): React.ReactElement {
                 </div>
 
                 {/* Middle column - Real-Time Crypto Section + CAD Yield */}
-                <RealTimeCryptoSection />
+                <div className="flex-1 min-w-0">
+                  <RealTimeCryptoSection />
+                </div>
 
                 {/* Right column - commodities squares (one per line) */}
-                <div className="w-full xl:w-[200px] 2xl:w-[220px] flex flex-col gap-2">
+                <div className="flex-shrink-0 w-[200px] flex flex-col gap-2">
                   {/* Fixed height container for commodity rotation */}
                   <div className="h-[690px] overflow-hidden flex flex-col gap-2">
                     {visibleCommodities.map((item, idx) => (
@@ -822,15 +822,14 @@ export default function ExchangeDashboard(): React.ReactElement {
         {/* Bottom ticker with logo - Origin point for price ticker */}
         <footer className="bg-black relative" style={{
           borderTop: '0.5px solid rgba(0, 212, 255, 0.4)',
-          background: 'linear-gradient(90deg, rgba(0, 0, 0, 1) 0%, rgba(0, 8, 20, 0.5) 50%, rgba(0, 0, 0, 1) 100%)'
+          background: 'linear-gradient(90deg, #FFD700 0%, #FFA500 30%, #FF8C00 60%, #FF6B00 100%)'
         }}>
           <div className="flex items-center">
-            <div className="px-4 py-2 flex items-center gap-3" style={{
+            <div className="px-6 py-3 flex items-center justify-center" style={{
               borderRight: '0.5px solid rgba(0, 212, 255, 0.4)',
-              background: 'linear-gradient(90deg, #FFD700 0%, #FFB000 25%, #FF8C00 50%, #FF6B00 75%, #FF4500 100%)',
-              boxShadow: '0 0 15px rgba(255, 165, 0, 0.3)'
+              background: 'linear-gradient(90deg, #FFD700 0%, #FFA500 30%, #FF8C00 60%, #FF6B00 100%)',
+              boxShadow: '0 0 20px rgba(255, 165, 0, 0.5)'
             }}>
-              <img src={darkMode ? saadatBlack : saadatWhite} alt="SAADAT" className="h-8 w-auto" />
               <div className="font-bold text-lg tracking-wider" style={{
                 color: '#00D4FF',
                 textShadow: '0 0 8px rgba(0, 212, 255, 0.4)',

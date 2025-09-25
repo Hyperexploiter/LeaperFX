@@ -264,9 +264,9 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
         isAnimating ? 'ring-1 ring-blue-400/50' : ''
       }`}
       style={{
-        background: 'linear-gradient(135deg, rgba(0, 40, 20, 0.3) 0%, rgba(0, 50, 28, 0.35) 50%, rgba(0, 65, 35, 0.4) 100%)',
-        border: '0.5px solid rgba(0, 150, 255, 0.2)',
-        boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 40, 20, 0.3)'
+        background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+        border: '0.5px solid rgba(0, 212, 255, 0.15)',
+        boxShadow: '0 0 20px rgba(0, 212, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
       }}
     >
       <div className="h-full flex items-center px-4">
@@ -405,7 +405,7 @@ export const RealTimeCryptoSection: React.FC = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="w-full xl:w-[440px] 2xl:w-[480px]">
+      <div className="w-full">
         <div className="h-[510px] flex items-center justify-center" style={{
           background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
           border: '0.5px solid rgba(0, 150, 255, 0.2)'
@@ -422,7 +422,7 @@ export const RealTimeCryptoSection: React.FC = () => {
   // Error state
   if (error) {
     return (
-      <div className="w-full xl:w-[440px] 2xl:w-[480px]">
+      <div className="w-full">
         <div className="h-[510px] flex items-center justify-center" style={{
           background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
           border: '0.5px solid rgba(255, 0, 0, 0.2)'
@@ -443,7 +443,7 @@ export const RealTimeCryptoSection: React.FC = () => {
   }
 
   return (
-    <div className="w-full xl:w-[440px] 2xl:w-[480px]">
+    <div className="w-full">
       {/* Fixed height container for crypto rotation */}
       <div className="h-[510px] overflow-hidden" style={{
         background: 'transparent'

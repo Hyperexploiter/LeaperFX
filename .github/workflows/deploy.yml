@@ -3,8 +3,9 @@ name: Deploy LeaperFX to GitHub Pages
 on:
   push:
     branches: [ hyp3r ]
-    paths: 
+    paths:
       - 'dashboard/demo/**'  # Only trigger on changes to the React app
+      - 'dashboard/demo/src/exchange_currency_dash/**'  # Explicit path for exchange currency dashboard
       - '.github/workflows/**'  # Or workflow changes
   workflow_dispatch:
 
@@ -27,6 +28,13 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
+
+    - name: Verify exchange_currency_dash directory
+      run: |
+        echo "Checking exchange_currency_dash directory structure:"
+        ls -la dashboard/demo/src/exchange_currency_dash/ || echo "exchange_currency_dash directory not found"
+        echo "Contents of exchange_currency_dash:"
+        find dashboard/demo/src/exchange_currency_dash -type f -name "*.ts" -o -name "*.tsx" -o -name "*.css" | head -10 || echo "No TypeScript/CSS files found"
       
     - name: Install dependencies
       working-directory: dashboard/demo
@@ -34,7 +42,11 @@ jobs:
       
     - name: Build application
       working-directory: dashboard/demo
-      run: NODE_ENV=production npm run build
+      run: |
+        echo "Building application with exchange_currency_dash included..."
+        NODE_ENV=production npm run build
+        echo "Verifying build output includes exchange_currency_dash assets..."
+        find dist -name "*exchange*" -o -name "*currency*" | head -5 || echo "No exchange/currency related files found in build output"
       
     - name: Add .nojekyll file to disable Jekyll
       run: |

@@ -443,9 +443,9 @@ export const RealTimeCryptoSection: React.FC = () => {
   }
 
   return (
-    <div className="w-full">
-      {/* Fixed height container for crypto rotation */}
-      <div className="h-[425px] overflow-hidden" style={{
+    <div className="w-full flex flex-col">
+      {/* Fixed height container for crypto rotation - exactly 5 items */}
+      <div className="h-[425px] overflow-hidden flex-shrink-0" style={{
         background: 'transparent'
       }}>
         <div className="space-y-2">
@@ -459,8 +459,8 @@ export const RealTimeCryptoSection: React.FC = () => {
         </div>
       </div>
 
-      {/* CAD Yield Chart - Indented below crypto rectangles */}
-      <div className="mt-8">
+      {/* CAD Yield Chart - Properly separated from crypto section */}
+      <div className="mt-20 flex-shrink-0">
         <YieldChart />
       </div>
     </div>

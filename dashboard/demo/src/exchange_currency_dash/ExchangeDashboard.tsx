@@ -318,6 +318,13 @@ const DynamicBulletin: React.FC = () => {
     }}>
       <div className="p-3">
         <div className="flex flex-col sm:flex-row items-start sm:space-x-3">
+          {/* Triangle separator left */}
+          <div className="flex items-center">
+            <svg width="12" height="20" viewBox="0 0 12 20" className="mr-2">
+              <path d="M0 0 L12 10 L0 20 Z" fill="#FFA500" opacity="0.6"/>
+            </svg>
+          </div>
+
           <span className="text-xs font-bold uppercase transition-colors duration-500" style={{
             color: '#FFA500',
             fontFamily: 'monospace',
@@ -325,6 +332,14 @@ const DynamicBulletin: React.FC = () => {
           }}>
             {showGainers ? 'TOP GAINERS' : 'TOP LOSERS'}
           </span>
+
+          {/* Triangle separator middle */}
+          <div className="flex items-center">
+            <svg width="12" height="20" viewBox="0 0 12 20" className="mx-2">
+              <path d="M0 0 L12 10 L0 20 Z" fill="#00D4FF" opacity="0.4"/>
+            </svg>
+          </div>
+
           <div className="flex-1">
             <p className="text-sm font-semibold text-white mb-1 transition-all duration-500">
               {showGainers ? 'Crypto Market Surge' : 'Crypto Market Decline'}
@@ -333,6 +348,14 @@ const DynamicBulletin: React.FC = () => {
               {formatCryptoList(currentData)}
             </p>
           </div>
+
+          {/* Triangle separator right */}
+          <div className="flex items-center">
+            <svg width="12" height="20" viewBox="0 0 12 20" className="mx-2">
+              <path d="M0 0 L12 10 L0 20 Z" fill="#FFA500" opacity="0.4"/>
+            </svg>
+          </div>
+
           <span className="text-xs" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>
             {getCurrentTime()}
           </span>

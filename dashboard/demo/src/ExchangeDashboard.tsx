@@ -189,7 +189,7 @@ const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
   const data = useMemo(() => generateMiniData(item.trend, 20), [item.trend]);
 
   return (
-    <div className="bg-black border h-[100px]" style={{
+    <div className="bg-black border h-[90px]" style={{
       background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
       border: '0.5px solid rgba(0, 150, 255, 0.2)',
       boxShadow: '0 0 15px rgba(0, 150, 255, 0.03)'
@@ -241,6 +241,7 @@ export default function ExchangeDashboard(): React.ReactElement {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState<boolean>(true);
+  const [cryptoRotationIndex, setCryptoRotationIndex] = useState<number>(0);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -361,6 +362,14 @@ export default function ExchangeDashboard(): React.ReactElement {
     return () => clearInterval(interval);
   }, [liveRates]);
 
+  // Crypto rotation: rotate bottom 3 cryptos every 21 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCryptoRotationIndex((prev) => (prev + 3) % 7); // Rotate through 7 additional cryptos (10 total - 3 fixed = 7)
+    }, 21000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleAddCurrency = () => {
     if (currencyToAdd && !displayedCurrencies.includes(currencyToAdd)) {
       setDisplayedCurrencies(prev => [...prev, currencyToAdd]);
@@ -422,8 +431,8 @@ export default function ExchangeDashboard(): React.ReactElement {
   const availableToAdd = allSupportedCurrencies.filter(c => !displayedCurrencies.includes(c.value) && c.value !== BASE_CURRENCY);
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 font-sans">
-      <div className="min-h-screen flex flex-col">
+    <div className="h-screen bg-black text-gray-100 font-sans overflow-hidden">
+      <div className="h-screen flex flex-col">
         {/* Header Bar */}
         <header className="bg-black px-2 sm:px-3 md:px-4 py-2" style={{ borderBottom: '0.5px solid rgba(0, 212, 255, 0.3)' }}>
           <div className="flex items-center justify-between">
@@ -439,15 +448,15 @@ export default function ExchangeDashboard(): React.ReactElement {
           </div>
         </header>
         
-        <main className="flex-1 flex flex-col p-2 sm:p-3 md:p-4 overflow-auto">
+        <main className="flex-1 flex flex-col px-2 py-1 overflow-hidden">
           {isLoading && <div className="flex justify-center items-center p-10 bg-gray-900 rounded-lg shadow-md"><Loader className="h-12 w-12 mr-4 animate-spin text-cyan-400" /><span className="text-lg text-white">Loading rates...</span></div>}
           {error && !isLoading && <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 p-4 rounded-lg shadow-md flex items-center" role="alert"><AlertTriangle className="h-6 w-6 mr-3" /><div><p className="font-bold">Error:</p><p>{error}</p></div></div>}
           
           {!isLoading && !error && (
-            <div className="flex-1">
-              <div className="flex flex-col xl:flex-row gap-4">
+            <div className="flex-1 overflow-hidden">
+              <div className="h-full flex flex-col xl:flex-row gap-3">
                 {/* Left column - Currency rectangles + Daily Bulletin */}
-                <div className="w-full xl:w-[400px] 2xl:w-[450px]">
+                <div className="w-full xl:w-[480px] 2xl:w-[540px]">
                   <div className="space-y-2">
                   {displayedCurrencies.map((currency) => {
                     const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
@@ -455,7 +464,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                     const isPositive = parseFloat(change24h) >= 0;
 
                     return (
-                      <div key={currency} className="h-[132px] relative group overflow-hidden transition-all duration-200" style={{
+                      <div key={currency} className="h-[105px] relative group overflow-hidden transition-all duration-200" style={{
                         background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
                         border: '0.5px solid rgba(0, 150, 255, 0.2)',
                         boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
@@ -553,24 +562,33 @@ export default function ExchangeDashboard(): React.ReactElement {
                 </div>
 
                 {/* Middle column - Crypto rectangles + CAD Yield */}
-                <div className="flex-1">
+                <div className="w-full xl:w-[440px] 2xl:w-[480px]">
                   <div className="space-y-2">
-                  {[
-                    { symbol: 'BTC/CAD', name: 'Bitcoin', price: '86,420', change: -1.42, trend: 'down' },
-                    { symbol: 'ETH/CAD', name: 'Ethereum', price: '3,580', change: 2.43, trend: 'up' },
-                    { symbol: 'SOL/CAD', name: 'Solana', price: '142.85', change: 5.21, trend: 'up' },
-                    { symbol: 'AVAX/CAD', name: 'Avalanche', price: '51.30', change: -0.85, trend: 'down' },
-                    { symbol: 'MATIC/CAD', name: 'Polygon', price: '0.872', change: 3.15, trend: 'up' },
-                    { symbol: 'ADA/CAD', name: 'Cardano', price: '0.512', change: -2.14, trend: 'down' },
-                    { symbol: 'DOT/CAD', name: 'Polkadot', price: '8.94', change: 1.28, trend: 'up' },
-                    { symbol: 'LINK/CAD', name: 'Chainlink', price: '18.65', change: -0.42, trend: 'down' },
-                    { symbol: 'UNI/CAD', name: 'Uniswap', price: '10.28', change: 2.95, trend: 'up' },
-                    { symbol: 'XRP/CAD', name: 'Ripple', price: '0.689', change: -1.18, trend: 'down' }
-                  ].map((crypto, idx) => {
+                  {(() => {
+                    const allCryptos = [
+                      { symbol: 'BTC/CAD', name: 'Bitcoin', price: '86,420', change: -1.42, trend: 'down' },
+                      { symbol: 'ETH/CAD', name: 'Ethereum', price: '3,580', change: 2.43, trend: 'up' },
+                      { symbol: 'SOL/CAD', name: 'Solana', price: '142.85', change: 5.21, trend: 'up' },
+                      { symbol: 'AVAX/CAD', name: 'Avalanche', price: '51.30', change: -0.85, trend: 'down' },
+                      { symbol: 'MATIC/CAD', name: 'Polygon', price: '0.872', change: 3.15, trend: 'up' },
+                      { symbol: 'ADA/CAD', name: 'Cardano', price: '0.512', change: -2.14, trend: 'down' },
+                      { symbol: 'DOT/CAD', name: 'Polkadot', price: '8.94', change: 1.28, trend: 'up' },
+                      { symbol: 'LINK/CAD', name: 'Chainlink', price: '18.65', change: -0.42, trend: 'down' },
+                      { symbol: 'UNI/CAD', name: 'Uniswap', price: '10.28', change: 2.95, trend: 'up' },
+                      { symbol: 'XRP/CAD', name: 'Ripple', price: '0.689', change: -1.18, trend: 'down' }
+                    ];
+
+                    // Show first 3 fixed, then 3 rotating from the rest
+                    const fixedCryptos = allCryptos.slice(0, 3);
+                    const rotatableCryptos = allCryptos.slice(3);
+                    const rotatingCryptos = rotatableCryptos.slice(cryptoRotationIndex, cryptoRotationIndex + 3);
+                    const visibleCryptos = [...fixedCryptos, ...rotatingCryptos];
+
+                    return visibleCryptos.map((crypto, idx) => {
                     const isPositive = crypto.change >= 0;
                     const cryptoData = generateMiniData(crypto.trend, 12);
                     return (
-                      <div key={crypto.symbol} className="h-[92px] relative group overflow-hidden transition-all duration-200" style={{
+                      <div key={crypto.symbol} className="h-[85px] relative group overflow-hidden transition-all duration-200" style={{
                         background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
                         border: '0.5px solid rgba(0, 150, 255, 0.2)',
                         boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
@@ -630,7 +648,8 @@ export default function ExchangeDashboard(): React.ReactElement {
                         </div>
                       </div>
                     );
-                  })}
+                  });
+                  })()}
                   </div>
 
                   {/* CAD Yield Chart - Aligned with Daily Bulletin */}
@@ -640,29 +659,27 @@ export default function ExchangeDashboard(): React.ReactElement {
                 </div>
 
                 {/* Right column - commodities squares (one per line) */}
-                <div className="w-full xl:w-[260px] 2xl:w-[280px] space-y-2">
+                <div className="w-full xl:w-[200px] 2xl:w-[220px] flex flex-col gap-2">
                   {marketData.map((item, idx) => (
                     <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
                   ))}
-                  {/* Weather Widget - moved here under commodities */}
-                  <div className="bg-black border h-[100px]" style={{
+                  {/* Weather Widget - smaller and at bottom */}
+                  <div className="bg-black border h-[80px] mt-auto" style={{
                     background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
                     border: '0.5px solid rgba(0, 150, 255, 0.2)',
                     boxShadow: '0 0 15px rgba(0, 150, 255, 0.03)'
                   }}>
-                    <div className="p-2 h-full flex items-center justify-between">
+                    <div className="p-1.5 h-full flex items-center justify-between">
                       <div className="flex-1">
-                        <div className="font-bold text-xs" style={{ color: '#FFA500', fontFamily: 'monospace' }}>WEATHER</div>
-                        <div className="text-white font-mono font-bold text-sm mt-0.5">Toronto</div>
-                        <div className="font-bold text-xs mt-1" style={{ color: '#00FF88' }}>
-                          Clear Sky
-                        </div>
+                        <div className="font-bold text-[10px]" style={{ color: '#FFA500', fontFamily: 'monospace' }}>WEATHER</div>
+                        <div className="text-white font-mono font-bold text-xs">Toronto</div>
+                        <div className="text-[10px] mt-0.5" style={{ color: '#00FF88' }}>Clear</div>
                       </div>
                       <div className="flex items-center">
-                        <span style={{ fontSize: '28px', marginRight: '8px' }}>☀️</span>
+                        <span style={{ fontSize: '20px', marginRight: '4px' }}>☀️</span>
                         <div>
-                          <div className="font-mono font-bold text-lg" style={{ color: '#FFD700' }}>22°C</div>
-                          <div className="text-xs" style={{ color: '#666' }}>H:24° L:18°</div>
+                          <div className="font-mono font-bold text-sm" style={{ color: '#FFD700' }}>22°C</div>
+                          <div className="text-[9px]" style={{ color: '#666' }}>H:24° L:18°</div>
                         </div>
                       </div>
                     </div>

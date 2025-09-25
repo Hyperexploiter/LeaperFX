@@ -10,58 +10,117 @@ import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, CartesianGrid, Tool
 import { useCryptoData, useAnimatedPrice } from '../hooks/useRealTimeData';
 import { Loader, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 
-// YieldChart Component (moved from ExchangeDashboard for integration)
+// CAD Yield Data Configuration
+interface YieldDataPoint {
+  name: string;
+  value: number;
+  status: string;
+  color: string;
+}
+
+const yieldRotationData: YieldDataPoint[] = [
+  { name: 'CAD 30-Year Yield', value: 4.96, status: 'UNCH', color: '#FFB000' },
+  { name: 'CAD 10-Year Yield', value: 3.82, status: '+0.02', color: '#00FF88' },
+  { name: 'CAD 5-Year Yield', value: 3.45, status: '-0.01', color: '#FF4444' },
+  { name: 'CAD 2-Year Yield', value: 3.12, status: '+0.03', color: '#00FF88' },
+  { name: 'TSX 60 Index', value: 85, status: '+0.85%', color: '#00FF88' },
+  { name: 'S&P/TSX Composite', value: 120, status: '+1.2%', color: '#00FF88' }
+];
+
+// Dynamic YieldChart Component with 30s rotation
 const YieldChart: React.FC = () => {
   const [view, setView] = useState<'intraday' | '1y'>('intraday');
   const [data, setData] = useState<Array<{ time: string; value: number }>>([]);
+  const [rotationIndex, setRotationIndex] = useState(0);
 
-  const generateData = React.useCallback((mode: 'intraday' | '1y') => {
+  // Current yield data based on rotation
+  const currentYield = yieldRotationData[rotationIndex];
+
+  const generateData = React.useCallback((mode: 'intraday' | '1y', baseValue: number, trend: string) => {
     const now = new Date();
-    const points = mode === 'intraday' ? 90 : 240; // 90 x 5min ~ 7.5h, 240 x 1d ~ 8 months
-    const base = 3 + Math.random(); // 3-4% baseline yield
+    const points = mode === 'intraday' ? 90 : 240;
+    const base = baseValue / (currentYield.name.includes('Index') ? 20 : 1); // Scale index values for chart display
     const arr: Array<{ time: string; value: number }> = [];
+
+    // Determine trend direction
+    const isPositive = trend.includes('+') || trend === 'UNCH';
+    const volatility = currentYield.name.includes('Index') ? 0.008 : 0.002; // Higher volatility for indices
+
     for (let i = 0; i < points; i++) {
       const t = new Date(
         now.getTime() - (points - i) * (mode === 'intraday' ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000)
       );
-      const drift = Math.sin(i / 18) * 0.05 + (Math.random() - 0.5) * 0.03; // gentle movement
+
+      // Create realistic movement pattern based on instrument type
+      const progress = i / (points - 1);
+      let drift: number;
+
+      if (currentYield.name.includes('Index')) {
+        // Stock indices have more momentum-based movement
+        drift = Math.sin(progress * Math.PI * 0.5) * (isPositive ? 0.02 : -0.02) +
+                Math.sin(i / 12) * 0.01 + (Math.random() - 0.5) * volatility;
+      } else {
+        // Bond yields have smoother, more predictable movement
+        drift = Math.sin(i / 18) * 0.03 + (Math.random() - 0.5) * volatility;
+        if (!isPositive && trend !== 'UNCH') drift -= 0.005;
+        if (isPositive && trend !== 'UNCH') drift += 0.005;
+      }
+
       const val = parseFloat((base + drift).toFixed(3));
       arr.push({
         time: mode === 'intraday'
           ? t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           : t.toLocaleDateString('en-CA', { month: 'short' }),
-        value: val
+        value: Math.max(0, val) // Ensure non-negative values
       });
     }
     return arr;
+  }, [rotationIndex, currentYield]);
+
+  // Rotation effect - every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRotationIndex((prev) => (prev + 1) % yieldRotationData.length);
+    }, 30000); // 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
+  // Generate data when rotation changes
   useEffect(() => {
-    setData(generateData(view));
-  }, [view, generateData]);
+    setData(generateData(view, currentYield.value, currentYield.status));
+  }, [view, generateData, currentYield]);
 
-  // live update every 3 seconds
+  // Live update every 3 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setData(prev => {
         if (!prev.length) return prev;
         const last = prev[prev.length - 1];
-        const nextVal = parseFloat((last.value * (1 + (Math.random() - 0.5) * 0.002)).toFixed(3));
+        const volatility = currentYield.name.includes('Index') ? 0.003 : 0.001;
+        const nextVal = parseFloat((last.value * (1 + (Math.random() - 0.5) * volatility)).toFixed(3));
         const now = new Date();
         const nextLabel = view === 'intraday'
           ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           : now.toLocaleDateString('en-CA', { month: 'short' });
-        return [...prev.slice(1), { time: nextLabel, value: nextVal }];
+        return [...prev.slice(1), { time: nextLabel, value: Math.max(0, nextVal) }];
       });
     }, 3000);
     return () => clearInterval(interval);
-  }, [view]);
+  }, [view, currentYield]);
+
+  // Dynamic gradient based on current instrument
+  const gradientId = `yieldGradient-${rotationIndex}`;
+  const isIndex = currentYield.name.includes('Index');
 
   return (
-    <div className="bg-black border" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
+    <div className="bg-black border transition-all duration-1000" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
       <div className="p-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>CAD 30-Year Yield</h2>
-        <p className="text-sm font-bold" style={{ color: '#FFB000' }}>4.96 UNCH</p>
+        <h2 className="text-sm font-bold uppercase tracking-wider transition-all duration-500" style={{ color: '#00D4FF' }}>
+          {currentYield.name}
+        </h2>
+        <p className="text-sm font-bold transition-all duration-500" style={{ color: currentYield.color }}>
+          {currentYield.value}{isIndex ? '' : '%'} {currentYield.status}
+        </p>
       </div>
       <div className="h-40 px-4 pb-4" style={{
         background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)'
@@ -69,12 +128,26 @@ const YieldChart: React.FC = () => {
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
             <defs>
-              <linearGradient id="yieldGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
-                <stop offset="25%" stopColor="#FFB000" stopOpacity={0.6} />
-                <stop offset="50%" stopColor="#FF8C00" stopOpacity={0.4} />
-                <stop offset="75%" stopColor="#FF6B00" stopOpacity={0.2} />
-                <stop offset="100%" stopColor="#FF4500" stopOpacity={0.05} />
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                {isIndex ? (
+                  // Stock index gradient (blue-green)
+                  <>
+                    <stop offset="0%" stopColor="#00D4FF" stopOpacity={0.8} />
+                    <stop offset="25%" stopColor="#0099CC" stopOpacity={0.6} />
+                    <stop offset="50%" stopColor="#006699" stopOpacity={0.4} />
+                    <stop offset="75%" stopColor="#003366" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="#001133" stopOpacity={0.05} />
+                  </>
+                ) : (
+                  // Bond yield gradient (gold)
+                  <>
+                    <stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
+                    <stop offset="25%" stopColor="#FFB000" stopOpacity={0.6} />
+                    <stop offset="50%" stopColor="#FF8C00" stopOpacity={0.4} />
+                    <stop offset="75%" stopColor="#FF6B00" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="#FF4500" stopOpacity={0.05} />
+                  </>
+                )}
               </linearGradient>
             </defs>
             <CartesianGrid
@@ -93,16 +166,16 @@ const YieldChart: React.FC = () => {
                 borderRadius: '2px',
                 padding: '3px 6px'
               }}
-              labelStyle={{ color: '#FFD700', fontSize: 10 }}
-              itemStyle={{ color: '#FFB000', fontSize: 9 }}
+              labelStyle={{ color: isIndex ? '#00D4FF' : '#FFD700', fontSize: 10 }}
+              itemStyle={{ color: currentYield.color, fontSize: 9 }}
             />
             <Area
               type="monotoneX"
               dataKey="value"
-              stroke="#FFD700"
+              stroke={isIndex ? '#00D4FF' : '#FFD700'}
               strokeWidth={1.2}
-              fill="url(#yieldGradient)"
-              filter="drop-shadow(0 0 2px rgba(255, 215, 0, 0.3))"
+              fill={`url(#${gradientId})`}
+              filter={`drop-shadow(0 0 2px ${isIndex ? 'rgba(0, 212, 255, 0.3)' : 'rgba(255, 215, 0, 0.3)'})`}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -139,8 +212,11 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
   const isPositive = trend === 'up';
   const displayPrice = price ? (price * 1.35).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : crypto.price;
 
-  // Generate mini chart data based on trend
-  const generateCryptoData = useMemo(() => {
+  // Enhanced mini chart data with synchronized updates
+  const [chartData, setChartData] = useState<Array<{ time: number; value: number }>>([]);
+
+  // Generate initial chart data
+  useEffect(() => {
     const baseValue = price ? price * 1.35 : parseFloat(crypto.price.replace(/,/g, ''));
     const points = 12;
     const data = [];
@@ -157,8 +233,30 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
       });
     }
 
-    return data;
+    setChartData(data);
   }, [crypto, price]);
+
+  // Synchronized chart updates every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setChartData(prevData => {
+        if (prevData.length === 0) return prevData;
+
+        const lastValue = prevData[prevData.length - 1].value;
+        const trendMultiplier = crypto.trend === 'up' ? 1.002 : 0.998;
+        const volatility = (Math.random() - 0.5) * 0.008;
+        const newValue = Math.max(0, lastValue * trendMultiplier * (1 + volatility));
+
+        // Smooth wave-like movement
+        const waveOffset = Math.sin(Date.now() / 10000) * 0.005;
+        const finalValue = newValue * (1 + waveOffset);
+
+        return [...prevData.slice(1), { time: prevData.length, value: finalValue }];
+      });
+    }, 3000); // Synchronized with main chart updates
+
+    return () => clearInterval(interval);
+  }, [crypto.trend]);
 
   return (
     <div
@@ -166,9 +264,9 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
         isAnimating ? 'ring-1 ring-blue-400/50' : ''
       }`}
       style={{
-        background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+        background: 'linear-gradient(135deg, rgba(0, 40, 20, 0.3) 0%, rgba(0, 50, 28, 0.35) 50%, rgba(0, 65, 35, 0.4) 100%)',
         border: '0.5px solid rgba(0, 150, 255, 0.2)',
-        boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
+        boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 40, 20, 0.3)'
       }}
     >
       <div className="h-full flex items-center px-4">
@@ -202,7 +300,7 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
           border: '0.5px solid rgba(255, 215, 0, 0.15)'
         }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={generateCryptoData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+            <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
               <defs>
                 <linearGradient id={`crypto-gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={isPositive ? '#00FF88' : '#FF4444'} stopOpacity={0.7}/>
@@ -228,7 +326,7 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
           <div className="font-bold text-lg flex items-center justify-end" style={{
             color: isPositive ? '#00FF88' : '#FF4444'
           }}>
-            {isPositive ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
+            <span className="mr-1">{isPositive ? '▲' : '▼'}</span>
             {Math.abs(crypto.change).toFixed(2)}%
           </div>
           <div className="text-xs" style={{ color: '#666' }}>24h</div>

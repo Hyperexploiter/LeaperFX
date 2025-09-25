@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Clock, Sun, Moon, Plus, X, Loader, AlertTriangle, ArrowUp, TrendingUp, ArrowDown } from 'lucide-react';
 import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis, XAxis, CartesianGrid } from 'recharts';
-import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from './services/exchangeRateService';
-import webSocketService, { WebSocketEvent } from './services/webSocketService';
+import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from '../services/exchangeRateService';
+import webSocketService, { WebSocketEvent } from '../services/webSocketService';
 import { RealTimeCryptoSection } from './components/RealTimeCryptoSection';
 import { useMarketHealth } from './hooks/useRealTimeData';
 import './styles/sexymodal.css';
 
-import logoWhite from './assets/logo_white.jpg';
-import logoBlack from './assets/logo_black.PNG';
-import saadatWhite from './assets/saadat_white.PNG';
-import saadatBlack from './assets/saadat_black.PNG';
+import logoWhite from '../assets/logo_white.jpg';
+import logoBlack from '../assets/logo_black.PNG';
+import saadatWhite from '../assets/saadat_white.PNG';
+import saadatBlack from '../assets/saadat_black.PNG';
 
 // --- Type Definitions for TypeScript ---
 interface CurrencyInfo { name: string; code: string; }
@@ -241,14 +241,145 @@ const generateMiniData = (trend: Trend, points = 20) => {
   }));
 };
 
+// Dynamic Bulletin Component
+interface CryptoMarketData {
+  symbol: string;
+  name: string;
+  change: number;
+}
+
+const topGainersData: CryptoMarketData[] = [
+  { symbol: 'BTC', name: 'Bitcoin', change: 5.2 },
+  { symbol: 'ETH', name: 'Ethereum', change: 4.8 },
+  { symbol: 'SOL', name: 'Solana', change: 8.3 },
+  { symbol: 'AVAX', name: 'Avalanche', change: 6.1 },
+  { symbol: 'MATIC', name: 'Polygon', change: 5.5 }
+];
+
+const topLosersData: CryptoMarketData[] = [
+  { symbol: 'ADA', name: 'Cardano', change: -3.2 },
+  { symbol: 'DOT', name: 'Polkadot', change: -2.8 },
+  { symbol: 'LINK', name: 'Chainlink', change: -4.1 },
+  { symbol: 'UNI', name: 'Uniswap', change: -2.5 },
+  { symbol: 'XRP', name: 'Ripple', change: -3.7 }
+];
+
+const DynamicBulletin: React.FC = () => {
+  const [showGainers, setShowGainers] = useState(true);
+  const [currentData, setCurrentData] = useState(topGainersData);
+
+  // Add some volatility to the data
+  const [volatileData, setVolatileData] = useState(topGainersData);
+
+  // Rotate between gainers and losers every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShowGainers(prev => {
+        const newShow = !prev;
+        setCurrentData(newShow ? topGainersData : topLosersData);
+        return newShow;
+      });
+    }, 60000); // 60 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  // Add realistic volatility to the data every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const baseData = showGainers ? topGainersData : topLosersData;
+      const volatileData = baseData.map(item => ({
+        ...item,
+        change: item.change + (Math.random() - 0.5) * 0.8 // ±0.4% volatility
+      }));
+      setVolatileData(volatileData);
+      setCurrentData(volatileData);
+    }, 10000); // Update every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [showGainers]);
+
+  const formatCryptoList = (data: CryptoMarketData[]) => {
+    return data.map(item =>
+      `${item.symbol} ${item.change > 0 ? '+' : ''}${item.change.toFixed(1)}%`
+    ).join(' | ');
+  };
+
+  const getCurrentTime = () => {
+    const now = new Date();
+    return now.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Toronto'
+    }) + ' EST';
+  };
+
+  return (
+    <div className="mt-3 bg-black border transition-all duration-1000" style={{
+      background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+      border: '0.5px solid rgba(255, 165, 0, 0.2)',
+      borderLeftWidth: '4px',
+      borderLeftColor: showGainers ? '#00FF88' : '#FF4444'
+    }}>
+      <div className="p-3">
+        <div className="flex flex-col sm:flex-row items-start sm:space-x-3">
+          <span className="text-xs font-bold uppercase transition-colors duration-500" style={{
+            color: showGainers ? '#00FF88' : '#FF4444',
+            fontFamily: 'monospace',
+            minWidth: '120px'
+          }}>
+            {showGainers ? 'TOP GAINERS' : 'TOP LOSERS'}
+          </span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-white mb-1 transition-all duration-500">
+              {showGainers ? 'Crypto Market Surge' : 'Crypto Market Decline'}
+            </p>
+            <p className="text-xs font-mono transition-all duration-500" style={{ color: showGainers ? '#00FF88' : '#FF4444' }}>
+              {formatCryptoList(currentData)}
+            </p>
+          </div>
+          <span className="text-xs" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>
+            {getCurrentTime()}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
   const color = item.trend === 'up' ? '#00FF88' : '#FF4444';
   const gradientId = `mw-${item.symbol}-grad`;
-  const data = useMemo(() => generateMiniData(item.trend, 20), [item.trend]);
+  const [data, setData] = useState(() => generateMiniData(item.trend, 20));
+
+  // Synchronized chart updates every 3 seconds with smooth transitions
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setData(prevData => {
+        if (prevData.length === 0) return prevData;
+
+        const lastValue = prevData[prevData.length - 1].value;
+        const trendMultiplier = item.trend === 'up' ? 1.001 : 0.999;
+        const volatility = (Math.random() - 0.5) * 0.004;
+
+        // Add smooth wave-like movement
+        const waveOffset = Math.sin(Date.now() / 8000 + Math.random() * Math.PI) * 0.003;
+        const newValue = Math.max(0, lastValue * trendMultiplier * (1 + volatility + waveOffset));
+
+        return [...prevData.slice(1), { time: prevData.length, value: newValue }];
+      });
+    }, 3000); // Synchronized with other charts
+
+    return () => clearInterval(interval);
+  }, [item.trend, item.symbol]);
+
+  // Regenerate data when trend changes
+  useEffect(() => {
+    setData(generateMiniData(item.trend, 20));
+  }, [item.trend]);
 
   return (
     <div className="bg-black border h-[110px]" style={{
-      background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+      background: 'linear-gradient(135deg, rgba(40, 20, 0, 0.3) 0%, rgba(50, 28, 0, 0.35) 50%, rgba(65, 35, 0, 0.4) 100%)',
       border: '0.5px solid rgba(0, 150, 255, 0.2)',
       boxShadow: '0 0 15px rgba(0, 150, 255, 0.03)'
     }}>
@@ -439,7 +570,7 @@ export default function ExchangeDashboard(): React.ReactElement {
   // Commodity rotation: rotate commodities every 21 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setCommodityRotationIndex((prev) => (prev + 1) % 3); // Rotate through 3 additional commodities (7 total - 4 fixed = 3)
+      setCommodityRotationIndex((prev) => (prev + 1) % 1); // Rotate through 1 additional commodity (7 total - 6 fixed = 1)
     }, 21000);
     return () => clearInterval(interval);
   }, []);
@@ -477,10 +608,12 @@ export default function ExchangeDashboard(): React.ReactElement {
         for (let i = 0; i < points; i++) {
             const progress = i / (points - 1);
             const linearValue = startRate + (endRate - startRate) * progress;
-            // Add smooth wave-like movement instead of random jitter
-            const waveOffset = Math.sin(progress * Math.PI * 2) * (Math.abs(endRate - startRate) * 0.08);
-            const smoothJitter = (i > 0 && i < points - 1) ? (Math.random() - 0.5) * (Math.abs(endRate - startRate) * 0.05) : 0;
-            chartData.push({ name: `p${i}`, value: linearValue + waveOffset + smoothJitter });
+            // Enhanced smooth wave-like movement with time-based synchronization
+            const timeOffset = Date.now() / 15000; // Synchronized wave timing
+            const waveOffset = Math.sin(progress * Math.PI * 1.5 + timeOffset) * (Math.abs(endRate - startRate) * 0.06);
+            const momentum = Math.sin((progress * Math.PI * 0.8) + timeOffset * 0.5) * (Math.abs(endRate - startRate) * 0.04);
+            const smoothJitter = (i > 0 && i < points - 1) ? (Math.random() - 0.5) * (Math.abs(endRate - startRate) * 0.03) : 0;
+            chartData.push({ name: `p${i}`, value: linearValue + waveOffset + momentum + smoothJitter });
         }
     }
 
@@ -503,10 +636,10 @@ export default function ExchangeDashboard(): React.ReactElement {
     { name: 'NAT.GAS', symbol: 'NGAS', value: '2.876', change: '-0.08', changePercent: '2.87%', trend: 'down' }
   ]), []);
 
-  // Get visible commodities (4 at a time with rotation)
+  // Get visible commodities (6 at a time with rotation)
   const visibleCommodities = useMemo(() => {
     const rotatedCommodities = allCommodities.slice(commodityRotationIndex).concat(allCommodities.slice(0, commodityRotationIndex));
-    return rotatedCommodities.slice(0, 4);
+    return rotatedCommodities.slice(0, 6);
   }, [allCommodities, commodityRotationIndex]);
 
   const availableToAdd = allSupportedCurrencies.filter(c => !displayedCurrencies.includes(c.value) && c.value !== BASE_CURRENCY);
@@ -514,19 +647,7 @@ export default function ExchangeDashboard(): React.ReactElement {
   return (
     <div className="h-screen bg-black text-gray-100 font-sans overflow-hidden">
       <div className="h-screen flex flex-col min-h-0">
-        {/* Header Bar - Simplified without SAADAT text */}
-        <header className="bg-black px-2 sm:px-3 md:px-4 py-2" style={{ borderBottom: '0.5px solid rgba(0, 212, 255, 0.3)' }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <ConnectionStatus isConnected={isConnected} health={health} error={marketError} />
-            </div>
-            <div className="flex items-center gap-4">
-              <DarkModeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
-            </div>
-          </div>
-        </header>
-        
-        <main className="flex-1 flex flex-col px-2 py-1 overflow-hidden">
+        <main className="flex-1 flex flex-col px-2 py-2 overflow-hidden">
           {isLoading && <div className="flex justify-center items-center p-10 bg-gray-900 rounded-lg shadow-md"><Loader className="h-12 w-12 mr-4 animate-spin text-cyan-400" /><span className="text-lg text-white">Loading rates...</span></div>}
           {error && !isLoading && <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 p-4 rounded-lg shadow-md flex items-center" role="alert"><AlertTriangle className="h-6 w-6 mr-3" /><div><p className="font-bold">Error:</p><p>{error}</p></div></div>}
           
@@ -543,7 +664,7 @@ export default function ExchangeDashboard(): React.ReactElement {
 
                     return (
                       <div key={currency} className="h-[105px] relative group overflow-hidden transition-all duration-200" style={{
-                        background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
+                        background: 'linear-gradient(135deg, rgba(0, 20, 40, 0.3) 0%, rgba(0, 28, 50, 0.35) 50%, rgba(0, 35, 65, 0.4) 100%)',
                         border: '0.5px solid rgba(0, 150, 255, 0.2)',
                         boxShadow: '0 0 20px rgba(0, 150, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
                       }}>
@@ -646,28 +767,8 @@ export default function ExchangeDashboard(): React.ReactElement {
                   })}
                   </div>
 
-                  {/* Daily Bulletin - Under currency column */}
-                  <div className="mt-3 bg-black border" style={{
-                    background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                    border: '0.5px solid rgba(255, 165, 0, 0.2)',
-                    borderLeftWidth: '4px',
-                    borderLeftColor: '#FFA500'
-                  }}>
-                    <div className="p-3">
-                      <div className="flex flex-col sm:flex-row items-start sm:space-x-3">
-                        <span className="text-xs font-bold uppercase" style={{
-                          color: '#FFA500',
-                          fontFamily: 'monospace',
-                          minWidth: '100px'
-                        }}>DAILY BULLETIN</span>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-white mb-1">Federal Reserve holds interest rates steady at 5.25-5.50%</p>
-                          <p className="text-xs" style={{ color: '#666' }}>Markets react positively • USD weakens • Gold surges to $2,050/oz • CAD strengthens to 1.35 • Oil prices climb 2.3%</p>
-                        </div>
-                        <span className="text-xs" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>14:32 EST</span>
-                      </div>
-                    </div>
-                  </div>
+                  {/* Dynamic Bulletin - Under currency column */}
+                  <DynamicBulletin />
                 </div>
 
                 {/* Middle column - Real-Time Crypto Section + CAD Yield */}
@@ -676,7 +777,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                 {/* Right column - commodities squares (one per line) */}
                 <div className="w-full xl:w-[200px] 2xl:w-[220px] flex flex-col gap-2">
                   {/* Fixed height container for commodity rotation */}
-                  <div className="h-[458px] overflow-hidden flex flex-col gap-2">
+                  <div className="h-[690px] overflow-hidden flex flex-col gap-2">
                     {visibleCommodities.map((item, idx) => (
                       <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
                     ))}
@@ -726,8 +827,8 @@ export default function ExchangeDashboard(): React.ReactElement {
           <div className="flex items-center">
             <div className="px-4 py-2 flex items-center gap-3" style={{
               borderRight: '0.5px solid rgba(0, 212, 255, 0.4)',
-              background: 'rgba(0, 8, 20, 0.9)',
-              boxShadow: '0 0 15px rgba(0, 212, 255, 0.1)'
+              background: 'linear-gradient(90deg, #FFD700 0%, #FFB000 25%, #FF8C00 50%, #FF6B00 75%, #FF4500 100%)',
+              boxShadow: '0 0 15px rgba(255, 165, 0, 0.3)'
             }}>
               <img src={darkMode ? saadatBlack : saadatWhite} alt="SAADAT" className="h-8 w-auto" />
               <div className="font-bold text-lg tracking-wider" style={{

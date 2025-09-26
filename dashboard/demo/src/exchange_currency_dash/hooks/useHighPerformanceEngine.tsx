@@ -47,6 +47,7 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
   const animationFrame = useRef<number>();
   const lastFrameTime = useRef(0);
   const frameCount = useRef(0);
+  const isRunningRef = useRef(false);
 
   // Component state
   const [engineState, setEngineState] = useState<EngineState>({
@@ -320,15 +321,18 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
       lastFrameTime.current = now;
     }
 
-    if (engineState.isRunning) {
+    if (isRunningRef.current) {
       animationFrame.current = requestAnimationFrame(renderLoop);
     }
-  }, [config.targetFPS, engineState.isRunning]);
+  }, [config.targetFPS]);
 
   /**
    * Start engine
    */
   const start = useCallback(() => {
+    if (isRunningRef.current) return; // Already running
+
+    isRunningRef.current = true;
     setEngineState(prev => ({ ...prev, isRunning: true }));
     lastFrameTime.current = performance.now();
     frameCount.current = 0;
@@ -343,9 +347,11 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
    * Stop engine
    */
   const stop = useCallback(() => {
+    isRunningRef.current = false;
     setEngineState(prev => ({ ...prev, isRunning: false }));
     if (animationFrame.current) {
       cancelAnimationFrame(animationFrame.current);
+      animationFrame.current = undefined;
     }
 
     if (config.debugMode) {

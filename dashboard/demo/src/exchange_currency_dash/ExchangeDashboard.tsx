@@ -834,7 +834,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                               buffer={engine.getBuffer(currency)}
                               width={120}
                               height={50}
-                              color={isPositive ? '#FFD700' : '#FF4444'}
+                              color={isPositive === null ? '#888888' : (isPositive ? '#FFD700' : '#FF4444')}
                               glowIntensity={3}
                               showStats={false}
                               isSignalActive={engine.engineState.topSignal?.symbol === currency}
@@ -847,7 +847,15 @@ export default function ExchangeDashboard(): React.ReactElement {
                               <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                                 <defs>
                                   <linearGradient id={`bloomberg-gradient-${currency}`} x1="0" y1="0" x2="0" y2="1">
-                                    {isPositive ? (
+                                    {isPositive === null ? (
+                                      <>
+                                        <stop offset="0%" stopColor="#888888" stopOpacity={0.9}/>
+                                        <stop offset="25%" stopColor="#777777" stopOpacity={0.7}/>
+                                        <stop offset="50%" stopColor="#666666" stopOpacity={0.5}/>
+                                        <stop offset="75%" stopColor="#555555" stopOpacity={0.3}/>
+                                        <stop offset="100%" stopColor="#444444" stopOpacity={0.1}/>
+                                      </>
+                                    ) : isPositive ? (
                                       <>
                                         <stop offset="0%" stopColor="#FFD700" stopOpacity={0.9}/>
                                         <stop offset="25%" stopColor="#FFB000" stopOpacity={0.7}/>
@@ -884,7 +892,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                                 <Area
                                   type="monotoneX"
                                   dataKey="value"
-                                  stroke={isPositive ? '#FFD700' : '#8B0000'}
+                                  stroke={isPositive === null ? '#888888' : (isPositive ? '#FFD700' : '#8B0000')}
                                   strokeWidth={1.5}
                                   fillOpacity={1}
                                   fill={`url(#bloomberg-gradient-${currency})`}

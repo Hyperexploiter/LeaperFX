@@ -118,16 +118,29 @@ export const FOREX_INSTRUMENTS: InstrumentDefinition[] = [
     showInDashboard: false // Used for calculations only
   },
 
-  // Emerging Market Currencies
+  // Asian Currencies
   {
     symbol: 'CNY/CAD',
     name: 'Chinese Yuan / Canadian Dollar',
     category: 'forex',
-    subCategory: 'emerging',
+    subCategory: 'asia',
     baseCurrency: 'CNY',
     quoteCurrency: 'CAD',
     dataSource: 'fxapi',
-    updateFrequency: 60000, // 1 minute
+    updateFrequency: 60000,
+    priority: 'high',
+    tradeable: true,
+    showInDashboard: true
+  },
+  {
+    symbol: 'HKD/CAD',
+    name: 'Hong Kong Dollar / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'asia',
+    baseCurrency: 'HKD',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
     priority: 'medium',
     tradeable: true,
     showInDashboard: true
@@ -136,8 +149,21 @@ export const FOREX_INSTRUMENTS: InstrumentDefinition[] = [
     symbol: 'INR/CAD',
     name: 'Indian Rupee / Canadian Dollar',
     category: 'forex',
-    subCategory: 'emerging',
+    subCategory: 'asia',
     baseCurrency: 'INR',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
+    priority: 'high',
+    tradeable: true,
+    showInDashboard: true
+  },
+  {
+    symbol: 'KRW/CAD',
+    name: 'South Korean Won / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'asia',
+    baseCurrency: 'KRW',
     quoteCurrency: 'CAD',
     dataSource: 'fxapi',
     updateFrequency: 60000,
@@ -146,17 +172,140 @@ export const FOREX_INSTRUMENTS: InstrumentDefinition[] = [
     showInDashboard: true
   },
   {
-    symbol: 'MXN/CAD',
-    name: 'Mexican Peso / Canadian Dollar',
+    symbol: 'THB/CAD',
+    name: 'Thai Baht / Canadian Dollar',
     category: 'forex',
-    subCategory: 'emerging',
-    baseCurrency: 'MXN',
+    subCategory: 'asia',
+    baseCurrency: 'THB',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
+    priority: 'low',
+    tradeable: true,
+    showInDashboard: false
+  },
+  {
+    symbol: 'PKR/CAD',
+    name: 'Pakistani Rupee / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'asia',
+    baseCurrency: 'PKR',
     quoteCurrency: 'CAD',
     dataSource: 'fxapi',
     updateFrequency: 60000,
     priority: 'medium',
     tradeable: true,
     showInDashboard: true
+  },
+
+  // Middle Eastern Currencies
+  {
+    symbol: 'AED/CAD',
+    name: 'UAE Dirham / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'middle_east',
+    baseCurrency: 'AED',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
+    priority: 'high',
+    tradeable: true,
+    showInDashboard: true
+  },
+  {
+    symbol: 'SAR/CAD',
+    name: 'Saudi Riyal / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'middle_east',
+    baseCurrency: 'SAR',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
+    priority: 'medium',
+    tradeable: true,
+    showInDashboard: true
+  },
+  {
+    symbol: 'TRY/CAD',
+    name: 'Turkish Lira / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'middle_east',
+    baseCurrency: 'TRY',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 30000, // More volatile
+    priority: 'medium',
+    tradeable: true,
+    showInDashboard: true
+  },
+
+  // Americas
+  {
+    symbol: 'MXN/CAD',
+    name: 'Mexican Peso / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'americas',
+    baseCurrency: 'MXN',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
+    priority: 'high',
+    tradeable: true,
+    showInDashboard: true
+  },
+  {
+    symbol: 'BRL/CAD',
+    name: 'Brazilian Real / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'americas',
+    baseCurrency: 'BRL',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
+    priority: 'medium',
+    tradeable: true,
+    showInDashboard: true
+  },
+
+  // Oceania & Africa
+  {
+    symbol: 'NZD/CAD',
+    name: 'New Zealand Dollar / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'oceania',
+    baseCurrency: 'NZD',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
+    priority: 'medium',
+    tradeable: true,
+    showInDashboard: true
+  },
+  {
+    symbol: 'ZAR/CAD',
+    name: 'South African Rand / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'africa',
+    baseCurrency: 'ZAR',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
+    priority: 'low',
+    tradeable: true,
+    showInDashboard: false
+  },
+  {
+    symbol: 'NGN/CAD',
+    name: 'Nigerian Naira / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'africa',
+    baseCurrency: 'NGN',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
+    priority: 'low',
+    tradeable: true,
+    showInDashboard: false
   }
 ];
 
@@ -245,7 +394,7 @@ export const CRYPTO_INSTRUMENTS: InstrumentDefinition[] = [
  * COMMODITIES - Precious Metals & Energy
  */
 export const COMMODITY_INSTRUMENTS: InstrumentDefinition[] = [
-  // Precious Metals (Troy Ounce pricing)
+  // Precious Metals - Troy Ounce pricing (Primary)
   {
     symbol: 'XAU/CAD',
     wsSymbol: 'XAUUSD',
@@ -255,12 +404,45 @@ export const COMMODITY_INSTRUMENTS: InstrumentDefinition[] = [
     baseCurrency: 'XAU',
     quoteCurrency: 'CAD',
     dataSource: 'twelvedata',
-    updateFrequency: 30000, // 30 seconds
+    updateFrequency: 15000, // 15 seconds during store hours
     priority: 'critical',
     tradeable: true,
     showInDashboard: true,
-    metadata: { unit: 'oz_t', purity: '999.9' }
+    metadata: { unit: 'oz_t', purity: '999.9', gramsPerUnit: 31.1035 }
   },
+
+  // Gold - Alternate weight units for retail
+  {
+    symbol: 'XAU-G/CAD',
+    wsSymbol: 'XAUUSD',
+    name: 'Gold (Gram) / CAD',
+    category: 'commodity',
+    subCategory: 'precious_metal_retail',
+    baseCurrency: 'XAU',
+    quoteCurrency: 'CAD',
+    dataSource: 'twelvedata',
+    updateFrequency: 30000,
+    priority: 'high',
+    tradeable: true,
+    showInDashboard: true,
+    metadata: { unit: 'gram', purity: '999.9', baseUnit: 'oz_t', conversionFactor: 0.0321507 }
+  },
+  {
+    symbol: 'XAU-KG/CAD',
+    wsSymbol: 'XAUUSD',
+    name: 'Gold (Kilogram) / CAD',
+    category: 'commodity',
+    subCategory: 'precious_metal_bulk',
+    baseCurrency: 'XAU',
+    quoteCurrency: 'CAD',
+    dataSource: 'twelvedata',
+    updateFrequency: 60000,
+    priority: 'medium',
+    tradeable: true,
+    showInDashboard: false,
+    metadata: { unit: 'kg', purity: '999.9', baseUnit: 'oz_t', conversionFactor: 32.1507 }
+  },
+  // Silver - Troy Ounce (Primary)
   {
     symbol: 'XAG/CAD',
     wsSymbol: 'XAGUSD',
@@ -270,11 +452,43 @@ export const COMMODITY_INSTRUMENTS: InstrumentDefinition[] = [
     baseCurrency: 'XAG',
     quoteCurrency: 'CAD',
     dataSource: 'twelvedata',
-    updateFrequency: 30000,
+    updateFrequency: 20000, // 20 seconds
     priority: 'high',
     tradeable: true,
     showInDashboard: true,
-    metadata: { unit: 'oz_t', purity: '999' }
+    metadata: { unit: 'oz_t', purity: '999', gramsPerUnit: 31.1035 }
+  },
+
+  // Silver - Alternate weight units
+  {
+    symbol: 'XAG-G/CAD',
+    wsSymbol: 'XAGUSD',
+    name: 'Silver (Gram) / CAD',
+    category: 'commodity',
+    subCategory: 'precious_metal_retail',
+    baseCurrency: 'XAG',
+    quoteCurrency: 'CAD',
+    dataSource: 'twelvedata',
+    updateFrequency: 30000,
+    priority: 'medium',
+    tradeable: true,
+    showInDashboard: true,
+    metadata: { unit: 'gram', purity: '999', baseUnit: 'oz_t', conversionFactor: 0.0321507 }
+  },
+  {
+    symbol: 'XAG-KG/CAD',
+    wsSymbol: 'XAGUSD',
+    name: 'Silver (Kilogram) / CAD',
+    category: 'commodity',
+    subCategory: 'precious_metal_bulk',
+    baseCurrency: 'XAG',
+    quoteCurrency: 'CAD',
+    dataSource: 'twelvedata',
+    updateFrequency: 60000,
+    priority: 'low',
+    tradeable: true,
+    showInDashboard: false,
+    metadata: { unit: 'kg', purity: '999', baseUnit: 'oz_t', conversionFactor: 32.1507 }
   },
   {
     symbol: 'XPT/CAD',
@@ -307,7 +521,7 @@ export const COMMODITY_INSTRUMENTS: InstrumentDefinition[] = [
     metadata: { unit: 'oz_t', purity: '999.5' }
   },
 
-  // Energy
+  // Energy - More aggressive updates during volatility
   {
     symbol: 'WTI/CAD',
     wsSymbol: 'CL=F', // WTI Crude futures
@@ -317,11 +531,11 @@ export const COMMODITY_INSTRUMENTS: InstrumentDefinition[] = [
     baseCurrency: 'WTI',
     quoteCurrency: 'CAD',
     dataSource: 'twelvedata',
-    updateFrequency: 60000,
-    priority: 'medium',
+    updateFrequency: 15000, // 15 seconds - WTI is highly volatile
+    priority: 'high',
     tradeable: false,
     showInDashboard: true,
-    metadata: { unit: 'barrel', contract: 'futures' }
+    metadata: { unit: 'barrel', contract: 'futures', marketHours: 'extended' }
   },
   {
     symbol: 'BRENT/CAD',
@@ -332,11 +546,11 @@ export const COMMODITY_INSTRUMENTS: InstrumentDefinition[] = [
     baseCurrency: 'BRENT',
     quoteCurrency: 'CAD',
     dataSource: 'twelvedata',
-    updateFrequency: 60000,
-    priority: 'low',
+    updateFrequency: 20000, // 20 seconds
+    priority: 'medium',
     tradeable: false,
     showInDashboard: true,
-    metadata: { unit: 'barrel', contract: 'futures' }
+    metadata: { unit: 'barrel', contract: 'futures', marketHours: 'extended' }
   },
   {
     symbol: 'NG/CAD',
@@ -347,11 +561,11 @@ export const COMMODITY_INSTRUMENTS: InstrumentDefinition[] = [
     baseCurrency: 'NG',
     quoteCurrency: 'CAD',
     dataSource: 'twelvedata',
-    updateFrequency: 60000,
+    updateFrequency: 30000, // 30 seconds - less volatile than oil
     priority: 'low',
     tradeable: false,
     showInDashboard: true,
-    metadata: { unit: 'mmBtu', contract: 'futures' }
+    metadata: { unit: 'mmBtu', contract: 'futures', marketHours: 'extended' }
   }
 ];
 

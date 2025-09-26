@@ -7,6 +7,7 @@
 import { INSTRUMENT_CATALOG, InstrumentDefinition, UPDATE_CADENCE_CONFIG } from '../config/instrumentCatalog';
 import coinbaseWebSocketService from './coinbaseWebSocketService';
 import realTimeDataManager from './realTimeDataManager';
+import { fetchLatestRates } from '../../services/exchangeRateService';
 
 interface MarketDataPoint {
   symbol: string;
@@ -117,8 +118,84 @@ class UnifiedDataAggregator {
   private async initializeFXRates(): Promise<void> {
     console.log('[UnifiedDataAggregator] Fetching initial FX rates...');
 
-    // For now, use hardcoded rates (replace with API call in production)
-    const initialRates = {
+    try {
+      // Fetch live rates from CAD base
+      const cadRates = await fetchLatestRates('CAD');
+
+      if (cadRates) {
+        // Convert CAD-based rates to the format we need
+        // CAD rates give us how much 1 CAD equals in other currencies
+        // We need the inverse for X/CAD pairs
+
+        this.fxRateCache['USD/CAD'] = {
+          rate: 1 / (cadRates.USD || 0.74), // Inverse of CAD/USD
+          timestamp: Date.now(),
+          ttl: this.FX_CACHE_TTL
+        };
+
+        this.fxRateCache['EUR/CAD'] = {
+          rate: 1 / (cadRates.EUR || 0.68),
+          timestamp: Date.now(),
+          ttl: this.FX_CACHE_TTL
+        };
+
+        this.fxRateCache['GBP/CAD'] = {
+          rate: 1 / (cadRates.GBP || 0.58),
+          timestamp: Date.now(),
+          ttl: this.FX_CACHE_TTL
+        };
+
+        this.fxRateCache['JPY/CAD'] = {
+          rate: 1 / (cadRates.JPY || 108),
+          timestamp: Date.now(),
+          ttl: this.FX_CACHE_TTL
+        };
+
+        this.fxRateCache['CHF/CAD'] = {
+          rate: 1 / (cadRates.CHF || 0.66),
+          timestamp: Date.now(),
+          ttl: this.FX_CACHE_TTL
+        };
+
+        this.fxRateCache['AUD/CAD'] = {
+          rate: 1 / (cadRates.AUD || 1.14),
+          timestamp: Date.now(),
+          ttl: this.FX_CACHE_TTL
+        };
+
+        // Also fetch USD rates for cross-rate calculations
+        const usdRates = await fetchLatestRates('USD');
+        if (usdRates) {
+          this.fxRateCache['EUR/USD'] = {
+            rate: usdRates.EUR || 0.92,
+            timestamp: Date.now(),
+            ttl: this.FX_CACHE_TTL
+          };
+
+          this.fxRateCache['GBP/USD'] = {
+            rate: usdRates.GBP || 0.79,
+            timestamp: Date.now(),
+            ttl: this.FX_CACHE_TTL
+          };
+        }
+
+        console.log('[UnifiedDataAggregator] Live FX rates loaded successfully');
+      } else {
+        // Fallback to hardcoded rates if API fails
+        console.warn('[UnifiedDataAggregator] Using fallback FX rates');
+        this.useFallbackRates();
+      }
+    } catch (error) {
+      console.error('[UnifiedDataAggregator] Failed to fetch FX rates:', error);
+      this.useFallbackRates();
+    }
+  }
+
+  /**
+   * Use fallback rates when API is unavailable
+   */
+  private useFallbackRates(): void {
+    const fallbackRates = {
       'USD/CAD': 1.35,
       'EUR/USD': 1.08,
       'GBP/USD': 1.27,
@@ -132,15 +209,13 @@ class UnifiedDataAggregator {
       'MXN/CAD': 0.079
     };
 
-    Object.entries(initialRates).forEach(([pair, rate]) => {
+    Object.entries(fallbackRates).forEach(([pair, rate]) => {
       this.fxRateCache[pair] = {
         rate,
         timestamp: Date.now(),
         ttl: this.FX_CACHE_TTL
       };
     });
-
-    console.log('[UnifiedDataAggregator] FX rates initialized');
   }
 
   /**
@@ -427,8 +502,7 @@ class UnifiedDataAggregator {
    */
   private async refreshFXRates(): Promise<void> {
     console.log('[UnifiedDataAggregator] Refreshing FX rates...');
-    // In production, fetch fresh rates from API
-    await this.initializeFXRates();
+    await this.initializeFXRates(); // Now uses live data from exchangeRateService
   }
 
   /**
@@ -452,9 +526,48 @@ class UnifiedDataAggregator {
    * Connect to realTimeDataManager for engine integration
    */
   private connectToRealTimeDataManager(): void {
-    // This aggregator can work alongside realTimeDataManager
-    // or eventually replace it as the single source of truth
-    console.log('[UnifiedDataAggregator] Connected to realTimeDataManager');
+    // Subscribe to our own market data and push to engine
+    // This ensures the engine gets all data from the unified aggregator
+    INSTRUMENT_CATALOG.forEach(instrument => {
+      if (instrument.showInDashboard) {
+        this.subscribe(instrument.symbol, (data) => {
+          // Push to engine via realTimeDataManager if it has a pushData function set
+          if (realTimeDataManager.isReady()) {
+            // Convert symbol to engine format
+            const engineSymbol = instrument.symbol
+              .replace('/CAD', '')
+              .replace('-USD', '')
+              .replace('/', ''); // BTC/CAD -> BTC, EUR/CAD -> EUR
+
+            // The realTimeDataManager will handle this if it has an engine connected
+            // For now, we'll need the dashboard to pass the pushData function to us
+          }
+        });
+      }
+    });
+
+    console.log('[UnifiedDataAggregator] Ready for engine integration');
+  }
+
+  /**
+   * Set engine push function for direct data flow
+   */
+  setEnginePushFunction(pushData: (symbol: string, value: number, timestamp?: number) => void): void {
+    // Direct push to engine, bypassing realTimeDataManager if needed
+    INSTRUMENT_CATALOG.forEach(instrument => {
+      if (instrument.showInDashboard) {
+        this.subscribe(instrument.symbol, (data) => {
+          const engineSymbol = instrument.symbol
+            .replace('/CAD', '')
+            .replace('-USD', '')
+            .replace('/', '');
+
+          pushData(engineSymbol, data.priceCAD, data.timestamp);
+        });
+      }
+    });
+
+    console.log('[UnifiedDataAggregator] Engine push function connected');
   }
 
   /**

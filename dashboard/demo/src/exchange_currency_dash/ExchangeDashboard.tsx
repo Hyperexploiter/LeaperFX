@@ -8,8 +8,35 @@ import { useMarketHealth } from './hooks/useRealTimeData';
 import { useHighPerformanceEngine } from './hooks/useHighPerformanceEngine';
 import { HighPerformanceSparkline } from './components/HighPerformanceSparkline';
 import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
-import { RotationItem } from './services/RotationScheduler';
+import type { RotationItem } from './services/RotationScheduler';
 import './styles/sexymodal.css';
+
+// Lightweight error boundary to prevent blank page on runtime errors
+class LocalErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; message?: string }>{
+  constructor(props: any){
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error: any){
+    return { hasError: true, message: String(error?.message || error) };
+  }
+  componentDidCatch(error: any, info: any){
+    console.error('ExchangeDashboard crashed:', error, info);
+  }
+  render(){
+    if(this.state.hasError){
+      return (
+        <div className="min-h-screen bg-black text-gray-300 flex items-center justify-center p-6">
+          <div className="max-w-lg w-full border border-red-500/40 bg-red-900/10 rounded p-4">
+            <div className="text-red-400 font-bold mb-2">Dashboard failed to render</div>
+            <div className="text-sm">{this.state.message || 'Unknown error'}</div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children as any;
+  }
+}
 
 
 // --- Type Definitions for TypeScript ---
@@ -517,7 +544,11 @@ export default function ExchangeDashboard(): React.ReactElement {
           priority: 8,
           duration: 10000
         };
-        engine.services.signalAggregator?.getEngine(displayedCurrencies[0])?.registerSignal(testSignal);
+        engine.services.signalAggregator?.getEngine(displayedCurrencies[0]).registerNewsEvent(
+          displayedCurrencies[0],
+          'Test Signal Alert',
+          3.5
+        );
       }
     };
 
@@ -585,49 +616,44 @@ export default function ExchangeDashboard(): React.ReactElement {
 
   // Set up WebSocket connection for real-time rate updates from store owner
   useEffect(() => {
-    const setupWebSocket = async () => {
+    let unsubscribe: (() => void) | null = null;
+    let active = true;
+    (async () => {
       try {
-        // Connect to WebSocket server
         await webSocketService.connect();
-        
-        // Subscribe to WebSocket events
-        const unsubscribe = webSocketService.subscribe((event: WebSocketEvent) => {
-          // Only handle rate_update events
+        unsubscribe = webSocketService.subscribe((event: WebSocketEvent) => {
+          if (!active) return;
           if (event.type === 'rate_update') {
-            
             const { currency, buyRate, sellRate } = event.data;
-            
-            // Update liveRates with the new rate
             setLiveRates(prevRates => {
               if (!prevRates) return prevRates;
-              
-              // Calculate the new rate value based on the buy/sell rates
-              // The API uses rates relative to CAD, so we need to convert
-              // For simplicity, we'll use the average of buy and sell rates
               const avgRate = (parseFloat(buyRate) + parseFloat(sellRate)) / 2;
-              const newRate = 1 / avgRate; // Invert because the API uses inverse rates
-              
-              // Create a new rates object with the updated rate
-              return {
-                ...prevRates,
-                [currency]: newRate
-              };
+              const newRate = 1 / avgRate;
+              return { ...prevRates, [currency]: newRate };
             });
           }
         });
-        
-        // Clean up WebSocket connection on component unmount
-        return () => {
-          unsubscribe();
-          webSocketService.disconnect();
-        };
       } catch (err) {
         console.error('Failed to set up WebSocket connection:', err);
       }
+    })();
+    return () => {
+      active = false;
+      try { unsubscribe?.(); } catch {}
+      try { webSocketService.disconnect(); } catch {}
     };
-    
-    setupWebSocket();
   }, []);
+
+  // Define all commodities data
+  const allCommodities = useMemo<MarketItem[]>(() => ([
+    { name: 'GOLD', symbol: 'GOLD', value: '3547.35', change: '+14.51', changePercent: '0.41%', trend: 'up' },
+    { name: 'SILVER', symbol: 'SILVER', value: '41.72', change: '+0.13', changePercent: '0.32%', trend: 'up' },
+    { name: 'COPPER', symbol: 'COPPER', value: '403.65', change: '-1.45', changePercent: '0.36%', trend: 'down' },
+    { name: 'ALUM.FUT', symbol: 'ALUM', value: '2678.50', change: '-5.50', changePercent: '0.21%', trend: 'down' },
+    { name: 'PLAT.', symbol: 'PLAT', value: '1408.97', change: '-2.25', changePercent: '0.16%', trend: 'down' },
+    { name: 'CRUDE', symbol: 'CRUDE', value: '89.24', change: '+2.13', changePercent: '2.44%', trend: 'up' },
+    { name: 'NAT.GAS', symbol: 'NGAS', value: '2.876', change: '-0.08', changePercent: '2.87%', trend: 'down' }
+  ]), []);
 
   // Feed data to high-performance engine
   useEffect(() => {
@@ -735,16 +761,6 @@ export default function ExchangeDashboard(): React.ReactElement {
     };
   }, [liveRates, historicalRates]);
 
-  const allCommodities = useMemo<MarketItem[]>(() => ([
-    { name: 'GOLD', symbol: 'GOLD', value: '3547.35', change: '+14.51', changePercent: '0.41%', trend: 'up' },
-    { name: 'SILVER', symbol: 'SILVER', value: '41.72', change: '+0.13', changePercent: '0.32%', trend: 'up' },
-    { name: 'COPPER', symbol: 'COPPER', value: '403.65', change: '-1.45', changePercent: '0.36%', trend: 'down' },
-    { name: 'ALUM.FUT', symbol: 'ALUM', value: '2678.50', change: '-5.50', changePercent: '0.21%', trend: 'down' },
-    { name: 'PLAT.', symbol: 'PLAT', value: '1408.97', change: '-2.25', changePercent: '0.16%', trend: 'down' },
-    { name: 'CRUDE', symbol: 'CRUDE', value: '89.24', change: '+2.13', changePercent: '2.44%', trend: 'up' },
-    { name: 'NAT.GAS', symbol: 'NGAS', value: '2.876', change: '-0.08', changePercent: '2.87%', trend: 'down' }
-  ]), []);
-
   // Get visible commodities (6 at a time with rotation)
   const visibleCommodities = useMemo(() => {
     const rotatedCommodities = allCommodities.slice(commodityRotationIndex).concat(allCommodities.slice(0, commodityRotationIndex));
@@ -754,6 +770,7 @@ export default function ExchangeDashboard(): React.ReactElement {
   const availableToAdd = allSupportedCurrencies.filter(c => !displayedCurrencies.includes(c.value) && c.value !== BASE_CURRENCY);
 
   return (
+    <LocalErrorBoundary>
     <div className="h-screen bg-black text-gray-100 font-sans overflow-hidden">
       <div className="h-screen flex flex-col min-h-0">
         <main className="flex-1 flex flex-col px-2 py-2 overflow-hidden">
@@ -985,5 +1002,6 @@ export default function ExchangeDashboard(): React.ReactElement {
         </footer>
       </div>
     </div>
+    </LocalErrorBoundary>
   );
 }

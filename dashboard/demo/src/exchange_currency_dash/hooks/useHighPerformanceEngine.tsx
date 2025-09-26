@@ -3,7 +3,7 @@
  * Integrates ring buffers, sparklines, signal detection, and rotation
  */
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { RingBuffer, RingBufferPool } from '../services/RingBuffer';
 import { SparklineRenderer, SparklineCompositor, SparklineConfig, RenderStats } from '../services/SparklineEngine';
 import { SignalAggregator, MarketSignal, SignalConfig } from '../services/SignalDetectionEngine';

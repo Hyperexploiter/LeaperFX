@@ -9,6 +9,7 @@ import { useHighPerformanceEngine } from './hooks/useHighPerformanceEngine';
 import { HighPerformanceSparkline } from './components/HighPerformanceSparkline';
 import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
 import type { RotationItem } from './services/RotationScheduler';
+import coinbaseWebSocketService from './services/CoinbaseWebSocketService';
 import './styles/sexymodal.css';
 
 // Lightweight error boundary to prevent blank page on runtime errors
@@ -513,6 +514,40 @@ export default function ExchangeDashboard(): React.ReactElement {
       cooldownPeriod: 30
     }
   });
+
+  // Connect Coinbase WebSocket to High-Performance Engine
+  useEffect(() => {
+    // Connect to Coinbase
+    coinbaseWebSocketService.connect().then(() => {
+      console.log('[Dashboard] Coinbase WebSocket connected');
+    }).catch(error => {
+      console.error('[Dashboard] Failed to connect to Coinbase:', error);
+    });
+
+    // Subscribe to crypto price updates and feed to engine
+    const cryptoSymbols = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD', 'ADA-USD'];
+
+    const unsubscribers = cryptoSymbols.map(symbol => {
+      return coinbaseWebSocketService.subscribePriceUpdates(symbol, (data) => {
+        // Convert symbol format (BTC-USD -> BTC)
+        const cleanSymbol = symbol.replace('-USD', '');
+
+        // Push price data to high-performance engine
+        engine.pushData(cleanSymbol, data.price, data.timestamp);
+
+        // Log significant price changes
+        if (Math.abs(data.changePercent24h) > 2) {
+          console.log(`[Signal] ${cleanSymbol} moved ${data.changePercent24h.toFixed(2)}%`);
+        }
+      });
+    });
+
+    return () => {
+      // Cleanup subscriptions
+      unsubscribers.forEach(unsub => unsub());
+      coinbaseWebSocketService.disconnect();
+    };
+  }, [engine]);
 
   // Keyboard shortcuts
   useEffect(() => {

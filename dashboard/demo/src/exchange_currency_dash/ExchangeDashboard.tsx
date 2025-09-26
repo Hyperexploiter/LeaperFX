@@ -517,7 +517,7 @@ export default function ExchangeDashboard(): React.ReactElement {
     }
   });
 
-  // Connect engine to centralized data manager
+  // Connect engine to centralized data manager - run once on mount
   useEffect(() => {
     // Use stable pushData reference to avoid re-subscribing
     const pushData = engine.pushData;
@@ -534,7 +534,7 @@ export default function ExchangeDashboard(): React.ReactElement {
       // Ensure background schedulers and provider timers are stopped when unmounting
       try { unifiedDataAggregator.shutdown(); } catch {}
     };
-  }, [engine.pushData]);
+  }, []); // Empty dependency array - run once on mount
 
   // Keyboard shortcuts
   useEffect(() => {

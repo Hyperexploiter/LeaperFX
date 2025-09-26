@@ -217,6 +217,12 @@ export const RealTimeCryptoSection: React.FC = () => {
   const [rotationIndex, setRotationIndex] = useState(0);
   const [bondPoint, setBondPoint] = useState<MarketDataPoint | null>(null);
   const [bondHistory, setBondHistory] = useState<Array<{ time: string; value: number }>>([]);
+  const [aggregatorCrypto, setAggregatorCrypto] = useState<Record<string, MarketDataPoint>>({});
+
+  const aggregatorSymbols = useMemo(
+    () => ['BTC/CAD', 'ETH/CAD', 'SOL/CAD', 'AVAX/CAD', 'MATIC/CAD', 'ADA/CAD', 'DOT/CAD', 'LINK/CAD', 'UNI/CAD', 'XRP/CAD'],
+    []
+  );
 
   // Static crypto data as fallback
   const staticCryptos: CryptoItem[] = useMemo(() => [
@@ -234,6 +240,25 @@ export const RealTimeCryptoSection: React.FC = () => {
 
   // Merge real-time data with static data
   const displayCryptos = useMemo(() => {
+    const aggregatorList = aggregatorSymbols
+      .map(symbol => {
+        const md = aggregatorCrypto[symbol];
+        if (!md) return null;
+        const changePct = typeof md.changePercent24h === 'number' ? md.changePercent24h : 0;
+        return {
+          symbol,
+          name: symbol.split('/')[0],
+          price: md.priceCAD.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+          change: changePct,
+          trend: changePct >= 0 ? 'up' as const : 'down' as const
+        };
+      })
+      .filter((item): item is CryptoItem => item !== null);
+
+    if (aggregatorList.length > 0) {
+      return aggregatorList;
+    }
+
     if (cryptoData.length > 0) {
       return cryptoData.map(item => ({
         symbol: item.symbol,
@@ -243,8 +268,9 @@ export const RealTimeCryptoSection: React.FC = () => {
         trend: item.trend as 'up' | 'down'
       }));
     }
+
     return staticCryptos;
-  }, [cryptoData, staticCryptos]);
+  }, [aggregatorCrypto, aggregatorSymbols, cryptoData, staticCryptos]);
 
   // Subscribe to bond yield data for the CAD 30Y panel
   useEffect(() => {
@@ -266,6 +292,21 @@ export const RealTimeCryptoSection: React.FC = () => {
       try { unsubscribe && unsubscribe(); } catch {}
     };
   }, []);
+
+  // Subscribe to aggregator crypto feeds for display fallback
+  useEffect(() => {
+    const unsubs = aggregatorSymbols.map(symbol =>
+      unifiedDataAggregator.subscribe(symbol, (md) => {
+        setAggregatorCrypto(prev => ({ ...prev, [symbol]: md }));
+      })
+    );
+
+    return () => {
+      unsubs.forEach(unsub => {
+        try { unsub && unsub(); } catch {}
+      });
+    };
+  }, [aggregatorSymbols]);
 
   // Rotation logic for displaying 5 cryptos at a time
   useEffect(() => {

@@ -514,14 +514,16 @@ export default function ExchangeDashboard(): React.ReactElement {
     }
   });
 
-  // Extract stable functions from engine to avoid dependency loop
-  const { start, stop } = engine;
-
-  // Initialize engine and keyboard shortcuts
+  // Initialize engine once on mount
   useEffect(() => {
-    start();
+    engine.start();
+    return () => {
+      engine.stop();
+    };
+  }, []); // Empty dependencies - run once on mount/unmount
 
-    // Keyboard shortcuts
+  // Keyboard shortcuts in separate effect
+  useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Ctrl/Cmd + Shift + P for performance monitor
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
@@ -558,9 +560,8 @@ export default function ExchangeDashboard(): React.ReactElement {
     window.addEventListener('keydown', handleKeyPress);
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
-      stop();
     };
-  }, [start, stop, displayedCurrencies]);
+  }, [displayedCurrencies, engine]);
 
   useEffect(() => {
     const root = window.document.documentElement;

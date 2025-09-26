@@ -48,6 +48,8 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
   const lastFrameTime = useRef(0);
   const frameCount = useRef(0);
   const isRunningRef = useRef(false);
+  const targetFPSRef = useRef(config.targetFPS || 60);
+  const debugModeRef = useRef(config.debugMode);
 
   // Component state
   const [engineState, setEngineState] = useState<EngineState>({
@@ -67,6 +69,12 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
 
   // Canvas refs for rendering targets
   const canvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
+
+  // Update config refs when config changes
+  useEffect(() => {
+    targetFPSRef.current = config.targetFPS || 60;
+    debugModeRef.current = config.debugMode;
+  }, [config.targetFPS, config.debugMode]);
 
   // Initialize signal aggregator
   useEffect(() => {
@@ -280,7 +288,7 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
     const deltaTime = now - lastFrameTime.current;
 
     // Target 60 FPS
-    if (deltaTime >= 1000 / (config.targetFPS || 60)) {
+    if (deltaTime >= 1000 / targetFPSRef.current) {
       // Get all buffers
       const buffers = new Map<string, RingBuffer>();
       for (const key of bufferPool.current.getAllKeys()) {
@@ -324,7 +332,7 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
     if (isRunningRef.current) {
       animationFrame.current = requestAnimationFrame(renderLoop);
     }
-  }, [config.targetFPS]);
+  }, []); // No dependencies - completely stable
 
   /**
    * Start engine
@@ -338,10 +346,10 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
     frameCount.current = 0;
     animationFrame.current = requestAnimationFrame(renderLoop);
 
-    if (config.debugMode) {
+    if (debugModeRef.current) {
       console.log('[Engine] Started');
     }
-  }, [renderLoop, config.debugMode]);
+  }, [renderLoop]); // Only depends on stable renderLoop
 
   /**
    * Stop engine
@@ -354,10 +362,10 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
       animationFrame.current = undefined;
     }
 
-    if (config.debugMode) {
+    if (debugModeRef.current) {
       console.log('[Engine] Stopped');
     }
-  }, [config.debugMode]);
+  }, []); // Completely stable - no dependencies
 
   /**
    * Start rotation for a group

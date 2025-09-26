@@ -244,11 +244,19 @@ export const RealTimeCryptoSection: React.FC = () => {
       .map(symbol => {
         const md = aggregatorCrypto[symbol];
         if (!md) return null;
-        const changePct = typeof md.changePercent24h === 'number' ? md.changePercent24h : 0;
+        const cadPrice = typeof md.priceCAD === 'number' && Number.isFinite(md.priceCAD)
+          ? md.priceCAD
+          : typeof md.price === 'number' && Number.isFinite(md.price)
+            ? md.price
+            : null;
+        if (cadPrice === null) return null;
+        const changePct = typeof md.changePercent24h === 'number' && Number.isFinite(md.changePercent24h)
+          ? md.changePercent24h
+          : 0;
         return {
           symbol,
           name: symbol.split('/')[0],
-          price: md.priceCAD.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+          price: cadPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
           change: changePct,
           trend: changePct >= 0 ? 'up' as const : 'down' as const
         };

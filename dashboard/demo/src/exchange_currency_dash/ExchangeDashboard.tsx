@@ -9,7 +9,7 @@ import { useHighPerformanceEngine } from './hooks/useHighPerformanceEngine';
 import { HighPerformanceSparkline } from './components/HighPerformanceSparkline';
 import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
 import type { RotationItem } from './services/RotationScheduler';
-import coinbaseWebSocketService from './services/CoinbaseWebSocketService';
+import coinbaseWebSocketService from './services/coinbaseWebSocketService';
 import './styles/sexymodal.css';
 
 // Lightweight error boundary to prevent blank page on runtime errors

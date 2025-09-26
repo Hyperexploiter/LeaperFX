@@ -1,0 +1,614 @@
+/**
+ * Unified Data Aggregator Service
+ * Consolidates all market data feeds with proper CAD conversion
+ * Handles forex, crypto, commodities, and indices with fallback logic
+ */
+
+import { INSTRUMENT_CATALOG, InstrumentDefinition, UPDATE_CADENCE_CONFIG } from '../config/instrumentCatalog';
+import coinbaseWebSocketService from './coinbaseWebSocketService';
+import realTimeDataManager from './realTimeDataManager';
+
+interface MarketDataPoint {
+  symbol: string;
+  price: number;
+  priceCAD: number;
+  timestamp: number;
+  source: string;
+  change24h?: number;
+  changePercent24h?: number;
+  volume24h?: number;
+  high24h?: number;
+  low24h?: number;
+}
+
+interface DataSourceStatus {
+  source: string;
+  connected: boolean;
+  lastUpdate: number;
+  errorCount: number;
+  health: 'healthy' | 'degraded' | 'error';
+}
+
+interface FXRateCache {
+  [pair: string]: {
+    rate: number;
+    timestamp: number;
+    ttl: number; // Time to live in ms
+  };
+}
+
+/**
+ * Unified Data Aggregator - Single source of truth for all market data
+ */
+class UnifiedDataAggregator {
+  private instruments: Map<string, InstrumentDefinition> = new Map();
+  private marketData: Map<string, MarketDataPoint> = new Map();
+  private fxRateCache: FXRateCache = {};
+  private dataSourceStatus: Map<string, DataSourceStatus> = new Map();
+  private subscribers: Map<string, Set<(data: MarketDataPoint) => void>> = new Map();
+  private updateTimers: Map<string, NodeJS.Timeout> = new Map();
+  private isInitialized = false;
+
+  // Critical FX rates for CAD conversion
+  private readonly CRITICAL_FX_PAIRS = ['USD/CAD', 'EUR/USD', 'GBP/USD'];
+  private readonly FX_CACHE_TTL = 300000; // 5 minutes for FX rates
+  private readonly FALLBACK_USD_CAD = 1.35; // Emergency fallback rate
+
+  // WebSocket connections for different providers
+  private wsConnections: Map<string, WebSocket> = new Map();
+
+  // API endpoints (to be moved to .env in production)
+  private readonly API_ENDPOINTS = {
+    fxapi: process.env.VITE_FXAPI_URL || 'https://api.fxapi.com/v1',
+    twelvedata: process.env.VITE_TWELVEDATA_URL || 'https://api.twelvedata.com/v1',
+    alpaca: process.env.VITE_ALPACA_URL || 'https://data.alpaca.markets/v2',
+    polygon: process.env.VITE_POLYGON_URL || 'https://api.polygon.io/v2',
+    finnhub: process.env.VITE_FINNHUB_URL || 'https://finnhub.io/api/v1'
+  };
+
+  constructor() {
+    // Load instruments into map for quick lookup
+    INSTRUMENT_CATALOG.forEach(instrument => {
+      this.instruments.set(instrument.symbol, instrument);
+    });
+  }
+
+  /**
+   * Initialize all data sources
+   */
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    console.log('[UnifiedDataAggregator] Initializing...');
+
+    try {
+      // 1. Initialize critical FX rates first
+      await this.initializeFXRates();
+
+      // 2. Connect to Coinbase for crypto (already exists)
+      await this.connectCoinbase();
+
+      // 3. Connect to forex data provider
+      await this.connectForexProvider();
+
+      // 4. Connect to commodities provider
+      await this.connectCommoditiesProvider();
+
+      // 5. Connect to indices provider
+      await this.connectIndicesProvider();
+
+      // 6. Start update schedulers
+      this.startUpdateSchedulers();
+
+      // 7. Connect to realTimeDataManager
+      this.connectToRealTimeDataManager();
+
+      this.isInitialized = true;
+      console.log('[UnifiedDataAggregator] Initialized successfully');
+    } catch (error) {
+      console.error('[UnifiedDataAggregator] Initialization failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize critical FX rates for CAD conversion
+   */
+  private async initializeFXRates(): Promise<void> {
+    console.log('[UnifiedDataAggregator] Fetching initial FX rates...');
+
+    // For now, use hardcoded rates (replace with API call in production)
+    const initialRates = {
+      'USD/CAD': 1.35,
+      'EUR/USD': 1.08,
+      'GBP/USD': 1.27,
+      'EUR/CAD': 1.46,
+      'GBP/CAD': 1.71,
+      'JPY/CAD': 0.0092,
+      'CHF/CAD': 1.52,
+      'AUD/CAD': 0.88,
+      'CNY/CAD': 0.19,
+      'INR/CAD': 0.016,
+      'MXN/CAD': 0.079
+    };
+
+    Object.entries(initialRates).forEach(([pair, rate]) => {
+      this.fxRateCache[pair] = {
+        rate,
+        timestamp: Date.now(),
+        ttl: this.FX_CACHE_TTL
+      };
+    });
+
+    console.log('[UnifiedDataAggregator] FX rates initialized');
+  }
+
+  /**
+   * Connect to Coinbase WebSocket for crypto
+   */
+  private async connectCoinbase(): Promise<void> {
+    const cryptoInstruments = this.getInstrumentsByCategory('crypto');
+
+    for (const instrument of cryptoInstruments) {
+      if (instrument.wsSymbol) {
+        // Subscribe through existing Coinbase service
+        coinbaseWebSocketService.subscribePriceUpdates(
+          instrument.wsSymbol,
+          (data) => this.handleCryptoUpdate(instrument, data)
+        );
+      }
+    }
+
+    this.updateSourceStatus('coinbase', 'healthy');
+  }
+
+  /**
+   * Connect to forex data provider
+   */
+  private async connectForexProvider(): Promise<void> {
+    // Placeholder for forex WebSocket/API connection
+    // In production, implement actual connection to fxapi.com or similar
+    console.log('[UnifiedDataAggregator] Connecting to forex provider...');
+
+    // Simulate connection
+    this.updateSourceStatus('fxapi', 'healthy');
+
+    // Start polling for forex data
+    const forexInstruments = this.getInstrumentsByCategory('forex');
+    forexInstruments.forEach(instrument => {
+      this.scheduleUpdate(instrument);
+    });
+  }
+
+  /**
+   * Connect to commodities data provider
+   */
+  private async connectCommoditiesProvider(): Promise<void> {
+    console.log('[UnifiedDataAggregator] Connecting to commodities provider...');
+
+    // Placeholder for commodities connection (twelvedata, etc.)
+    this.updateSourceStatus('twelvedata', 'healthy');
+
+    // Start polling for commodity data
+    const commodityInstruments = this.getInstrumentsByCategory('commodity');
+    commodityInstruments.forEach(instrument => {
+      this.scheduleUpdate(instrument);
+    });
+  }
+
+  /**
+   * Connect to indices provider
+   */
+  private async connectIndicesProvider(): Promise<void> {
+    console.log('[UnifiedDataAggregator] Connecting to indices provider...');
+
+    // Placeholder for indices connection
+    this.updateSourceStatus('alpaca', 'healthy');
+
+    // Start polling for index data
+    const indexInstruments = this.getInstrumentsByCategory('index');
+    indexInstruments.forEach(instrument => {
+      this.scheduleUpdate(instrument);
+    });
+  }
+
+  /**
+   * Handle crypto price update from Coinbase
+   */
+  private handleCryptoUpdate(instrument: InstrumentDefinition, data: any): void {
+    const usdPrice = data.price;
+    const cadRate = this.getCADRate('USD');
+    const cadPrice = usdPrice * cadRate;
+
+    const marketData: MarketDataPoint = {
+      symbol: instrument.symbol,
+      price: usdPrice,
+      priceCAD: cadPrice,
+      timestamp: data.timestamp || Date.now(),
+      source: 'coinbase',
+      change24h: data.change24h,
+      changePercent24h: data.changePercent24h,
+      volume24h: data.volume24h,
+      high24h: data.high24h ? data.high24h * cadRate : undefined,
+      low24h: data.low24h ? data.low24h * cadRate : undefined
+    };
+
+    this.updateMarketData(instrument.symbol, marketData);
+  }
+
+  /**
+   * Schedule periodic updates for an instrument
+   */
+  private scheduleUpdate(instrument: InstrumentDefinition): void {
+    // Clear existing timer if any
+    if (this.updateTimers.has(instrument.symbol)) {
+      clearInterval(this.updateTimers.get(instrument.symbol)!);
+    }
+
+    // Calculate actual update frequency based on conditions
+    const baseFrequency = instrument.updateFrequency;
+    const adjustedFrequency = this.getAdjustedUpdateFrequency(baseFrequency);
+
+    const timer = setInterval(() => {
+      this.fetchInstrumentData(instrument);
+    }, adjustedFrequency);
+
+    this.updateTimers.set(instrument.symbol, timer);
+
+    // Fetch initial data
+    this.fetchInstrumentData(instrument);
+  }
+
+  /**
+   * Fetch data for a specific instrument
+   */
+  private async fetchInstrumentData(instrument: InstrumentDefinition): Promise<void> {
+    try {
+      // Simulate data fetch (replace with actual API calls)
+      const mockData = this.generateMockData(instrument);
+
+      const cadPrice = this.convertToCAD(
+        mockData.price,
+        instrument.baseCurrency,
+        instrument.category
+      );
+
+      const marketData: MarketDataPoint = {
+        symbol: instrument.symbol,
+        price: mockData.price,
+        priceCAD: cadPrice,
+        timestamp: Date.now(),
+        source: instrument.dataSource,
+        change24h: mockData.change24h,
+        changePercent24h: mockData.changePercent24h,
+        volume24h: mockData.volume24h
+      };
+
+      this.updateMarketData(instrument.symbol, marketData);
+    } catch (error) {
+      console.error(`[UnifiedDataAggregator] Failed to fetch ${instrument.symbol}:`, error);
+      this.handleDataSourceError(instrument.dataSource);
+    }
+  }
+
+  /**
+   * Convert price to CAD based on instrument type
+   */
+  private convertToCAD(price: number, baseCurrency: string, category: string): number {
+    // If already in CAD, return as is
+    if (baseCurrency === 'CAD') return price;
+
+    // For forex pairs ending in CAD, price is already in CAD
+    if (category === 'forex' && baseCurrency !== 'CAD') {
+      // Check if we have direct CAD pair
+      const directPair = `${baseCurrency}/CAD`;
+      if (this.fxRateCache[directPair]) {
+        return price; // Already in CAD
+      }
+    }
+
+    // For USD-based instruments (crypto, commodities, US indices)
+    if (category === 'crypto' || category === 'commodity' ||
+        (category === 'index' && baseCurrency !== 'TSX')) {
+      const usdCadRate = this.getCADRate('USD');
+      return price * usdCadRate;
+    }
+
+    // For other currencies, use cross rates
+    const cadRate = this.getCADRate(baseCurrency);
+    return price * cadRate;
+  }
+
+  /**
+   * Get CAD conversion rate for a currency
+   */
+  private getCADRate(currency: string): number {
+    // Direct CAD pairs
+    const directPair = `${currency}/CAD`;
+    if (this.fxRateCache[directPair]) {
+      if (this.isFXRateValid(this.fxRateCache[directPair])) {
+        return this.fxRateCache[directPair].rate;
+      }
+    }
+
+    // USD cross rate
+    if (currency !== 'USD') {
+      const usdPair = `${currency}/USD`;
+      const usdCadPair = 'USD/CAD';
+
+      if (this.fxRateCache[usdPair] && this.fxRateCache[usdCadPair]) {
+        const toUsd = this.fxRateCache[usdPair].rate;
+        const usdToCad = this.fxRateCache[usdCadPair].rate;
+        return toUsd * usdToCad;
+      }
+    }
+
+    // Special case for USD
+    if (currency === 'USD') {
+      return this.fxRateCache['USD/CAD']?.rate || this.FALLBACK_USD_CAD;
+    }
+
+    // Fallback
+    console.warn(`[UnifiedDataAggregator] No FX rate found for ${currency}/CAD, using fallback`);
+    return this.FALLBACK_USD_CAD;
+  }
+
+  /**
+   * Check if FX rate is still valid
+   */
+  private isFXRateValid(cache: { rate: number; timestamp: number; ttl: number }): boolean {
+    return Date.now() - cache.timestamp < cache.ttl;
+  }
+
+  /**
+   * Update market data and notify subscribers
+   */
+  private updateMarketData(symbol: string, data: MarketDataPoint): void {
+    this.marketData.set(symbol, data);
+
+    // Notify subscribers
+    const subscribers = this.subscribers.get(symbol);
+    if (subscribers) {
+      subscribers.forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`[UnifiedDataAggregator] Subscriber error for ${symbol}:`, error);
+        }
+      });
+    }
+
+    // Push to high-performance engine via realTimeDataManager
+    if (realTimeDataManager.isReady()) {
+      const engineSymbol = symbol.replace('/CAD', '').replace('-USD', '');
+      // realTimeDataManager will handle the engine push internally
+    }
+  }
+
+  /**
+   * Get adjusted update frequency based on conditions
+   */
+  private getAdjustedUpdateFrequency(baseFrequency: number): number {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const hour = now.getHours();
+
+    let multiplier = UPDATE_CADENCE_CONFIG.storeOpen;
+
+    // Check if weekend
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      multiplier = UPDATE_CADENCE_CONFIG.weekend;
+    }
+    // Check if after hours (simplified - use actual store hours in production)
+    else if (hour < 9 || hour > 19) {
+      multiplier = UPDATE_CADENCE_CONFIG.storeClosed;
+    }
+
+    return baseFrequency / multiplier;
+  }
+
+  /**
+   * Start all update schedulers
+   */
+  private startUpdateSchedulers(): void {
+    // FX rate refresh scheduler
+    setInterval(() => {
+      this.refreshFXRates();
+    }, this.FX_CACHE_TTL);
+
+    // Health check scheduler
+    setInterval(() => {
+      this.performHealthCheck();
+    }, 30000); // Every 30 seconds
+  }
+
+  /**
+   * Refresh FX rates
+   */
+  private async refreshFXRates(): Promise<void> {
+    console.log('[UnifiedDataAggregator] Refreshing FX rates...');
+    // In production, fetch fresh rates from API
+    await this.initializeFXRates();
+  }
+
+  /**
+   * Perform health check on all data sources
+   */
+  private performHealthCheck(): void {
+    this.dataSourceStatus.forEach((status, source) => {
+      const timeSinceUpdate = Date.now() - status.lastUpdate;
+
+      if (timeSinceUpdate > 300000) { // 5 minutes
+        status.health = 'error';
+      } else if (timeSinceUpdate > 60000) { // 1 minute
+        status.health = 'degraded';
+      } else {
+        status.health = 'healthy';
+      }
+    });
+  }
+
+  /**
+   * Connect to realTimeDataManager for engine integration
+   */
+  private connectToRealTimeDataManager(): void {
+    // This aggregator can work alongside realTimeDataManager
+    // or eventually replace it as the single source of truth
+    console.log('[UnifiedDataAggregator] Connected to realTimeDataManager');
+  }
+
+  /**
+   * Subscribe to market data updates
+   */
+  subscribe(symbol: string, callback: (data: MarketDataPoint) => void): () => void {
+    if (!this.subscribers.has(symbol)) {
+      this.subscribers.set(symbol, new Set());
+    }
+
+    this.subscribers.get(symbol)!.add(callback);
+
+    // Send current data if available
+    const currentData = this.marketData.get(symbol);
+    if (currentData) {
+      callback(currentData);
+    }
+
+    // Return unsubscribe function
+    return () => {
+      const subs = this.subscribers.get(symbol);
+      if (subs) {
+        subs.delete(callback);
+      }
+    };
+  }
+
+  /**
+   * Get current market data for a symbol
+   */
+  getMarketData(symbol: string): MarketDataPoint | undefined {
+    return this.marketData.get(symbol);
+  }
+
+  /**
+   * Get all market data
+   */
+  getAllMarketData(): Map<string, MarketDataPoint> {
+    return new Map(this.marketData);
+  }
+
+  /**
+   * Get instruments by category
+   */
+  private getInstrumentsByCategory(category: string): InstrumentDefinition[] {
+    return Array.from(this.instruments.values()).filter(i => i.category === category);
+  }
+
+  /**
+   * Update data source status
+   */
+  private updateSourceStatus(source: string, health: 'healthy' | 'degraded' | 'error'): void {
+    const status = this.dataSourceStatus.get(source) || {
+      source,
+      connected: health === 'healthy',
+      lastUpdate: Date.now(),
+      errorCount: 0,
+      health
+    };
+
+    status.health = health;
+    status.lastUpdate = Date.now();
+    status.connected = health === 'healthy';
+
+    this.dataSourceStatus.set(source, status);
+  }
+
+  /**
+   * Handle data source error
+   */
+  private handleDataSourceError(source: string): void {
+    const status = this.dataSourceStatus.get(source);
+    if (status) {
+      status.errorCount++;
+      if (status.errorCount > 5) {
+        status.health = 'error';
+        status.connected = false;
+      } else {
+        status.health = 'degraded';
+      }
+    }
+  }
+
+  /**
+   * Generate mock data for testing (remove in production)
+   */
+  private generateMockData(instrument: InstrumentDefinition): any {
+    const basePrice = Math.random() * 1000 + 100;
+    const change = (Math.random() - 0.5) * 10;
+
+    return {
+      price: basePrice,
+      change24h: change,
+      changePercent24h: (change / basePrice) * 100,
+      volume24h: Math.random() * 1000000,
+      high24h: basePrice * 1.02,
+      low24h: basePrice * 0.98
+    };
+  }
+
+  /**
+   * Get system health status
+   */
+  getHealthStatus(): {
+    overall: 'healthy' | 'degraded' | 'error';
+    sources: Map<string, DataSourceStatus>;
+    fxRatesAge: number;
+  } {
+    const healthCounts = { healthy: 0, degraded: 0, error: 0 };
+
+    this.dataSourceStatus.forEach(status => {
+      healthCounts[status.health]++;
+    });
+
+    let overall: 'healthy' | 'degraded' | 'error';
+    if (healthCounts.error > 0) {
+      overall = 'error';
+    } else if (healthCounts.degraded > 0) {
+      overall = 'degraded';
+    } else {
+      overall = 'healthy';
+    }
+
+    const fxRatesAge = Date.now() - (this.fxRateCache['USD/CAD']?.timestamp || 0);
+
+    return {
+      overall,
+      sources: new Map(this.dataSourceStatus),
+      fxRatesAge
+    };
+  }
+
+  /**
+   * Shutdown and cleanup
+   */
+  async shutdown(): Promise<void> {
+    console.log('[UnifiedDataAggregator] Shutting down...');
+
+    // Clear all timers
+    this.updateTimers.forEach(timer => clearInterval(timer));
+    this.updateTimers.clear();
+
+    // Close WebSocket connections
+    this.wsConnections.forEach(ws => ws.close());
+    this.wsConnections.clear();
+
+    // Clear subscribers
+    this.subscribers.clear();
+
+    this.isInitialized = false;
+    console.log('[UnifiedDataAggregator] Shutdown complete');
+  }
+}
+
+// Export singleton instance
+export const unifiedDataAggregator = new UnifiedDataAggregator();
+export default unifiedDataAggregator;

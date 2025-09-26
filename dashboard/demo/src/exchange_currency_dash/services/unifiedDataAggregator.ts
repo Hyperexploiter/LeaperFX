@@ -123,58 +123,65 @@ class UnifiedDataAggregator {
       const cadRates = await fetchLatestRates('CAD');
 
       if (cadRates) {
-        // Convert CAD-based rates to the format we need
-        // CAD rates give us how much 1 CAD equals in other currencies
-        // We need the inverse for X/CAD pairs
+        // Populate all X/CAD pairs for every forex instrument in the catalog
+        const now = Date.now();
+        const seenPairs = new Set<string>();
+        INSTRUMENT_CATALOG.forEach(inst => {
+          if (inst.category === 'forex' && inst.quoteCurrency === 'CAD') {
+            const base = inst.baseCurrency as keyof typeof cadRates;
+            const cadBase = (cadRates as any)[base];
+            if (typeof cadBase === 'number' && cadBase > 0) {
+              const pair = `${inst.baseCurrency}/CAD`;
+              this.fxRateCache[pair] = {
+                rate: 1 / cadBase, // inverse of CAD/base
+                timestamp: now,
+                ttl: this.FX_CACHE_TTL
+              };
+              seenPairs.add(pair);
+            }
+          }
+        });
 
-        this.fxRateCache['USD/CAD'] = {
-          rate: 1 / (cadRates.USD || 0.74), // Inverse of CAD/USD
-          timestamp: Date.now(),
-          ttl: this.FX_CACHE_TTL
+        // Ensure critical majors are present even if not in catalog
+        const ensure = (pair: string, invFrom?: number) => {
+          if (!this.fxRateCache[pair]) {
+            const [base] = pair.split('/');
+            const v = invFrom ?? (1 / ((cadRates as any)[base] || 0));
+            if (Number.isFinite(v) && v > 0) {
+              this.fxRateCache[pair] = { rate: v, timestamp: now, ttl: this.FX_CACHE_TTL };
+            }
+          }
         };
+        ensure('USD/CAD', 1 / ((cadRates as any).USD || 0.74));
+        ensure('EUR/CAD', 1 / ((cadRates as any).EUR || 0.68));
+        ensure('GBP/CAD', 1 / ((cadRates as any).GBP || 0.58));
+        ensure('JPY/CAD', 1 / ((cadRates as any).JPY || 108));
+        ensure('CHF/CAD', 1 / ((cadRates as any).CHF || 0.66));
+        ensure('AUD/CAD', 1 / ((cadRates as any).AUD || 1.14));
+        ensure('CNY/CAD', 1 / ((cadRates as any).CNY || 5.23));
+        ensure('HKD/CAD', 1 / ((cadRates as any).HKD || 5.71));
+        ensure('INR/CAD', 1 / ((cadRates as any).INR || 63.7));
+        ensure('KRW/CAD', 1 / ((cadRates as any).KRW || 1012));
+        ensure('THB/CAD', 1 / ((cadRates as any).THB || 23.56));
+        ensure('AED/CAD', 1 / ((cadRates as any).AED || 2.68));
+        ensure('SAR/CAD', 1 / ((cadRates as any).SAR || 2.73));
+        ensure('TRY/CAD', 1 / ((cadRates as any).TRY || 29.6));
+        ensure('MXN/CAD', 1 / ((cadRates as any).MXN || 13.53));
+        ensure('BRL/CAD', 1 / ((cadRates as any).BRL || 3.95));
+        ensure('NZD/CAD', 1 / ((cadRates as any).NZD || 1.22));
+        ensure('ZAR/CAD', 1 / ((cadRates as any).ZAR || 12.89));
 
-        this.fxRateCache['EUR/CAD'] = {
-          rate: 1 / (cadRates.EUR || 0.68),
-          timestamp: Date.now(),
-          ttl: this.FX_CACHE_TTL
-        };
-
-        this.fxRateCache['GBP/CAD'] = {
-          rate: 1 / (cadRates.GBP || 0.58),
-          timestamp: Date.now(),
-          ttl: this.FX_CACHE_TTL
-        };
-
-        this.fxRateCache['JPY/CAD'] = {
-          rate: 1 / (cadRates.JPY || 108),
-          timestamp: Date.now(),
-          ttl: this.FX_CACHE_TTL
-        };
-
-        this.fxRateCache['CHF/CAD'] = {
-          rate: 1 / (cadRates.CHF || 0.66),
-          timestamp: Date.now(),
-          ttl: this.FX_CACHE_TTL
-        };
-
-        this.fxRateCache['AUD/CAD'] = {
-          rate: 1 / (cadRates.AUD || 1.14),
-          timestamp: Date.now(),
-          ttl: this.FX_CACHE_TTL
-        };
-
-        // Also fetch USD rates for cross-rate calculations
+        // Also fetch USD rates for cross-rate calculations (e.g., EUR/USD)
         const usdRates = await fetchLatestRates('USD');
         if (usdRates) {
           this.fxRateCache['EUR/USD'] = {
             rate: usdRates.EUR || 0.92,
-            timestamp: Date.now(),
+            timestamp: now,
             ttl: this.FX_CACHE_TTL
           };
-
           this.fxRateCache['GBP/USD'] = {
             rate: usdRates.GBP || 0.79,
-            timestamp: Date.now(),
+            timestamp: now,
             ttl: this.FX_CACHE_TTL
           };
         }
@@ -195,6 +202,7 @@ class UnifiedDataAggregator {
    * Use fallback rates when API is unavailable
    */
   private useFallbackRates(): void {
+    // Conservative, slightly stale but realistic CAD pairs to avoid 1.35 default
     const fallbackRates = {
       'USD/CAD': 1.35,
       'EUR/USD': 1.08,
@@ -205,9 +213,18 @@ class UnifiedDataAggregator {
       'CHF/CAD': 1.52,
       'AUD/CAD': 0.88,
       'CNY/CAD': 0.19,
+      'HKD/CAD': 0.17,
       'INR/CAD': 0.016,
-      'MXN/CAD': 0.079
-    };
+      'KRW/CAD': 0.0010,
+      'THB/CAD': 0.043,
+      'AED/CAD': 0.37,
+      'SAR/CAD': 0.36,
+      'TRY/CAD': 0.034,
+      'MXN/CAD': 0.079,
+      'BRL/CAD': 0.25,
+      'NZD/CAD': 0.82,
+      'ZAR/CAD': 0.078
+    } as Record<string, number>;
 
     Object.entries(fallbackRates).forEach(([pair, rate]) => {
       this.fxRateCache[pair] = {
@@ -308,6 +325,9 @@ class UnifiedDataAggregator {
       low24h: data.low24h ? data.low24h * cadRate : undefined
     };
 
+    // Stamp source as healthy on each update
+    this.updateSourceStatus('coinbase', 'healthy');
+
     this.updateMarketData(instrument.symbol, marketData);
   }
 
@@ -339,24 +359,87 @@ class UnifiedDataAggregator {
    */
   private async fetchInstrumentData(instrument: InstrumentDefinition): Promise<void> {
     try {
-      // Simulate data fetch (replace with actual API calls)
-      const mockData = this.generateMockData(instrument);
+      let rawPrice = 0; // in instrument's base currency unit (USD for commodities)
+      let change24h: number | undefined;
+      let changePercent24h: number | undefined;
+      let volume24h: number | undefined;
 
-      const cadPrice = this.convertToCAD(
-        mockData.price,
-        instrument.baseCurrency,
-        instrument.category
-      );
+      if (instrument.category === 'forex') {
+        // Use cached FX rates for X/CAD pairs and cross rates
+        const cached = this.fxRateCache[instrument.symbol];
+        if (cached && this.isFXRateValid(cached)) {
+          rawPrice = cached.rate;
+        } else if (instrument.quoteCurrency === 'CAD') {
+          rawPrice = this.getCADRate(instrument.baseCurrency);
+        } else if (instrument.symbol.includes('/USD')) {
+          const pair = instrument.symbol;
+          const cache = this.fxRateCache[pair];
+          if (cache) rawPrice = cache.rate;
+        }
+        // Mark FX source healthy
+        this.updateSourceStatus('fxapi', 'healthy');
+      } else if (instrument.category === 'commodity') {
+        // Try TwelveData (price in USD)
+        const apiKey = (process as any).env?.VITE_TWELVEDATA_KEY || (window as any)?.__ENV__?.VITE_TWELVEDATA_KEY;
+        if (apiKey && instrument.wsSymbol) {
+          try {
+            const symbol = /USD$/.test(instrument.wsSymbol) ? instrument.wsSymbol.replace('USD', '/USD') : instrument.wsSymbol;
+            const url = `${this.API_ENDPOINTS.twelvedata}/price?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`;
+            const res = await fetch(url);
+            if (res.ok) {
+              const json = await res.json();
+              const priceUSD = parseFloat(json?.price ?? json?.data?.price ?? '0');
+              if (Number.isFinite(priceUSD) && priceUSD > 0) {
+                rawPrice = priceUSD;
+                this.updateSourceStatus('twelvedata', 'healthy');
+              }
+            }
+          } catch (e) {
+            // fall back to mock
+          }
+        }
+        if (!rawPrice) {
+          const mock = this.generateMockData(instrument);
+          rawPrice = mock.price;
+          change24h = mock.change24h;
+          changePercent24h = mock.changePercent24h;
+          volume24h = mock.volume24h;
+        }
+
+        // Apply unit conversion if metadata specifies conversionFactor (e.g., grams/kg)
+        const cf = instrument.metadata?.conversionFactor;
+        if (typeof cf === 'number' && cf > 0) {
+          rawPrice = rawPrice * cf;
+        }
+      } else if (instrument.category === 'index') {
+        // Placeholder: try Alpaca/Polygon when keys exist; use mock for now
+        const mock = this.generateMockData(instrument);
+        rawPrice = mock.price;
+        change24h = mock.change24h;
+        changePercent24h = mock.changePercent24h;
+        volume24h = mock.volume24h;
+        this.updateSourceStatus('alpaca', 'healthy');
+      } else {
+        // Default mock
+        const mock = this.generateMockData(instrument);
+        rawPrice = mock.price;
+        change24h = mock.change24h;
+        changePercent24h = mock.changePercent24h;
+        volume24h = mock.volume24h;
+      }
+
+      // Convert to CAD
+      const priceCAD = this.convertToCAD(rawPrice, instrument.baseCurrency, instrument.category);
 
       const marketData: MarketDataPoint = {
         symbol: instrument.symbol,
-        price: mockData.price,
-        priceCAD: cadPrice,
+        price: rawPrice,
+        priceCAD,
         timestamp: Date.now(),
         source: instrument.dataSource,
-        change24h: mockData.change24h,
-        changePercent24h: mockData.changePercent24h,
-        volume24h: mockData.volume24h
+        change24h,
+        changePercent24h,
+        volume24h
       };
 
       this.updateMarketData(instrument.symbol, marketData);

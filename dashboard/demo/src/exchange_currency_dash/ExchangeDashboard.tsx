@@ -10,6 +10,8 @@ import { HighPerformanceSparkline } from './components/HighPerformanceSparkline'
 import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
 import type { RotationItem } from './services/RotationScheduler';
 import realTimeDataManager from './services/realTimeDataManager';
+import unifiedDataAggregator from './services/unifiedDataAggregator';
+import DataSourceStatus from './components/DataSourceStatus';
 import './styles/sexymodal.css';
 
 // Lightweight error boundary to prevent blank page on runtime errors
@@ -522,17 +524,17 @@ export default function ExchangeDashboard(): React.ReactElement {
     realTimeDataManager.setEnginePushData(pushData);
 
     // Initialize data feeds through the centralized manager
-    // This prevents multiple components from fighting over WebSocket connections
     realTimeDataManager.connect();
 
-    // The realTimeDataManager will handle all data subscriptions internally
-    // avoiding the connection churn that was heating up the Mac
+    // Also initialize the unified aggregator and connect it to the engine
+    // The aggregator will consolidate API feeds and push CAD-adjusted values
+    unifiedDataAggregator.setEnginePushFunction(pushData);
+    unifiedDataAggregator.initialize().catch(err => console.error('Aggregator init failed', err));
 
     return () => {
-      // Don't disconnect - let realTimeDataManager manage its own lifecycle
-      // This prevents premature disconnections when components re-render
+      // Lifecycle managed by services
     };
-  }, []); // Empty deps - run once
+  }, [engine]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -788,6 +790,10 @@ export default function ExchangeDashboard(): React.ReactElement {
   return (
     <LocalErrorBoundary>
     <div className="h-screen bg-black text-gray-100 font-sans overflow-hidden">
+      {/* Data source health badge */}
+      <div className="fixed top-2 right-2 z-50">
+        <DataSourceStatus />
+      </div>
       <div className="h-screen flex flex-col min-h-0">
         <main className="flex-1 flex flex-col px-2 py-2 overflow-hidden">
           {isLoading && <div className="flex justify-center items-center p-10 bg-gray-900 rounded-lg shadow-md"><Loader className="h-12 w-12 mr-4 animate-spin text-cyan-400" /><span className="text-lg text-white">Loading rates...</span></div>}

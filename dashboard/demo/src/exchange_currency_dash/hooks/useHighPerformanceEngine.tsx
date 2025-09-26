@@ -281,9 +281,10 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
   }, []);
 
   /**
-   * Main render loop
+   * Main render loop - using refs for all values to avoid closure issues
    */
-  const renderLoop = useCallback(() => {
+  const renderLoopRef = useRef<() => void>();
+  renderLoopRef.current = () => {
     const now = performance.now();
     const deltaTime = now - lastFrameTime.current;
 
@@ -329,10 +330,10 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
       lastFrameTime.current = now;
     }
 
-    if (isRunningRef.current) {
-      animationFrame.current = requestAnimationFrame(renderLoop);
+    if (isRunningRef.current && renderLoopRef.current) {
+      animationFrame.current = requestAnimationFrame(renderLoopRef.current);
     }
-  }, []); // No dependencies - completely stable
+  };
 
   /**
    * Start engine
@@ -344,12 +345,16 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
     setEngineState(prev => ({ ...prev, isRunning: true }));
     lastFrameTime.current = performance.now();
     frameCount.current = 0;
-    animationFrame.current = requestAnimationFrame(renderLoop);
+
+    // Use the ref to access the current renderLoop
+    if (renderLoopRef.current) {
+      animationFrame.current = requestAnimationFrame(renderLoopRef.current);
+    }
 
     if (debugModeRef.current) {
       console.log('[Engine] Started');
     }
-  }, [renderLoop]); // Only depends on stable renderLoop
+  }, []); // Completely stable
 
   /**
    * Stop engine
@@ -402,16 +407,19 @@ export function useHighPerformanceEngine(config: EngineConfig = {}) {
   }, [engineState]);
 
   /**
-   * Cleanup on unmount
+   * Auto-start engine on mount and cleanup on unmount
    */
   useEffect(() => {
+    // Start the engine automatically
+    start();
+
     return () => {
       stop();
       sparklineCompositor.current.dispose();
       rotationOrchestrator.current.dispose();
       bufferPool.current.clear();
     };
-  }, [stop]);
+  }, []); // Empty deps - run once
 
   return {
     // State

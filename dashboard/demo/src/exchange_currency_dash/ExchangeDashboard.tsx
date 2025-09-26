@@ -514,15 +514,7 @@ export default function ExchangeDashboard(): React.ReactElement {
     }
   });
 
-  // Initialize engine once on mount
-  useEffect(() => {
-    engine.start();
-    return () => {
-      engine.stop();
-    };
-  }, []); // Empty dependencies - run once on mount/unmount
-
-  // Keyboard shortcuts in separate effect
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Ctrl/Cmd + Shift + P for performance monitor

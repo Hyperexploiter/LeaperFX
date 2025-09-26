@@ -326,6 +326,9 @@ class UnifiedDataAggregator {
     const cadRate = this.getCADRate('USD');
     const cadPrice = usdPrice * cadRate;
 
+    // Debug logging to verify data flow
+    console.log(`[Crypto Data] ${instrument.symbol}: USD $${usdPrice} → CAD $${cadPrice.toFixed(2)}`);
+
     const marketData: MarketDataPoint = {
       symbol: instrument.symbol,
       price: usdPrice,
@@ -436,11 +439,11 @@ class UnifiedDataAggregator {
           }
         }
         if (!rawPrice) {
-          const mock = this.generateMockData(instrument);
-          rawPrice = mock.price;
-          change24h = mock.change24h;
-          changePercent24h = mock.changePercent24h;
-          volume24h = mock.volume24h;
+          const errorState = this.getErrorDataPoint();
+          rawPrice = errorState.price; // NaN
+          change24h = errorState.change24h;
+          changePercent24h = errorState.changePercent24h;
+          volume24h = errorState.volume24h;
         }
 
         // Apply unit conversion if metadata specifies conversionFactor (e.g., grams/kg)
@@ -451,38 +454,10 @@ class UnifiedDataAggregator {
       } else if (instrument.category === 'index') {
         // Special handling for Canadian bond yields
         if (instrument.subCategory === 'bond_yield') {
-          try {
-            // Bank of Canada Valet API: group bond_yields latest observation
-            const url = `https://www.bankofcanada.ca/valet/observations/group/bond_yields?recent=1`;
-            const res = await fetch(url);
-            if (res.ok) {
-              const json = await res.json();
-              const obs = json?.observations?.[0] || {};
-              const seriesKey = instrument.metadata?.series;
-              let val: number | undefined;
-              if (seriesKey && obs[seriesKey]) {
-                val = parseFloat(obs[seriesKey]?.v ?? obs[seriesKey]);
-              }
-              if (!(typeof val === 'number' && Number.isFinite(val))) {
-                // Try common keys; otherwise pick first numeric value
-                const candidateKeys = Object.keys(obs).filter(k => k !== 'd');
-                for (const k of candidateKeys) {
-                  const v = parseFloat(obs[k]?.v ?? obs[k]);
-                  if (Number.isFinite(v)) { val = v; break; }
-                }
-              }
-              if (typeof val === 'number' && Number.isFinite(val)) {
-                rawPrice = val;
-                this.updateSourceStatus('bankofcanada', 'healthy');
-              } else {
-                this.handleDataSourceError('bankofcanada');
-              }
-            } else {
-              this.handleDataSourceError('bankofcanada');
-            }
-          } catch {
-            this.handleDataSourceError('bankofcanada');
-          }
+          // Bank of Canada API endpoint has changed - mark as unavailable
+          rawPrice = NaN; // Proper error state, not mock data
+          this.handleDataSourceError('bankofcanada');
+          console.warn('[UnifiedDataAggregator] Bank of Canada API unavailable - bond yields not accessible');
         } else {
           // Try Alpaca first for US stocks/indices represented as tickers
           const alpacaKey = this.getEnv('VITE_ALPACA_KEY_ID') || this.getEnv('VITE_ALPACA_KEY');
@@ -549,20 +524,20 @@ class UnifiedDataAggregator {
           }
 
           if (!rawPrice) {
-            const mock = this.generateMockData(instrument);
-            rawPrice = mock.price;
-            change24h = mock.change24h;
-            changePercent24h = mock.changePercent24h;
-            volume24h = mock.volume24h;
+            const errorState = this.getErrorDataPoint();
+            rawPrice = errorState.price; // NaN
+            change24h = errorState.change24h;
+            changePercent24h = errorState.changePercent24h;
+            volume24h = errorState.volume24h;
           }
         }
       } else {
-        // Default mock
-        const mock = this.generateMockData(instrument);
-        rawPrice = mock.price;
-        change24h = mock.change24h;
-        changePercent24h = mock.changePercent24h;
-        volume24h = mock.volume24h;
+        // Default error state - no data available
+        const errorState = this.getErrorDataPoint();
+        rawPrice = errorState.price; // NaN
+        change24h = errorState.change24h;
+        changePercent24h = errorState.changePercent24h;
+        volume24h = errorState.volume24h;
       }
 
       // Convert to CAD
@@ -604,6 +579,9 @@ class UnifiedDataAggregator {
    * Convert price to CAD based on instrument type
    */
   private convertToCAD(price: number, baseCurrency: string, category: string): number {
+    // Handle error states
+    if (!Number.isFinite(price)) return NaN;
+
     // If already in CAD, return as is
     if (baseCurrency === 'CAD') return price;
 
@@ -687,8 +665,8 @@ class UnifiedDataAggregator {
       });
     }
 
-    // Push to high-performance engine via realTimeDataManager
-    if (realTimeDataManager.isReady()) {
+    // Only push valid data to engine (skip NaN/undefined)
+    if (realTimeDataManager.isReady() && Number.isFinite(data.priceCAD)) {
       const engineSymbol = symbol.replace('/CAD', '').replace('-USD', '');
       // realTimeDataManager will handle the engine push internally
     }
@@ -792,12 +770,15 @@ class UnifiedDataAggregator {
     INSTRUMENT_CATALOG.forEach(instrument => {
       if (instrument.showInDashboard) {
         const unsub = this.subscribe(instrument.symbol, (data) => {
-          const engineSymbol = instrument.symbol
-            .replace('/CAD', '')
-            .replace('-USD', '')
-            .replace('/', '');
+          // Only push valid prices to engine, skip NaN/undefined
+          if (Number.isFinite(data.priceCAD)) {
+            const engineSymbol = instrument.symbol
+              .replace('/CAD', '')
+              .replace('-USD', '')
+              .replace('/', '');
 
-          pushData(engineSymbol, data.priceCAD, data.timestamp);
+            pushData(engineSymbol, data.priceCAD, data.timestamp);
+          }
         });
         unsubs.push(unsub);
       }
@@ -893,19 +874,16 @@ class UnifiedDataAggregator {
   }
 
   /**
-   * Generate mock data for testing (remove in production)
+   * Return error state when no data available
    */
-  private generateMockData(instrument: InstrumentDefinition): any {
-    const basePrice = Math.random() * 1000 + 100;
-    const change = (Math.random() - 0.5) * 10;
-
+  private getErrorDataPoint(): any {
     return {
-      price: basePrice,
-      change24h: change,
-      changePercent24h: (change / basePrice) * 100,
-      volume24h: Math.random() * 1000000,
-      high24h: basePrice * 1.02,
-      low24h: basePrice * 0.98
+      price: NaN,
+      change24h: undefined,
+      changePercent24h: undefined,
+      volume24h: undefined,
+      high24h: undefined,
+      low24h: undefined
     };
   }
 

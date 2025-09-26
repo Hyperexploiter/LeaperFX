@@ -200,6 +200,13 @@ class CoinbaseWebSocketService {
   private subscribeToDefaultChannels(): void {
     if (!this.ws || !this.isConnected) return;
 
+    // Guard against race condition - ensure WebSocket is fully OPEN
+    if (this.ws.readyState !== WebSocket.OPEN) {
+      console.log('[CoinbaseWS] WebSocket not ready, delaying subscription...');
+      setTimeout(() => this.subscribeToDefaultChannels(), 100);
+      return;
+    }
+
     const subscribeMessage = {
       type: 'subscribe',
       product_ids: this.DEFAULT_SYMBOLS,

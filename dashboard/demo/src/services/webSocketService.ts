@@ -75,6 +75,17 @@ class WebSocketService {
         return;
       }
 
+      // Detect if we're on GitHub Pages or other static hosting
+      if (typeof window !== 'undefined' &&
+          (window.location.hostname.includes('github.io') ||
+           window.location.hostname.includes('vercel.app') ||
+           window.location.hostname.includes('netlify.app'))) {
+        console.log('[WebSocket] Static hosting detected, using local mode');
+        this.startLocalMode();
+        resolve(true);
+        return;
+      }
+
       // Try to connect to WebSocket server
       const wsUrl = url || this.getWebSocketUrl();
       

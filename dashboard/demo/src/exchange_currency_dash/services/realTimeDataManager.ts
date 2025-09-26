@@ -44,6 +44,9 @@ class RealTimeDataManager {
   private stateCallbacks: ((state: MarketState) => void)[] = [];
   private isInitialized: boolean = false;
 
+  // High-performance engine integration
+  private enginePushData: ((symbol: string, value: number, timestamp?: number) => void) | null = null;
+
   // Configuration
   private config: DataManagerConfig = {
     maxHistoryPoints: 100,
@@ -191,6 +194,18 @@ class RealTimeDataManager {
     try {
       // Store price data
       this.state.prices.set(displaySymbol, priceData);
+
+      // Push to high-performance engine if connected
+      if (this.enginePushData) {
+        // Convert display symbol to engine format (BTC/CAD -> BTC)
+        const engineSymbol = displaySymbol.replace('/CAD', '').replace('-USD', '');
+        this.enginePushData(engineSymbol, priceData.price, priceData.timestamp);
+
+        // Log significant price changes
+        if (Math.abs(priceData.changePercent24h) > 2) {
+          console.log(`[Signal] ${engineSymbol} moved ${priceData.changePercent24h.toFixed(2)}%`);
+        }
+      }
 
       // Convert to CAD (simplified - in production, use real FX rates)
       const cadPrice = priceData.price * 1.35; // Approximate USD to CAD conversion
@@ -545,6 +560,22 @@ class RealTimeDataManager {
    */
   isReady(): boolean {
     return this.isInitialized && this.state.connectionStatus === 'connected';
+  }
+
+  /**
+   * Set high-performance engine integration
+   */
+  setEnginePushData(pushData: (symbol: string, value: number, timestamp?: number) => void): void {
+    this.enginePushData = pushData;
+    console.log('[RealTimeDataManager] High-performance engine connected');
+  }
+
+  /**
+   * Public connect method for initializing data feeds
+   * This ensures single connection point and prevents racing
+   */
+  async connect(): Promise<boolean> {
+    return this.initialize();
   }
 }
 

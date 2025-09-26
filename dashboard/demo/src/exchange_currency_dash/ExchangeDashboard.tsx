@@ -9,7 +9,7 @@ import { useHighPerformanceEngine } from './hooks/useHighPerformanceEngine';
 import { HighPerformanceSparkline } from './components/HighPerformanceSparkline';
 import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
 import type { RotationItem } from './services/RotationScheduler';
-import coinbaseWebSocketService from './services/coinbaseWebSocketService';
+import realTimeDataManager from './services/realTimeDataManager';
 import './styles/sexymodal.css';
 
 // Lightweight error boundary to prevent blank page on runtime errors
@@ -515,39 +515,24 @@ export default function ExchangeDashboard(): React.ReactElement {
     }
   });
 
-  // Connect Coinbase WebSocket to High-Performance Engine
+  // Connect engine to centralized data manager
   useEffect(() => {
-    // Connect to Coinbase
-    coinbaseWebSocketService.connect().then(() => {
-      console.log('[Dashboard] Coinbase WebSocket connected');
-    }).catch(error => {
-      console.error('[Dashboard] Failed to connect to Coinbase:', error);
-    });
+    // Pass engine's pushData to realTimeDataManager for centralized data flow
+    const { pushData } = engine;
+    realTimeDataManager.setEnginePushData(pushData);
 
-    // Subscribe to crypto price updates and feed to engine
-    const cryptoSymbols = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD', 'ADA-USD'];
+    // Initialize data feeds through the centralized manager
+    // This prevents multiple components from fighting over WebSocket connections
+    realTimeDataManager.connect();
 
-    const unsubscribers = cryptoSymbols.map(symbol => {
-      return coinbaseWebSocketService.subscribePriceUpdates(symbol, (data) => {
-        // Convert symbol format (BTC-USD -> BTC)
-        const cleanSymbol = symbol.replace('-USD', '');
-
-        // Push price data to high-performance engine
-        engine.pushData(cleanSymbol, data.price, data.timestamp);
-
-        // Log significant price changes
-        if (Math.abs(data.changePercent24h) > 2) {
-          console.log(`[Signal] ${cleanSymbol} moved ${data.changePercent24h.toFixed(2)}%`);
-        }
-      });
-    });
+    // The realTimeDataManager will handle all data subscriptions internally
+    // avoiding the connection churn that was heating up the Mac
 
     return () => {
-      // Cleanup subscriptions
-      unsubscribers.forEach(unsub => unsub());
-      coinbaseWebSocketService.disconnect();
+      // Don't disconnect - let realTimeDataManager manage its own lifecycle
+      // This prevents premature disconnections when components re-render
     };
-  }, [engine]);
+  }, []); // Empty deps - run once
 
   // Keyboard shortcuts
   useEffect(() => {

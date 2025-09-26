@@ -31,95 +31,65 @@ const yieldRotationData: YieldDataPoint[] = [
 const YieldChart: React.FC = () => {
   const [view, setView] = useState<'intraday' | '1y'>('intraday');
   const [data, setData] = useState<Array<{ time: string; value: number }>>([]);
-  const [rotationIndex, setRotationIndex] = useState(0);
+  const [currentValue, setCurrentValue] = useState<number | null>(null);
 
-  // Current yield data based on rotation
-  const currentYield = yieldRotationData[rotationIndex];
+  // Subscribe to unified aggregator for Canada 30Y yield
+  useEffect(() => {
+    const symbol = 'CA-30Y-YIELD';
+    let unsubscribe: (() => void) | undefined;
 
-  const generateData = React.useCallback((mode: 'intraday' | '1y', baseValue: number, trend: string) => {
-    const now = new Date();
-    const points = mode === 'intraday' ? 90 : 240;
-    const base = baseValue / (currentYield.name.includes('Index') ? 20 : 1); // Scale index values for chart display
-    const arr: Array<{ time: string; value: number }> = [];
-
-    // Determine trend direction
-    const isPositive = trend.includes('+') || trend === 'UNCH';
-    const volatility = currentYield.name.includes('Index') ? 0.008 : 0.002; // Higher volatility for indices
-
-    for (let i = 0; i < points; i++) {
-      const t = new Date(
-        now.getTime() - (points - i) * (mode === 'intraday' ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000)
-      );
-
-      // Create realistic movement pattern based on instrument type
-      const progress = i / (points - 1);
-      let drift: number;
-
-      if (currentYield.name.includes('Index')) {
-        // Stock indices have more momentum-based movement
-        drift = Math.sin(progress * Math.PI * 0.5) * (isPositive ? 0.02 : -0.02) +
-                Math.sin(i / 12) * 0.01 + (Math.random() - 0.5) * volatility;
-      } else {
-        // Bond yields have smoother, more predictable movement
-        drift = Math.sin(i / 18) * 0.03 + (Math.random() - 0.5) * volatility;
-        if (!isPositive && trend !== 'UNCH') drift -= 0.005;
-        if (isPositive && trend !== 'UNCH') drift += 0.005;
-      }
-
-      const val = parseFloat((base + drift).toFixed(3));
-      arr.push({
-        time: mode === 'intraday'
-          ? t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : t.toLocaleDateString('en-CA', { month: 'short' }),
-        value: Math.max(0, val) // Ensure non-negative values
+    try {
+      // Lazy import to avoid circulars
+      const agg = require('../services/unifiedDataAggregator').default as typeof import('../services/unifiedDataAggregator').default;
+      unsubscribe = (agg as any).subscribe?.(symbol, (md: any) => {
+        const v = Number(md.priceCAD ?? md.price);
+        if (!Number.isFinite(v)) return;
+        const val = parseFloat(v.toFixed(3));
+        setCurrentValue(val);
+        setData(prev => {
+          const now = new Date();
+          const label = view === 'intraday'
+            ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : now.toLocaleDateString('en-CA', { month: 'short' });
+          const next = [...prev, { time: label, value: val }];
+          return next.length > 90 ? next.slice(-90) : next;
+        });
       });
+    } catch (e) {
+      // no-op; will rely on synthetic updates below
     }
-    return arr;
-  }, [rotationIndex, currentYield]);
 
-  // Rotation effect - every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setRotationIndex((prev) => (prev + 1) % yieldRotationData.length);
-    }, 30000); // 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      try { unsubscribe && unsubscribe(); } catch {}
+    };
+  }, [view]);
 
-  // Generate data when rotation changes
-  useEffect(() => {
-    setData(generateData(view, currentYield.value, currentYield.status));
-  }, [view, generateData, currentYield]);
-
-  // Live update every 3 seconds
+  // Synthetic gentle updates to keep chart moving if feed is slow
   useEffect(() => {
     const interval = setInterval(() => {
       setData(prev => {
         if (!prev.length) return prev;
         const last = prev[prev.length - 1];
-        const volatility = currentYield.name.includes('Index') ? 0.003 : 0.001;
-        const nextVal = parseFloat((last.value * (1 + (Math.random() - 0.5) * volatility)).toFixed(3));
+        const noise = (Math.random() - 0.5) * 0.01; // ±0.5 bps approx
+        const nextVal = Math.max(0, parseFloat((last.value * (1 + noise)).toFixed(3)));
         const now = new Date();
-        const nextLabel = view === 'intraday'
-          ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : now.toLocaleDateString('en-CA', { month: 'short' });
-        return [...prev.slice(1), { time: nextLabel, value: Math.max(0, nextVal) }];
+        const label = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return [...prev.slice(1), { time: label, value: nextVal }];
       });
     }, 3000);
     return () => clearInterval(interval);
-  }, [view, currentYield]);
+  }, []);
 
-  // Dynamic gradient based on current instrument
-  const gradientId = `yieldGradient-${rotationIndex}`;
-  const isIndex = currentYield.name.includes('Index');
+  const gradientId = `yieldGradient-live`;
 
   return (
     <div className="bg-black border transition-all duration-1000" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
       <div className="p-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider transition-all duration-500" style={{ color: '#00D4FF' }}>
-          {currentYield.name}
+        <h2 className="text-sm font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>
+          CAD 30-Year Yield
         </h2>
-        <p className="text-sm font-bold transition-all duration-500" style={{ color: currentYield.color }}>
-          {currentYield.value}{isIndex ? '' : '%'} {currentYield.status}
+        <p className="text-sm font-bold" style={{ color: '#FFB000' }}>
+          {currentValue !== null ? `${currentValue.toFixed(3)}%` : '—'}
         </p>
       </div>
       <div className="h-40 px-4 pb-4" style={{
@@ -129,54 +99,18 @@ const YieldChart: React.FC = () => {
           <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                {isIndex ? (
-                  // Stock index gradient (blue-green)
-                  <>
-                    <stop offset="0%" stopColor="#00D4FF" stopOpacity={0.8} />
-                    <stop offset="25%" stopColor="#0099CC" stopOpacity={0.6} />
-                    <stop offset="50%" stopColor="#006699" stopOpacity={0.4} />
-                    <stop offset="75%" stopColor="#003366" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#001133" stopOpacity={0.05} />
-                  </>
-                ) : (
-                  // Bond yield gradient (gold)
-                  <>
-                    <stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
-                    <stop offset="25%" stopColor="#FFB000" stopOpacity={0.6} />
-                    <stop offset="50%" stopColor="#FF8C00" stopOpacity={0.4} />
-                    <stop offset="75%" stopColor="#FF6B00" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#FF4500" stopOpacity={0.05} />
-                  </>
-                )}
+                <stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
+                <stop offset="25%" stopColor="#FFB000" stopOpacity={0.6} />
+                <stop offset="50%" stopColor="#FF8C00" stopOpacity={0.4} />
+                <stop offset="75%" stopColor="#FF6B00" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="#FF4500" stopOpacity={0.05} />
               </linearGradient>
             </defs>
-            <CartesianGrid
-              stroke="rgba(255, 255, 255, 0.05)"
-              strokeWidth={0.5}
-              vertical={false}
-              horizontal={true}
-              strokeDasharray="2 2"
-            />
+            <CartesianGrid stroke="rgba(255, 255, 255, 0.05)" strokeWidth={0.5} vertical={false} horizontal={true} strokeDasharray="2 2" />
             <XAxis dataKey="time" hide tick={{ fill: '#666', fontSize: 9 }} />
             <YAxis tick={{ fill: '#666', fontSize: 9 }} domain={[ (dataMin: number) => dataMin - 0.1, (dataMax: number) => dataMax + 0.1 ]} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'rgba(0, 8, 20, 0.98)',
-                border: '0.5px solid rgba(255, 215, 0, 0.3)',
-                borderRadius: '2px',
-                padding: '3px 6px'
-              }}
-              labelStyle={{ color: isIndex ? '#00D4FF' : '#FFD700', fontSize: 10 }}
-              itemStyle={{ color: currentYield.color, fontSize: 9 }}
-            />
-            <Area
-              type="monotoneX"
-              dataKey="value"
-              stroke={isIndex ? '#00D4FF' : '#FFD700'}
-              strokeWidth={1.2}
-              fill={`url(#${gradientId})`}
-              filter={`drop-shadow(0 0 2px ${isIndex ? 'rgba(0, 212, 255, 0.3)' : 'rgba(255, 215, 0, 0.3)'})`}
-            />
+            <Tooltip contentStyle={{ backgroundColor: 'rgba(0, 8, 20, 0.98)', border: '0.5px solid rgba(255, 215, 0, 0.3)', borderRadius: '2px', padding: '3px 6px' }} labelStyle={{ color: '#FFD700', fontSize: 10 }} itemStyle={{ color: '#FFB000', fontSize: 9 }} />
+            <Area type="monotoneX" dataKey="value" stroke="#FFD700" strokeWidth={1.2} fill={`url(#${gradientId})`} filter="drop-shadow(0 0 2px rgba(255, 215, 0, 0.3))" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -203,21 +137,21 @@ interface RealTimeCryptoCardProps {
  */
 const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }) => {
   const { price, trend, isAnimating } = useAnimatedPrice({
-    symbol: `${crypto.symbol}-USD`,
+    symbol: crypto.symbol, // symbols like 'BTC/CAD'
     enableAnimation: true,
     animationDuration: 800,
     smoothingFactor: 0.3
   });
 
   const isPositive = trend === 'up';
-  const displayPrice = price ? (price * 1.35).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : crypto.price;
+  const displayPrice = price ? price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : crypto.price;
 
   // Enhanced mini chart data with synchronized updates
   const [chartData, setChartData] = useState<Array<{ time: number; value: number }>>([]);
 
   // Generate initial chart data
   useEffect(() => {
-    const baseValue = price ? price * 1.35 : parseFloat(crypto.price.replace(/,/g, ''));
+    const baseValue = price ?? parseFloat(crypto.price.replace(/,/g, ''));
     const points = 12;
     const data = [];
 
@@ -277,7 +211,7 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
               color: '#FFA500',
               fontFamily: 'monospace'
             }}>
-              {crypto.symbol}/CAD
+              {crypto.symbol}
             </h3>
             <span className="text-xs" style={{ color: '#666' }}>{crypto.name}</span>
           </div>
@@ -361,12 +295,12 @@ export const RealTimeCryptoSection: React.FC = () => {
   const displayCryptos = useMemo(() => {
     if (cryptoData.length > 0) {
       return cryptoData.map(item => ({
-        symbol: item.name,
-        name: item.symbol.split('/')[0],
+        symbol: item.symbol, // keep full symbol like 'BTC/CAD'
+        name: (item as any).name || item.symbol.split('/')[0],
         price: item.value,
-        change: parseFloat(item.change),
+        change: parseFloat(String(item.change)),
         trend: item.trend,
-        realTimePrice: parseFloat(item.value.replace(/,/g, ''))
+        realTimePrice: parseFloat(String(item.value).replace(/,/g, ''))
       }));
     }
     return staticCryptos;

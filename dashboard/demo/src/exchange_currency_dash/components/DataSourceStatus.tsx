@@ -27,7 +27,8 @@ const SOURCE_DISPLAY_NAMES: Record<string, string> = {
   twelvedata: 'TwelveData (Commodities)',
   alpaca: 'Alpaca (US Markets)',
   polygon: 'Polygon (Backup)',
-  finnhub: 'Finnhub (Fallback)'
+  finnhub: 'Finnhub (Fallback)',
+  bankofcanada: 'Bank of Canada (Yields)'
 };
 
 const DataSourceStatus: React.FC = () => {

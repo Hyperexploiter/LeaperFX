@@ -650,6 +650,21 @@ export const INDEX_INSTRUMENTS: InstrumentDefinition[] = [
     tradeable: false,
     showInDashboard: true,
     metadata: { exchange: 'NASDAQ', country: 'US' }
+  },
+  {
+    symbol: 'CA-30Y-YIELD',
+    wsSymbol: 'CA_30Y',
+    name: 'Canada 30-Year Government Bond Yield',
+    category: 'index',
+    subCategory: 'bond_yield',
+    baseCurrency: 'CAD',
+    quoteCurrency: 'CAD',
+    dataSource: 'bankofcanada',
+    updateFrequency: 60000,
+    priority: 'high',
+    tradeable: false,
+    showInDashboard: true,
+    metadata: { unit: 'percent', decimals: 3 }
   }
 ];
 

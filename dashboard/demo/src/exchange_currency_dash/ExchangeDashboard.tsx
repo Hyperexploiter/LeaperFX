@@ -790,12 +790,15 @@ export default function ExchangeDashboard(): React.ReactElement {
   return (
     <LocalErrorBoundary>
     <div className="h-screen bg-black text-gray-100 font-sans overflow-hidden">
-      {/* Data source health badge */}
-      <div className="fixed top-2 right-2 z-50">
-        <DataSourceStatus />
-      </div>
       <div className="h-screen flex flex-col min-h-0">
         <main className="flex-1 flex flex-col px-2 py-2 overflow-hidden">
+          {/* Header row with connection + data source status */}
+          <div className="flex items-center justify-between mb-2">
+            <ConnectionStatus isConnected={isConnected} health={health} error={marketError} />
+            <div className="ml-2">
+              <DataSourceStatus />
+            </div>
+          </div>
           {isLoading && <div className="flex justify-center items-center p-10 bg-gray-900 rounded-lg shadow-md"><Loader className="h-12 w-12 mr-4 animate-spin text-cyan-400" /><span className="text-lg text-white">Loading rates...</span></div>}
           {error && !isLoading && <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 p-4 rounded-lg shadow-md flex items-center" role="alert"><AlertTriangle className="h-6 w-6 mr-3" /><div><p className="font-bold">Error:</p><p>{error}</p></div></div>}
           

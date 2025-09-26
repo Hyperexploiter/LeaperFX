@@ -448,76 +448,106 @@ class UnifiedDataAggregator {
           rawPrice = rawPrice * cf;
         }
       } else if (instrument.category === 'index') {
-        // Try Alpaca first for US stocks/indices represented as tickers
-        const alpacaKey = this.getEnv('VITE_ALPACA_KEY_ID') || this.getEnv('VITE_ALPACA_KEY');
-        const alpacaSecret = this.getEnv('VITE_ALPACA_SECRET_KEY') || this.getEnv('VITE_ALPACA_SECRET');
-        let gotReal = false;
-        if (!alpacaKey || !alpacaSecret) {
-          this.handleDataSourceError('alpaca');
-        }
-        try {
-          const symbol = instrument.wsSymbol || instrument.symbol.replace('/CAD', '');
-          if (alpacaKey && alpacaSecret && symbol) {
-            const url = `${this.API_ENDPOINTS.alpaca}/stocks/${encodeURIComponent(symbol)}/quotes/latest`;
-            const res = await fetch(url, {
-              headers: {
-                'apca-api-key-id': alpacaKey,
-                'apca-api-secret-key': alpacaSecret
-              }
-            });
+        // Special handling for Canadian bond yields
+        if (instrument.subCategory === 'bond_yield') {
+          try {
+            // Bank of Canada Valet API: group bond_yields latest observation
+            const url = `https://www.bankofcanada.ca/valet/observations/group/bond_yields?recent=1`;
+            const res = await fetch(url);
             if (res.ok) {
               const json = await res.json();
-              const ap = parseFloat(json?.quote?.ap ?? json?.ap ?? '0');
-              const bp = parseFloat(json?.quote?.bp ?? json?.bp ?? '0');
-              const mid = (Number.isFinite(ap) && Number.isFinite(bp) && (ap > 0 || bp > 0)) ? ((ap || bp) + (bp || ap)) / 2 : 0;
-              if (mid > 0) {
-                rawPrice = mid; // likely USD
-                this.updateSourceStatus('alpaca', 'healthy');
-                gotReal = true;
+              const obs = json?.observations?.[0] || {};
+              // Try common keys; otherwise pick first numeric value
+              const candidateKeys = Object.keys(obs).filter(k => k !== 'd');
+              let val: number | null = null;
+              for (const k of candidateKeys) {
+                const v = parseFloat(obs[k]?.v ?? obs[k]);
+                if (Number.isFinite(v)) { val = v; break; }
+              }
+              if (val !== null) {
+                rawPrice = val; // already percentage
+                this.updateSourceStatus('bankofcanada', 'healthy');
+              } else {
+                this.handleDataSourceError('bankofcanada');
+              }
+            } else {
+              this.handleDataSourceError('bankofcanada');
+            }
+          } catch {
+            this.handleDataSourceError('bankofcanada');
+          }
+        } else {
+          // Try Alpaca first for US stocks/indices represented as tickers
+          const alpacaKey = this.getEnv('VITE_ALPACA_KEY_ID') || this.getEnv('VITE_ALPACA_KEY');
+          const alpacaSecret = this.getEnv('VITE_ALPACA_SECRET_KEY') || this.getEnv('VITE_ALPACA_SECRET');
+          let gotReal = false;
+          if (!alpacaKey || !alpacaSecret) {
+            this.handleDataSourceError('alpaca');
+          }
+          try {
+            const symbol = instrument.wsSymbol || instrument.symbol.replace('/CAD', '');
+            if (alpacaKey && alpacaSecret && symbol) {
+              const url = `${this.API_ENDPOINTS.alpaca}/stocks/${encodeURIComponent(symbol)}/quotes/latest`;
+              const res = await fetch(url, {
+                headers: {
+                  'apca-api-key-id': alpacaKey,
+                  'apca-api-secret-key': alpacaSecret
+                }
+              });
+              if (res.ok) {
+                const json = await res.json();
+                const ap = parseFloat(json?.quote?.ap ?? json?.ap ?? '0');
+                const bp = parseFloat(json?.quote?.bp ?? json?.bp ?? '0');
+                const mid = (Number.isFinite(ap) && Number.isFinite(bp) && (ap > 0 || bp > 0)) ? ((ap || bp) + (bp || ap)) / 2 : 0;
+                if (mid > 0) {
+                  rawPrice = mid; // likely USD
+                  this.updateSourceStatus('alpaca', 'healthy');
+                  gotReal = true;
+                } else {
+                  this.handleDataSourceError('alpaca');
+                }
               } else {
                 this.handleDataSourceError('alpaca');
               }
-            } else {
-              this.handleDataSourceError('alpaca');
             }
+          } catch {
+            this.handleDataSourceError('alpaca');
           }
-        } catch {
-          this.handleDataSourceError('alpaca');
-        }
 
-        // Fallback to Polygon last trade if available
-        if (!gotReal) {
-          const polygonKey = this.getEnv('VITE_POLYGON_KEY');
-          if (polygonKey) {
-            try {
-              const symbol = (instrument.wsSymbol || instrument.symbol.replace('/CAD', '')).toUpperCase();
-              const url = `${this.API_ENDPOINTS.polygon}/v2/last/trade/${encodeURIComponent(symbol)}?apiKey=${polygonKey}`;
-              const res = await fetch(url);
-              if (res.ok) {
-                const json = await res.json();
-                const price = parseFloat(json?.results?.p ?? json?.price ?? '0');
-                if (Number.isFinite(price) && price > 0) {
-                  rawPrice = price;
-                  this.updateSourceStatus('polygon', 'healthy');
-                  gotReal = true;
+          // Fallback to Polygon last trade if available
+          if (!gotReal) {
+            const polygonKey = this.getEnv('VITE_POLYGON_KEY');
+            if (polygonKey) {
+              try {
+                const symbol = (instrument.wsSymbol || instrument.symbol.replace('/CAD', '')).toUpperCase();
+                const url = `${this.API_ENDPOINTS.polygon}/v2/last/trade/${encodeURIComponent(symbol)}?apiKey=${polygonKey}`;
+                const res = await fetch(url);
+                if (res.ok) {
+                  const json = await res.json();
+                  const price = parseFloat(json?.results?.p ?? json?.price ?? '0');
+                  if (Number.isFinite(price) && price > 0) {
+                    rawPrice = price;
+                    this.updateSourceStatus('polygon', 'healthy');
+                    gotReal = true;
+                  } else {
+                    this.handleDataSourceError('polygon');
+                  }
                 } else {
                   this.handleDataSourceError('polygon');
                 }
-              } else {
+              } catch {
                 this.handleDataSourceError('polygon');
               }
-            } catch {
-              this.handleDataSourceError('polygon');
             }
           }
-        }
 
-        if (!rawPrice) {
-          const mock = this.generateMockData(instrument);
-          rawPrice = mock.price;
-          change24h = mock.change24h;
-          changePercent24h = mock.changePercent24h;
-          volume24h = mock.volume24h;
+          if (!rawPrice) {
+            const mock = this.generateMockData(instrument);
+            rawPrice = mock.price;
+            change24h = mock.change24h;
+            changePercent24h = mock.changePercent24h;
+            volume24h = mock.volume24h;
+          }
         }
       } else {
         // Default mock

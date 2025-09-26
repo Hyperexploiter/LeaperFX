@@ -8,79 +8,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, CartesianGrid, Tooltip } from 'recharts';
 import { useCryptoData, useAnimatedPrice } from '../hooks/useRealTimeData';
-import { Loader, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Loader, AlertTriangle } from 'lucide-react';
+import unifiedDataAggregator, { MarketDataPoint } from '../services/unifiedDataAggregator';
 
-// CAD Yield Data Configuration
-interface YieldDataPoint {
-  name: string;
-  value: number;
-  status: string;
-  color: string;
-}
-
-const yieldRotationData: YieldDataPoint[] = [
-  { name: 'CAD 30-Year Yield', value: 4.96, status: 'UNCH', color: '#FFB000' },
-  { name: 'CAD 10-Year Yield', value: 3.82, status: '+0.02', color: '#00FF88' },
-  { name: 'CAD 5-Year Yield', value: 3.45, status: '-0.01', color: '#FF4444' },
-  { name: 'CAD 2-Year Yield', value: 3.12, status: '+0.03', color: '#00FF88' },
-  { name: 'TSX 60 Index', value: 85, status: '+0.85%', color: '#00FF88' },
-  { name: 'S&P/TSX Composite', value: 120, status: '+1.2%', color: '#00FF88' }
-];
-
-// Dynamic YieldChart Component with 30s rotation
-const YieldChart: React.FC = () => {
-  const [view, setView] = useState<'intraday' | '1y'>('intraday');
-  const [data, setData] = useState<Array<{ time: string; value: number }>>([]);
-  const [currentValue, setCurrentValue] = useState<number | null>(null);
-
-  // Subscribe to unified aggregator for Canada 30Y yield
-  useEffect(() => {
-    const symbol = 'CA-30Y-YIELD';
-    let unsubscribe: (() => void) | undefined;
-
-    try {
-      // Lazy import to avoid circulars
-      const agg = require('../services/unifiedDataAggregator').default as typeof import('../services/unifiedDataAggregator').default;
-      unsubscribe = (agg as any).subscribe?.(symbol, (md: any) => {
-        const v = Number(md.priceCAD ?? md.price);
-        if (!Number.isFinite(v)) return;
-        const val = parseFloat(v.toFixed(3));
-        setCurrentValue(val);
-        setData(prev => {
-          const now = new Date();
-          const label = view === 'intraday'
-            ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            : now.toLocaleDateString('en-CA', { month: 'short' });
-          const next = [...prev, { time: label, value: val }];
-          return next.length > 90 ? next.slice(-90) : next;
-        });
-      });
-    } catch (e) {
-      // no-op; will rely on synthetic updates below
-    }
-
-    return () => {
-      try { unsubscribe && unsubscribe(); } catch {}
-    };
-  }, [view]);
-
-  // Synthetic gentle updates to keep chart moving if feed is slow
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setData(prev => {
-        if (!prev.length) return prev;
-        const last = prev[prev.length - 1];
-        const noise = (Math.random() - 0.5) * 0.01; // ±0.5 bps approx
-        const nextVal = Math.max(0, parseFloat((last.value * (1 + noise)).toFixed(3)));
-        const now = new Date();
-        const label = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        return [...prev.slice(1), { time: label, value: nextVal }];
-      });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const gradientId = `yieldGradient-live`;
+// Dynamic YieldChart Component backed by live aggregator data
+const YieldChart: React.FC<{ history: Array<{ time: string; value: number }>; current: MarketDataPoint | null }> = ({ history, current }) => {
+  const gradientId = 'yieldGradient-live';
+  const fallbackValue = current ? current.priceCAD : 4.5;
+  const chartData = history.length ? history : Array.from({ length: 30 }, (_, idx) => ({
+    time: `${idx}`,
+    value: fallbackValue
+  }));
 
   return (
     <div className="bg-black border transition-all duration-1000" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
@@ -89,14 +27,14 @@ const YieldChart: React.FC = () => {
           CAD 30-Year Yield
         </h2>
         <p className="text-sm font-bold" style={{ color: '#FFB000' }}>
-          {currentValue !== null ? `${currentValue.toFixed(3)}%` : '—'}
+          {current ? `${current.priceCAD.toFixed(3)}%` : '—'}
         </p>
       </div>
       <div className="h-40 px-4 pb-4" style={{
         background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)'
       }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
@@ -124,7 +62,6 @@ interface CryptoItem {
   price: string;
   change: number;
   trend: 'up' | 'down';
-  realTimePrice?: number;
 }
 
 interface RealTimeCryptoCardProps {
@@ -144,7 +81,8 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
   });
 
   const isPositive = trend === 'up';
-  const displayPrice = price ? price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : crypto.price;
+  const displayPrice = price ? price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : crypto.price;
+  const changeDisplay = Number.isFinite(crypto.change) ? `${Math.abs(crypto.change).toFixed(2)}%` : '—';
 
   // Enhanced mini chart data with synchronized updates
   const [chartData, setChartData] = useState<Array<{ time: number; value: number }>>([]);
@@ -222,6 +160,7 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
             }`}>
               {displayPrice}
             </span>
+            <span className="ml-1 text-xs text-gray-500">CAD</span>
             {isAnimating && (
               <span className="ml-2 text-xs text-blue-400 animate-pulse">●</span>
             )}
@@ -260,8 +199,8 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
           <div className="font-bold text-lg flex items-center justify-end" style={{
             color: isPositive ? '#00FF88' : '#FF4444'
           }}>
-            <span className="mr-1">{isPositive ? '▲' : '▼'}</span>
-            {Math.abs(crypto.change).toFixed(2)}%
+            {Number.isFinite(crypto.change) && <span className="mr-1">{isPositive ? '▲' : '▼'}</span>}
+            {changeDisplay}
           </div>
           <div className="text-xs" style={{ color: '#666' }}>24h</div>
         </div>
@@ -276,35 +215,57 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
 export const RealTimeCryptoSection: React.FC = () => {
   const { cryptoData, isLoading, error, refresh } = useCryptoData();
   const [rotationIndex, setRotationIndex] = useState(0);
+  const [bondPoint, setBondPoint] = useState<MarketDataPoint | null>(null);
+  const [bondHistory, setBondHistory] = useState<Array<{ time: string; value: number }>>([]);
 
   // Static crypto data as fallback
   const staticCryptos: CryptoItem[] = useMemo(() => [
-    { symbol: 'BTC', name: 'Bitcoin', price: '86,420', change: -1.42, trend: 'down' },
-    { symbol: 'ETH', name: 'Ethereum', price: '3,580', change: 2.43, trend: 'up' },
-    { symbol: 'SOL', name: 'Solana', price: '142.85', change: 5.21, trend: 'up' },
-    { symbol: 'AVAX', name: 'Avalanche', price: '51.30', change: -0.85, trend: 'down' },
-    { symbol: 'MATIC', name: 'Polygon', price: '0.872', change: 3.15, trend: 'up' },
-    { symbol: 'ADA', name: 'Cardano', price: '0.512', change: -2.14, trend: 'down' },
-    { symbol: 'DOT', name: 'Polkadot', price: '8.94', change: 1.28, trend: 'up' },
-    { symbol: 'LINK', name: 'Chainlink', price: '18.65', change: -0.42, trend: 'down' },
-    { symbol: 'UNI', name: 'Uniswap', price: '10.28', change: 2.95, trend: 'up' },
-    { symbol: 'XRP', name: 'Ripple', price: '0.689', change: -1.18, trend: 'down' }
+    { symbol: 'BTC/CAD', name: 'Bitcoin', price: '86,420', change: -1.42, trend: 'down' },
+    { symbol: 'ETH/CAD', name: 'Ethereum', price: '3,580', change: 2.43, trend: 'up' },
+    { symbol: 'SOL/CAD', name: 'Solana', price: '142.85', change: 5.21, trend: 'up' },
+    { symbol: 'AVAX/CAD', name: 'Avalanche', price: '51.30', change: -0.85, trend: 'down' },
+    { symbol: 'MATIC/CAD', name: 'Polygon', price: '0.872', change: 3.15, trend: 'up' },
+    { symbol: 'ADA/CAD', name: 'Cardano', price: '0.512', change: -2.14, trend: 'down' },
+    { symbol: 'DOT/CAD', name: 'Polkadot', price: '8.94', change: 1.28, trend: 'up' },
+    { symbol: 'LINK/CAD', name: 'Chainlink', price: '18.65', change: -0.42, trend: 'down' },
+    { symbol: 'UNI/CAD', name: 'Uniswap', price: '10.28', change: 2.95, trend: 'up' },
+    { symbol: 'XRP/CAD', name: 'Ripple', price: '0.689', change: -1.18, trend: 'down' }
   ], []);
 
   // Merge real-time data with static data
   const displayCryptos = useMemo(() => {
     if (cryptoData.length > 0) {
       return cryptoData.map(item => ({
-        symbol: item.symbol, // keep full symbol like 'BTC/CAD'
-        name: (item as any).name || item.symbol.split('/')[0],
+        symbol: item.symbol,
+        name: item.name,
         price: item.value,
         change: parseFloat(String(item.change)),
-        trend: item.trend,
-        realTimePrice: parseFloat(String(item.value).replace(/,/g, ''))
+        trend: item.trend as 'up' | 'down'
       }));
     }
     return staticCryptos;
   }, [cryptoData, staticCryptos]);
+
+  // Subscribe to bond yield data for the CAD 30Y panel
+  useEffect(() => {
+    const unsubscribe = unifiedDataAggregator.subscribe('CA-30Y-YIELD', (md) => {
+      setBondPoint(md);
+      const rawValue = typeof md.priceCAD === 'number' ? md.priceCAD : md.price;
+      if (!Number.isFinite(rawValue)) {
+        return;
+      }
+      const rounded = Number(rawValue.toFixed(3));
+      setBondHistory(prev => {
+        const label = new Date(md.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const next = [...prev, { time: label, value: rounded }];
+        return next.length > 180 ? next.slice(-180) : next;
+      });
+    });
+
+    return () => {
+      try { unsubscribe && unsubscribe(); } catch {}
+    };
+  }, []);
 
   // Rotation logic for displaying 5 cryptos at a time
   useEffect(() => {
@@ -395,7 +356,7 @@ export const RealTimeCryptoSection: React.FC = () => {
 
       {/* CAD Yield Chart - Properly separated from crypto section */}
       <div className="mt-20 flex-shrink-0">
-        <YieldChart />
+        <YieldChart history={bondHistory} current={bondPoint} />
       </div>
     </div>
   );

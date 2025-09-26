@@ -9,7 +9,7 @@ import coinbaseWebSocketService from './coinbaseWebSocketService';
 import realTimeDataManager from './realTimeDataManager';
 import { fetchLatestRates } from '../../services/exchangeRateService';
 
-interface MarketDataPoint {
+export interface MarketDataPoint {
   symbol: string;
   price: number;
   priceCAD: number;
@@ -309,6 +309,7 @@ class UnifiedDataAggregator {
 
     // Placeholder for indices connection
     this.updateSourceStatus('alpaca', 'healthy');
+    this.updateSourceStatus('bankofcanada', 'degraded');
 
     // Start polling for index data
     const indexInstruments = this.getInstrumentsByCategory('index');
@@ -457,15 +458,21 @@ class UnifiedDataAggregator {
             if (res.ok) {
               const json = await res.json();
               const obs = json?.observations?.[0] || {};
-              // Try common keys; otherwise pick first numeric value
-              const candidateKeys = Object.keys(obs).filter(k => k !== 'd');
-              let val: number | null = null;
-              for (const k of candidateKeys) {
-                const v = parseFloat(obs[k]?.v ?? obs[k]);
-                if (Number.isFinite(v)) { val = v; break; }
+              const seriesKey = instrument.metadata?.series;
+              let val: number | undefined;
+              if (seriesKey && obs[seriesKey]) {
+                val = parseFloat(obs[seriesKey]?.v ?? obs[seriesKey]);
               }
-              if (val !== null) {
-                rawPrice = val; // already percentage
+              if (!(typeof val === 'number' && Number.isFinite(val))) {
+                // Try common keys; otherwise pick first numeric value
+                const candidateKeys = Object.keys(obs).filter(k => k !== 'd');
+                for (const k of candidateKeys) {
+                  const v = parseFloat(obs[k]?.v ?? obs[k]);
+                  if (Number.isFinite(v)) { val = v; break; }
+                }
+              }
+              if (typeof val === 'number' && Number.isFinite(val)) {
+                rawPrice = val;
                 this.updateSourceStatus('bankofcanada', 'healthy');
               } else {
                 this.handleDataSourceError('bankofcanada');

@@ -531,6 +531,8 @@ export default function ExchangeDashboard(): React.ReactElement {
 
     return () => {
       try { unsubscribe?.(); } catch {}
+      // Ensure background schedulers and provider timers are stopped when unmounting
+      try { unifiedDataAggregator.shutdown(); } catch {}
     };
   }, [engine.pushData]);
 

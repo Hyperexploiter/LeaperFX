@@ -116,8 +116,6 @@ class UnifiedDataAggregator {
       // 6. Start update schedulers
       this.startUpdateSchedulers();
 
-      // 7. Connect to realTimeDataManager
-      this.connectToRealTimeDataManager();
 
       this.isInitialized = true;
       console.log('[UnifiedDataAggregator] Initialized successfully');
@@ -451,8 +449,8 @@ class UnifiedDataAggregator {
         }
       } else if (instrument.category === 'index') {
         // Try Alpaca first for US stocks/indices represented as tickers
-        const alpacaKey = this.getEnv('VITE_ALPACA_KEY_ID');
-        const alpacaSecret = this.getEnv('VITE_ALPACA_SECRET_KEY');
+        const alpacaKey = this.getEnv('VITE_ALPACA_KEY_ID') || this.getEnv('VITE_ALPACA_KEY');
+        const alpacaSecret = this.getEnv('VITE_ALPACA_SECRET_KEY') || this.getEnv('VITE_ALPACA_SECRET');
         let gotReal = false;
         if (!alpacaKey || !alpacaSecret) {
           this.handleDataSourceError('alpaca');

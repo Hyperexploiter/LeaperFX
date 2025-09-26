@@ -349,7 +349,14 @@ const DynamicBulletin: React.FC = () => {
             </p>
           </div>
 
-          <span className="text-xs ml-auto" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>
+          {/* Triangle separator right */}
+          <div className="flex items-center">
+            <svg width="12" height="20" viewBox="0 0 12 20" className="mx-2">
+              <path d="M0 0 L12 10 L0 20 Z" fill="#FFA500" opacity="0.4"/>
+            </svg>
+          </div>
+
+          <span className="text-xs" style={{ color: '#00D4FF', fontFamily: 'monospace' }}>
             {getCurrentTime()}
           </span>
         </div>

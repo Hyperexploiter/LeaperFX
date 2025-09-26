@@ -519,22 +519,20 @@ export default function ExchangeDashboard(): React.ReactElement {
 
   // Connect engine to centralized data manager
   useEffect(() => {
-    // Pass engine's pushData to realTimeDataManager for centralized data flow
-    const { pushData } = engine;
-    realTimeDataManager.setEnginePushData(pushData);
+    // Use stable pushData reference to avoid re-subscribing
+    const pushData = engine.pushData;
 
-    // Initialize data feeds through the centralized manager
+    // Initialize UI data feeds via realTimeDataManager (no engine push)
     realTimeDataManager.connect();
 
-    // Also initialize the unified aggregator and connect it to the engine
-    // The aggregator will consolidate API feeds and push CAD-adjusted values
-    unifiedDataAggregator.setEnginePushFunction(pushData);
+    // Initialize unified aggregator and connect it to the engine as the single producer
+    const unsubscribe = unifiedDataAggregator.setEnginePushFunction(pushData);
     unifiedDataAggregator.initialize().catch(err => console.error('Aggregator init failed', err));
 
     return () => {
-      // Lifecycle managed by services
+      try { unsubscribe?.(); } catch {}
     };
-  }, [engine]);
+  }, [engine.pushData]);
 
   // Keyboard shortcuts
   useEffect(() => {

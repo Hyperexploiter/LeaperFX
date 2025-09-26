@@ -59,19 +59,34 @@ class UnifiedDataAggregator {
   private wsConnections: Map<string, WebSocket> = new Map();
 
   // API endpoints (to be moved to .env in production)
-  private readonly API_ENDPOINTS = {
-    fxapi: process.env.VITE_FXAPI_URL || 'https://api.fxapi.com/v1',
-    twelvedata: process.env.VITE_TWELVEDATA_URL || 'https://api.twelvedata.com/v1',
-    alpaca: process.env.VITE_ALPACA_URL || 'https://data.alpaca.markets/v2',
-    polygon: process.env.VITE_POLYGON_URL || 'https://api.polygon.io/v2',
-    finnhub: process.env.VITE_FINNHUB_URL || 'https://finnhub.io/api/v1'
-  };
+  private API_ENDPOINTS!: { fxapi: string; twelvedata: string; alpaca: string; polygon: string; finnhub: string; };
 
   constructor() {
+    // Initialize API endpoints from environment (Vite first), with sensible defaults
+    this.API_ENDPOINTS = {
+      fxapi: this.getEnv('VITE_FXAPI_URL') || 'https://api.fxapi.com/v1',
+      twelvedata: this.getEnv('VITE_TWELVEDATA_URL') || 'https://api.twelvedata.com',
+      alpaca: this.getEnv('VITE_ALPACA_URL') || 'https://data.alpaca.markets/v2',
+      polygon: this.getEnv('VITE_POLYGON_URL') || 'https://api.polygon.io',
+      finnhub: this.getEnv('VITE_FINNHUB_URL') || 'https://finnhub.io/api/v1'
+    };
+
     // Load instruments into map for quick lookup
     INSTRUMENT_CATALOG.forEach(instrument => {
       this.instruments.set(instrument.symbol, instrument);
     });
+  }
+
+  // Resolve env with Vite (import.meta.env) first, then window.__ENV__, then process.env
+  private getEnv(key: string): string | undefined {
+    try {
+      const viteEnv = (typeof import.meta !== 'undefined') ? (import.meta as any).env : undefined;
+      const win: any = (typeof window !== 'undefined') ? (window as any) : {};
+      const nodeEnv: any = (typeof process !== 'undefined') ? (process as any).env : undefined;
+      return (viteEnv && viteEnv[key]) || (win.__ENV__ && win.__ENV__[key]) || (nodeEnv && nodeEnv[key]);
+    } catch {
+      return undefined;
+    }
   }
 
   /**
@@ -380,10 +395,15 @@ class UnifiedDataAggregator {
         this.updateSourceStatus('fxapi', 'healthy');
       } else if (instrument.category === 'commodity') {
         // Try TwelveData (price in USD)
-        const apiKey = (process as any).env?.VITE_TWELVEDATA_KEY || (window as any)?.__ENV__?.VITE_TWELVEDATA_KEY;
+        const apiKey = this.getEnv('VITE_TWELVEDATA_KEY');
+        if (!apiKey) {
+          // No key present: mark provider error so the status widget reflects reality
+          this.handleDataSourceError('twelvedata');
+        }
         if (apiKey && instrument.wsSymbol) {
+          const symbol = /USD$/.test(instrument.wsSymbol) ? instrument.wsSymbol.replace('USD', '/USD') : instrument.wsSymbol;
           try {
-            const symbol = /USD$/.test(instrument.wsSymbol) ? instrument.wsSymbol.replace('USD', '/USD') : instrument.wsSymbol;
+            // First, try the simple price endpoint
             const url = `${this.API_ENDPOINTS.twelvedata}/price?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`;
             const res = await fetch(url);
             if (res.ok) {
@@ -392,10 +412,28 @@ class UnifiedDataAggregator {
               if (Number.isFinite(priceUSD) && priceUSD > 0) {
                 rawPrice = priceUSD;
                 this.updateSourceStatus('twelvedata', 'healthy');
+              } else {
+                this.handleDataSourceError('twelvedata');
+              }
+            } else {
+              // Try time_series as a fallback
+              this.handleDataSourceError('twelvedata');
+              const tsUrl = `${this.API_ENDPOINTS.twelvedata}/time_series?symbol=${encodeURIComponent(symbol)}&interval=1min&outputsize=1&apikey=${apiKey}`;
+              const tsRes = await fetch(tsUrl);
+              if (tsRes.ok) {
+                const tsJson = await tsRes.json();
+                const close = parseFloat(tsJson?.values?.[0]?.close ?? tsJson?.data?.[0]?.close ?? '0');
+                if (Number.isFinite(close) && close > 0) {
+                  rawPrice = close;
+                  this.updateSourceStatus('twelvedata', 'healthy');
+                } else {
+                  this.handleDataSourceError('twelvedata');
+                }
               }
             }
           } catch (e) {
-            // fall back to mock
+            // Mark degraded on exception
+            this.handleDataSourceError('twelvedata');
           }
         }
         if (!rawPrice) {
@@ -412,13 +450,77 @@ class UnifiedDataAggregator {
           rawPrice = rawPrice * cf;
         }
       } else if (instrument.category === 'index') {
-        // Placeholder: try Alpaca/Polygon when keys exist; use mock for now
-        const mock = this.generateMockData(instrument);
-        rawPrice = mock.price;
-        change24h = mock.change24h;
-        changePercent24h = mock.changePercent24h;
-        volume24h = mock.volume24h;
-        this.updateSourceStatus('alpaca', 'healthy');
+        // Try Alpaca first for US stocks/indices represented as tickers
+        const alpacaKey = this.getEnv('VITE_ALPACA_KEY_ID');
+        const alpacaSecret = this.getEnv('VITE_ALPACA_SECRET_KEY');
+        let gotReal = false;
+        if (!alpacaKey || !alpacaSecret) {
+          this.handleDataSourceError('alpaca');
+        }
+        try {
+          const symbol = instrument.wsSymbol || instrument.symbol.replace('/CAD', '');
+          if (alpacaKey && alpacaSecret && symbol) {
+            const url = `${this.API_ENDPOINTS.alpaca}/stocks/${encodeURIComponent(symbol)}/quotes/latest`;
+            const res = await fetch(url, {
+              headers: {
+                'apca-api-key-id': alpacaKey,
+                'apca-api-secret-key': alpacaSecret
+              }
+            });
+            if (res.ok) {
+              const json = await res.json();
+              const ap = parseFloat(json?.quote?.ap ?? json?.ap ?? '0');
+              const bp = parseFloat(json?.quote?.bp ?? json?.bp ?? '0');
+              const mid = (Number.isFinite(ap) && Number.isFinite(bp) && (ap > 0 || bp > 0)) ? ((ap || bp) + (bp || ap)) / 2 : 0;
+              if (mid > 0) {
+                rawPrice = mid; // likely USD
+                this.updateSourceStatus('alpaca', 'healthy');
+                gotReal = true;
+              } else {
+                this.handleDataSourceError('alpaca');
+              }
+            } else {
+              this.handleDataSourceError('alpaca');
+            }
+          }
+        } catch {
+          this.handleDataSourceError('alpaca');
+        }
+
+        // Fallback to Polygon last trade if available
+        if (!gotReal) {
+          const polygonKey = this.getEnv('VITE_POLYGON_KEY');
+          if (polygonKey) {
+            try {
+              const symbol = (instrument.wsSymbol || instrument.symbol.replace('/CAD', '')).toUpperCase();
+              const url = `${this.API_ENDPOINTS.polygon}/v2/last/trade/${encodeURIComponent(symbol)}?apiKey=${polygonKey}`;
+              const res = await fetch(url);
+              if (res.ok) {
+                const json = await res.json();
+                const price = parseFloat(json?.results?.p ?? json?.price ?? '0');
+                if (Number.isFinite(price) && price > 0) {
+                  rawPrice = price;
+                  this.updateSourceStatus('polygon', 'healthy');
+                  gotReal = true;
+                } else {
+                  this.handleDataSourceError('polygon');
+                }
+              } else {
+                this.handleDataSourceError('polygon');
+              }
+            } catch {
+              this.handleDataSourceError('polygon');
+            }
+          }
+        }
+
+        if (!rawPrice) {
+          const mock = this.generateMockData(instrument);
+          rawPrice = mock.price;
+          change24h = mock.change24h;
+          changePercent24h = mock.changePercent24h;
+          volume24h = mock.volume24h;
+        }
       } else {
         // Default mock
         const mock = this.generateMockData(instrument);
@@ -429,7 +531,21 @@ class UnifiedDataAggregator {
       }
 
       // Convert to CAD
-      const priceCAD = this.convertToCAD(rawPrice, instrument.baseCurrency, instrument.category);
+      let priceCAD = this.convertToCAD(rawPrice, instrument.baseCurrency, instrument.category);
+
+      // Apply unit rounding rules for commodities before display
+      if (instrument.category === 'commodity') {
+        let decimals: number | undefined = instrument.metadata?.roundingDecimals;
+        if (typeof decimals !== 'number') {
+          const unit = (instrument.metadata?.unit || '').toLowerCase();
+          if (unit === 'gram' || unit === 'g') decimals = 2;
+          else if (unit === 'kg' || unit === 'kilogram') decimals = 0;
+          else if (unit === 'oz_t' || unit === 'ounce' || unit === 'oz') decimals = 2;
+        }
+        if (typeof decimals === 'number' && isFinite(decimals)) {
+          priceCAD = parseFloat(priceCAD.toFixed(decimals));
+        }
+      }
 
       const marketData: MarketDataPoint = {
         symbol: instrument.symbol,
@@ -635,11 +751,12 @@ class UnifiedDataAggregator {
   /**
    * Set engine push function for direct data flow
    */
-  setEnginePushFunction(pushData: (symbol: string, value: number, timestamp?: number) => void): void {
+  setEnginePushFunction(pushData: (symbol: string, value: number, timestamp?: number) => void): () => void {
     // Direct push to engine, bypassing realTimeDataManager if needed
+    const unsubs: Array<() => void> = [];
     INSTRUMENT_CATALOG.forEach(instrument => {
       if (instrument.showInDashboard) {
-        this.subscribe(instrument.symbol, (data) => {
+        const unsub = this.subscribe(instrument.symbol, (data) => {
           const engineSymbol = instrument.symbol
             .replace('/CAD', '')
             .replace('-USD', '')
@@ -647,10 +764,16 @@ class UnifiedDataAggregator {
 
           pushData(engineSymbol, data.priceCAD, data.timestamp);
         });
+        unsubs.push(unsub);
       }
     });
 
     console.log('[UnifiedDataAggregator] Engine push function connected');
+    return () => {
+      unsubs.forEach(fn => {
+        try { fn(); } catch {}
+      });
+    };
   }
 
   /**

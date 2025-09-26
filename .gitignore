@@ -64,3 +64,12 @@ logs/
 dashboard/documentation/contract.tex
 
 charting-library-tutorial/
+
+# Exchange dashboard env file (do not commit secrets)
+dashboard/demo/src/exchange_currency_dash/.env
+
+
+# Root env files (do not commit)
+.env
+.env.*
+.env.developement

@@ -67,8 +67,9 @@ class WebSocketService {
    */
   connect(url?: string): Promise<boolean> {
     return new Promise((resolve) => {
-      // If no URL provided, start in local mode
-      if (!url && typeof window !== 'undefined') {
+      // Only use local mode for server-side rendering or tests
+      // In browser, always try to connect to real WebSocket
+      if (!url && typeof window === 'undefined') {
         this.startLocalMode();
         resolve(true);
         return;

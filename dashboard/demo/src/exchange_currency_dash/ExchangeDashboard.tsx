@@ -514,9 +514,12 @@ export default function ExchangeDashboard(): React.ReactElement {
     }
   });
 
+  // Extract stable functions from engine to avoid dependency loop
+  const { start, stop } = engine;
+
   // Initialize engine and keyboard shortcuts
   useEffect(() => {
-    engine.start();
+    start();
 
     // Keyboard shortcuts
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -555,9 +558,9 @@ export default function ExchangeDashboard(): React.ReactElement {
     window.addEventListener('keydown', handleKeyPress);
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
-      engine.stop();
+      stop();
     };
-  }, [engine, displayedCurrencies]);
+  }, [start, stop, displayedCurrencies]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -786,7 +789,9 @@ export default function ExchangeDashboard(): React.ReactElement {
                   {displayedCurrencies.map((currency) => {
                     const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
                     const info = getCurrencyInfo(currency);
-                    const isPositive = parseFloat(change24h) >= 0;
+                    // Handle N/A values properly - show neutral state when no data
+                    const changeValue = parseFloat(change24h);
+                    const isPositive = Number.isFinite(changeValue) ? changeValue >= 0 : null;
 
                     return (
                       <div key={currency} className="h-[105px] relative group overflow-hidden transition-all duration-200" style={{
@@ -895,10 +900,10 @@ export default function ExchangeDashboard(): React.ReactElement {
                           {/* Right section - 24h change */}
                           <div className="text-right">
                             <div className="font-mono font-extrabold text-lg tabular-nums" style={{
-                              color: isPositive ? '#00FF88' : '#FF4444',
-                              textShadow: isPositive ? '0 0 3px rgba(0, 255, 136, 0.45)' : '0 0 3px rgba(255, 68, 68, 0.45)'
+                              color: isPositive === null ? '#888888' : (isPositive ? '#00FF88' : '#FF4444'),
+                              textShadow: isPositive === null ? 'none' : (isPositive ? '0 0 3px rgba(0, 255, 136, 0.45)' : '0 0 3px rgba(255, 68, 68, 0.45)')
                             }}>
-                              <span className="mr-1 align-middle text-[10px]">{isPositive ? '▲' : '▼'}</span>
+                              {isPositive !== null && <span className="mr-1 align-middle text-[10px]">{isPositive ? '▲' : '▼'}</span>}
                               {change24h !== 'N/A' ? `${change24h}%` : '—'}
                             </div>
                             <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#666', letterSpacing: '0.08em' }}>24H</div>

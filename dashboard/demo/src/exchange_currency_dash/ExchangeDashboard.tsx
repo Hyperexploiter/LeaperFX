@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Clock, Sun, Moon, Plus, X, Loader, AlertTriangle, ArrowUp, TrendingUp, ArrowDown } from 'lucide-react';
 import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis, XAxis, CartesianGrid } from 'recharts';
 import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from '../services/exchangeRateService';
 import webSocketService, { WebSocketEvent } from '../services/webSocketService';
 import { RealTimeCryptoSection } from './components/RealTimeCryptoSection';
 import { useMarketHealth } from './hooks/useRealTimeData';
+import { useHighPerformanceEngine } from './hooks/useHighPerformanceEngine';
+import { HighPerformanceSparkline } from './components/HighPerformanceSparkline';
+import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
+import { RotationItem } from './services/RotationScheduler';
 import './styles/sexymodal.css';
 
 
@@ -458,9 +462,71 @@ export default function ExchangeDashboard(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [commodityRotationIndex, setCommodityRotationIndex] = useState<number>(0);
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState<boolean>(false);
 
   // Real-time data integration
   const { health, isConnected, error: marketError } = useMarketHealth();
+
+  // High-performance engine
+  const engine = useHighPerformanceEngine({
+    bufferCapacity: 5000,
+    targetFPS: 60,
+    debugMode: false,
+    sparklineConfig: {
+      strokeColor: '#FFD700',
+      fillGradient: { start: 'rgba(255, 215, 0, 0.6)', end: 'rgba(255, 140, 0, 0.1)' },
+      glowIntensity: 3
+    },
+    signalConfig: {
+      priceChangeThreshold: 2.0,
+      priceChangeWindow: 5,
+      volatilityMultiplier: 2.5,
+      bookImbalanceThreshold: 0.7,
+      minSignalDuration: 8,
+      cooldownPeriod: 30
+    }
+  });
+
+  // Initialize engine and keyboard shortcuts
+  useEffect(() => {
+    engine.start();
+
+    // Keyboard shortcuts
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + Shift + P for performance monitor
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        setShowPerformanceMonitor(prev => !prev);
+      }
+
+      // Ctrl/Cmd + Shift + S for simulated signal
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        // Simulate a high-priority signal
+        const testSignal = {
+          id: `test_${Date.now()}`,
+          type: 'price_spike' as const,
+          symbol: displayedCurrencies[0],
+          timestamp: Date.now(),
+          magnitude: 5,
+          direction: 'up' as const,
+          metadata: {
+            priceChange: 3.5,
+            volatility: 0.8
+          },
+          priority: 8,
+          duration: 10000
+        };
+        engine.services.signalAggregator?.getEngine(displayedCurrencies[0])?.registerSignal(testSignal);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+      engine.stop();
+    };
+  }, [engine, displayedCurrencies]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -563,7 +629,7 @@ export default function ExchangeDashboard(): React.ReactElement {
     setupWebSocket();
   }, []);
 
-  // Real-time data simulation: gently update rates every 3s
+  // Feed data to high-performance engine
   useEffect(() => {
     if (!liveRates) return;
     const interval = setInterval(() => {
@@ -574,17 +640,46 @@ export default function ExchangeDashboard(): React.ReactElement {
           if (k === BASE_CURRENCY) return;
           const drift = 1 + (Math.random() - 0.5) * 0.002; // ±0.1%
           updated[k] = updated[k] / drift; // adjust inverse rate subtly
+
+          // Push to ring buffer for sparkline rendering
+          engine.pushData(k, updated[k]);
         });
         return updated;
       });
     }, 3000);
     return () => clearInterval(interval);
-  }, [liveRates]);
+  }, [liveRates, engine]);
 
-  // Commodity rotation: rotate commodities every 21 seconds
+  // Initialize rotation scheduler for commodities
+  useEffect(() => {
+    const rotationItems: RotationItem[] = allCommodities.map((item, index) => ({
+      id: `commodity_${item.symbol}`,
+      symbol: item.symbol,
+      category: 'commodity',
+      weight: item.trend === 'up' ? 1.5 : 1.0,
+      lastShown: 0,
+      showCount: 0,
+      pinned: index < 3, // Pin first 3 commodities
+      signalActive: false
+    }));
+
+    engine.initializeRotation('commodities', rotationItems, {
+      fixedSlots: 3,
+      spotlightSlots: 3,
+      rotationInterval: 21,
+      fairnessWindow: 2,
+      sectorDiversity: false
+    });
+
+    engine.startRotation('commodities', 21000);
+
+    return () => engine.stopRotation('commodities');
+  }, [engine, allCommodities]);
+
+  // Old rotation logic - kept for compatibility
   useEffect(() => {
     const interval = setInterval(() => {
-      setCommodityRotationIndex((prev) => (prev + 1) % 1); // Rotate through 1 additional commodity (7 total - 6 fixed = 1)
+      setCommodityRotationIndex((prev) => (prev + 1) % 1);
     }, 21000);
     return () => clearInterval(interval);
   }, []);
@@ -705,13 +800,27 @@ export default function ExchangeDashboard(): React.ReactElement {
                             </div>
                           </div>
 
-                          {/* Center section - Mini chart */}
+                          {/* Center section - High-Performance Sparkline */}
                           <div className="w-[120px] h-[50px] mx-4" style={{
                             background: 'linear-gradient(135deg, rgba(0, 8, 20, 0.6) 0%, rgba(0, 20, 40, 0.4) 100%)',
                             border: '0.5px solid rgba(0, 212, 255, 0.2)',
                             borderRadius: '0px',
                             boxShadow: 'inset 0 0 10px rgba(0, 20, 40, 0.3)'
                           }}>
+                            <HighPerformanceSparkline
+                              symbol={currency}
+                              buffer={engine.getBuffer(currency)}
+                              width={120}
+                              height={50}
+                              color={isPositive ? '#FFD700' : '#FF4444'}
+                              glowIntensity={3}
+                              showStats={false}
+                              isSignalActive={engine.engineState.topSignal?.symbol === currency}
+                            />
+                          </div>
+
+                          {/* Keep old chart as fallback - hidden */}
+                          <div className="hidden">
                             <ResponsiveContainer width="100%" height="100%">
                               <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                                 <defs>
@@ -837,6 +946,19 @@ export default function ExchangeDashboard(): React.ReactElement {
 
             </div>
           )}
+
+          {/* Performance Monitor Overlay */}
+          <PerformanceMonitor
+            fps={engine.engineState.fps}
+            frameTime={engine.engineState.frameTime}
+            visible={showPerformanceMonitor}
+          />
+
+          {/* Ticker Takeover for high-priority signals */}
+          <TickerTakeover
+            signal={engine.engineState.topSignal}
+            duration={10000}
+          />
         </main>
 
         {/* Bottom ticker with logo - Origin point for price ticker */}

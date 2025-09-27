@@ -11,7 +11,7 @@ export interface InstrumentDefinition {
   subCategory?: string;     // e.g., 'precious_metal', 'energy', 'major_pair'
   baseCurrency: string;     // Base currency code
   quoteCurrency: string;    // Quote currency (CAD for store display)
-  dataSource: 'coinbase' | 'fxapi' | 'twelvedata' | 'alpaca' | 'polygon' | 'finnhub';
+  dataSource: 'coinbase' | 'fxapi' | 'twelvedata' | 'alpaca' | 'polygon' | 'finnhub' | 'bankofcanada';
   updateFrequency: number;  // Update interval in ms
   priority: 'critical' | 'high' | 'medium' | 'low';
   tradeable: boolean;       // Can the store trade this?
@@ -664,7 +664,7 @@ export const INDEX_INSTRUMENTS: InstrumentDefinition[] = [
     priority: 'high',
     tradeable: false,
     showInDashboard: true,
-    metadata: { unit: 'percent', decimals: 3, series: 'CGB.30Y' }
+    metadata: { unit: 'percent', decimals: 3, series: 'V122557' }
   }
 ];
 
@@ -717,7 +717,8 @@ export const DATA_SOURCE_PRIORITY = [
   'twelvedata',  // Commodities & backup
   'alpaca',      // US markets
   'polygon',     // Backup for everything
-  'finnhub'      // Last resort
+  'finnhub',     // Last resort
+  'bankofcanada'
 ];
 
 /**

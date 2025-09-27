@@ -59,7 +59,7 @@ class UnifiedDataAggregator {
   private wsConnections: Map<string, WebSocket> = new Map();
 
   // API endpoints (to be moved to .env in production)
-  private API_ENDPOINTS!: { fxapi: string; twelvedata: string; alpaca: string; polygon: string; finnhub: string; };
+  private API_ENDPOINTS!: { fxapi: string; twelvedata: string; alpaca: string; polygon: string; finnhub: string; bankofcanada: string; };
 
   constructor() {
     // Initialize API endpoints from environment (Vite first), with sensible defaults
@@ -68,7 +68,8 @@ class UnifiedDataAggregator {
       twelvedata: this.getEnv('VITE_TWELVEDATA_URL') || 'https://api.twelvedata.com',
       alpaca: this.getEnv('VITE_ALPACA_URL') || 'https://data.alpaca.markets/v2',
       polygon: this.getEnv('VITE_POLYGON_URL') || 'https://api.polygon.io',
-      finnhub: this.getEnv('VITE_FINNHUB_URL') || 'https://finnhub.io/api/v1'
+      finnhub: this.getEnv('VITE_FINNHUB_URL') || 'https://finnhub.io/api/v1',
+      bankofcanada: this.getEnv('VITE_BOC_URL') || 'https://www.bankofcanada.ca/valet'
     };
 
     // Load instruments into map for quick lookup
@@ -307,9 +308,8 @@ class UnifiedDataAggregator {
   private async connectIndicesProvider(): Promise<void> {
     console.log('[UnifiedDataAggregator] Connecting to indices provider...');
 
-    // Placeholder for indices connection
-    this.updateSourceStatus('alpaca', 'healthy');
-    this.updateSourceStatus('bankofcanada', 'degraded');
+    // Placeholder for indices connection (alpaca/polygon) - will update status after first fetch
+    this.updateSourceStatus('alpaca', 'degraded');
 
     // Start polling for index data
     const indexInstruments = this.getInstrumentsByCategory('index');

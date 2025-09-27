@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, CartesianGrid, Tooltip } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import { useCryptoData, useAnimatedPrice } from '../hooks/useRealTimeData';
 import { Loader, AlertTriangle } from 'lucide-react';
 import unifiedDataAggregator, { MarketDataPoint } from '../services/unifiedDataAggregator';
@@ -215,8 +215,6 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
 export const RealTimeCryptoSection: React.FC = () => {
   const { cryptoData, isLoading, error, refresh } = useCryptoData();
   const [rotationIndex, setRotationIndex] = useState(0);
-  const [bondPoint, setBondPoint] = useState<MarketDataPoint | null>(null);
-  const [bondHistory, setBondHistory] = useState<Array<{ time: string; value: number }>>([]);
   const [aggregatorCrypto, setAggregatorCrypto] = useState<Record<string, MarketDataPoint>>({});
 
   const aggregatorSymbols = useMemo(
@@ -298,27 +296,6 @@ export const RealTimeCryptoSection: React.FC = () => {
 
     return combined;
   }, [aggregatorCrypto, aggregatorSymbols, cryptoData, staticCryptos]);
-
-  // Subscribe to bond yield data for the CAD 30Y panel
-  useEffect(() => {
-    const unsubscribe = unifiedDataAggregator.subscribe('CA-30Y-YIELD', (md) => {
-      setBondPoint(md);
-      const rawValue = typeof md.priceCAD === 'number' ? md.priceCAD : md.price;
-      if (!Number.isFinite(rawValue)) {
-        return;
-      }
-      const rounded = Number(rawValue.toFixed(3));
-      setBondHistory(prev => {
-        const label = new Date(md.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const next = [...prev, { time: label, value: rounded }];
-        return next.length > 180 ? next.slice(-180) : next;
-      });
-    });
-
-    return () => {
-      try { unsubscribe && unsubscribe(); } catch {}
-    };
-  }, []);
 
   // Subscribe to aggregator crypto feeds for display fallback
   useEffect(() => {

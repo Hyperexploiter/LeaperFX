@@ -1,0 +1,533 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{enumitem}
+\usepackage{lastpage}
+\usepackage{fancyhdr}
+
+% --- DOCUMENT STYLING ---
+\geometry{left=1in,right=1in,top=1in,bottom=1in}
+
+\definecolor{primary}{RGB}{45, 55, 72}
+\definecolor{secondary}{RGB}{74, 85, 104}
+\definecolor{accent}{RGB}{43, 108, 176}
+\definecolor{lightgray}{RGB}{237, 242, 247}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{secondary}{\small LeaperFX Project — Phase 2 Agreement (Updated)}}
+\fancyfoot[C]{\textcolor{secondary}{\thepage\ of \pageref{LastPage}}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\titleformat{\section}{\normalfont\Large\bfseries\color{primary}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\color{secondary}}{\thesubsection.}{0.5em}{}
+
+\hypersetup{colorlinks=true,linkcolor=accent,urlcolor=accent}
+
+\renewcommand{\labelitemi}{$\bullet$}
+\renewcommand{\labelitemii}{$\circ$}
+
+\begin{document}
+
+\begin{center}
+    \vspace*{1cm}
+    {\huge\bfseries\color{primary} Freelance Service Agreement (Phase 2 — Updated)}\\
+    {\Large\bfseries\color{secondary} Production System \& Payments + Crypto Integration}\\
+    \vspace{0.5cm}\hrule\vspace{0.2cm}
+    {\large \textbf{Project:} LeaperFX — Phase 2 (Revised Scope and Pricing)}\\
+    \vspace{0.2cm}\hrule\vspace{1cm}
+\end{center}
+
+% --- PARTIES SECTION ---
+\section*{Parties to the Agreement}
+This Agreement update is effective as of \textbf{September 15, 2025} (the ``Effective Date'') and amends Phase 2. For modification history and superseded terms, see \textbf{Appendix B.1}.
+
+% --- INCORPORATION BY REFERENCE ---
+\section*{Incorporation by Reference}
+Appendices A–G are incorporated into and form part of this Agreement as if set out in full herein. Each appendix is binding and enforceable as part of the main Agreement.
+
+\begin{tabularx}{\textwidth}{@{} X X @{}}
+\textbf{Client:} & \textbf{Freelancer (Provider):}\\
+Mr. Ali Mohammadi & Hypervelocity Capital\texttrademark\\
+Currency Exchange SAADAT & (Hereinafter the ``Developer'')\\
+(Hereinafter the ``Client'') &
+\end{tabularx}
+
+\vspace{0.6cm}\par This update supersedes prior Phase 2 pricing and incorporates the non-optional cryptocurrency integration, T\&C requested by the Client.
+
+
+% --- EXEC SUMMARY ---
+\section*{Executive Summary (What Changed)}
+\begin{itemize}[leftmargin=*]
+  \item Phase 2 total increased by \textbf{33\%} to reflect added scope, legal risk, and the now-included crypto integration.
+  \item \textbf{Crypto integration is INCLUDED (not optional):} implemented via \textbf{Stripe} for launch; \textbf{Coinbase SDK} can be evaluated later if needed.
+  \item Addition of a \textbf{\$1,100 CAD pre-funded Assets Budget} for hardware (e.g., Stripe readers / kiosk), domain/Workspace, and initial API/data providers. Assets become the Client’s property; spending is tracked in a CSV ledger with receipts.
+\end{itemize}
+
+% --- DEFINITIONS ---
+\section*{Definitions}
+\textbf{Store OS:} The set of operational services (auth, payments, rate management, inventory sync, reconciliation, exports) required for day-to-day running of the exchange. \\
+\textbf{Kiosk Mode:} Locked-down device configuration (e.g., Raspberry~Pi~4\,GB or mini-PC) set to boot directly into the dashboard with watchdog/restart policies.
+
+% --- SCOPE ---
+\section{Scope of Services: Phase 2 (Revised)}
+The Developer will deliver the following across three milestones. Procurement (hardware/licenses/data) is tracked continuously across the phase.
+
+\subsection{Milestone 1 — Professional Display \& Installation}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Dashboard delivery:} All widgets/layouts finalized for store display (rates, calculator, inventory, transactions, client registry, compliance panels). See \textbf{Appendix A} for technical specifications.
+  \item \textbf{In-store setup \& kiosk mode:} Configure Raspberry~Pi~4\,GB or mini-PC for boot-to-dashboard, auto-start, power/display policies, and watchdog service. Performance standards detailed in \textbf{Appendix A.2}.
+  \item \textbf{Procurement management:} Purchase required hardware, licenses, and data providers against the \textbf{Assets Budget} (Section~\ref{sec:assets}). Maintain a living \textbf{CSV registry} (vendor, purpose, cost, key/serial).
+  \item \textbf{Acceptance criteria:} See detailed checklist in \textbf{Appendix F.1}.
+\end{itemize}
+
+\subsection{Milestone 2 — Store OS \& Payments + Crypto}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{2.1 Payments Integration (Card-Present + Crypto):}
+    \begin{itemize}
+      \item \textbf{Stripe Terminal} for debit/credit in Canada (Interac/Visa/Mastercard/Amex/Discover as supported by Stripe in CA). Create Locations, register readers, set language (FR/EN), perform end-to-end test charges (test/live).
+      \item \textbf{Crypto Purchase Flow (Included):} Implement crypto purchase via \textbf{Stripe}-based onramp/partner features (where regionally available). If provider or regional constraints prevent use, prepare \textbf{Coinbase SDK} integration plan as fallback. Integrate compliance flags and data capture aligned with existing FINTRAC workflows.
+      \item \textbf{Receipts \& Reconciliation:} Link Terminal/crypto transactions into LeaperFX for reporting, settlement views, and daily reconciliation exports.
+    \end{itemize}
+  \item \textbf{2.2 ``Store OS'' Operations Foundation:}
+    \begin{itemize}
+      \item \textbf{Domain + Workspace:} Purchase/transfer domain; set up Google Workspace; provision emails using format \texttt{<action>@saadatexchange.com} (e.g., \texttt{payments@}, \texttt{support@}).
+      \item \textbf{Database Migration (Dev $\rightarrow$ Prod):} Hardened production database; migration scripts; indexes; automated backups; basic observability.
+      \item \textbf{Forms/Workflow Finalization:} End-to-end validation for transactions, client registry, receipts, and compliance prompts; retain the 90s quote-to-receipt workflow in production.
+    \end{itemize}
+  \item \textbf{2.3 Compliance, Inventory, Rate Control:}
+    \begin{itemize}
+      \item \textbf{FINTRAC \& Legal Exports:} Finalize CSV exports and tracking (LCTR flagging, suspicious indicators, retention metadata); deadline calculations visible in UI.
+      \item \textbf{Inventory $\leftrightarrow$ Dashboard Sync:} Real-time inventory feeds used by Smart Calculator; allow authorized rate management updates from Store OS with audit logs.
+      \item \textbf{Advisory (Non-legal):} Provide onboarding checklist/dossier outline for banking/payments (administrative consulting only; not accounting or legal advice).
+    \end{itemize}
+  \item \textbf{Acceptance criteria:} See detailed checklist in \textbf{Appendix F.2}.
+\end{itemize}
+
+\paragraph{Crypto Custody \& Eligibility Clarifications.}
+The Developer does \textbf{not} provide custody services or manage private keys; no wallet seed phrases are stored or handled. Availability of Stripe crypto features is subject to \textbf{provider eligibility, regional restrictions, and KYC/AML approval}. If unavailable, the Coinbase SDK fallback will be \textbf{scoped and priced} via Change Order before implementation.
+
+\subsection{Milestone 3 — Analytics, Web Finalization \& Security Hardening}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{3.1 Analytics Finalization:} Peak hours, margin by currency, basic segmentation, and exportable reports.
+  \item \textbf{3.2 Website Finalization:} Final pass on public page (copy, SEO basics, favicons, Open Graph, sitemap/robots).
+  \item \textbf{3.3 Security Audit \& Controls:} Review per \textbf{Appendix A.3} compliance standards; add \textbf{IP allowlist} for admin, \textbf{two-step verification (e.g., TOTP/email OTP)} for sensitive actions, rate limiting, and role separation.
+  \item \textbf{3.4 Handover:} Usage instructions, operator cheat-sheets, credential handoff, and code \& asset transfer per ownership terms.
+  \item \textbf{Acceptance criteria:} See detailed checklist in \textbf{Appendix F.3}.
+\end{itemize}
+
+% --- EXCLUSIONS ---
+\section{Explicit Exclusions (Out of Scope)}
+\label{sec:exclusions}
+Unless explicitly listed in the Scope above or separately contracted, the following are out of scope:
+\begin{itemize}[leftmargin=*]
+  \item Opening bank accounts, obtaining MSB licenses, legal filings, or providing legal/accounting advice.
+  \item Direct FINTRAC electronic submission APIs (exports are included; direct e-filing/integrations require separate scope).
+  \item Multi-location synchronization, multi-tenant features, mobile apps, advanced AI modeling, or money-transfer rails.
+  \item 24/7 on-site support, on-prem HA clusters, custom hardware fabrication, or offline Interac processing.
+  \item Content copywriting beyond basic polish; professional brand/visual identity design; large multi-page marketing site.
+  \item Crypto custody, private key management, wallet recovery, or operation of a money transmitter/remittance service.
+  \item Banking approvals, underwriting decisions, payment provider eligibility, or regulatory approvals.
+  \item Any work not expressly listed in Milestones 1–3.
+\end{itemize}
+
+% --- TIMELINE ---
+\section{Project Timeline \& Delivery}
+\begin{enumerate}
+  \item \textbf{Delivery Schedule:} Timeline calculated from \textbf{September 2, 2025}. All Phase 2 milestones targeted within \textbf{16 weeks} (projected by \textbf{December 23, 2025}). See \textbf{Appendix D} for dependency analysis.
+  \item \textbf{Grace Period:} \textbf{5 additional weeks} for unforeseen complexities (no penalties during grace).
+  \item \textbf{Late Penalty (Capped/Reasonable):} After grace (post \textbf{January 27, 2026}), \textbf{2\% of total Phase 2 fee per week} of Developer-attributable delay. Client-caused delays per \textbf{Appendix C.2} extend timeline without penalty. Delays caused by third parties are excluded.
+\end{enumerate}
+\textit{Note: Procurement may start immediately upon funding of the Assets Budget. Critical path dependencies are detailed in \textbf{Appendix D.1}.}
+
+% --- FINANCIAL TERMS ---
+\section{Financial Terms (Updated)}
+\subsection{Total Project Investment (Phase 2)}
+\begin{itemize}
+  \item \textbf{Original Phase 2:} \$10{,}700.00 CAD
+  \item \textbf{Increase (+33\%):} \$3{,}531.00 CAD
+  \item \textbf{Updated Phase 2 Total:} \textbf{\$14{,}231.00 CAD}
+\end{itemize}
+
+\subsection{Payments Received \& Balance}
+\begin{itemize}
+  \item \textbf{Already Paid (Initial):} \textbf{\$4{,}280.00 CAD}
+  \item \textbf{Remaining Balance:} \textbf{\$9{,}951.00 CAD}
+\end{itemize}
+
+\subsection{Payment Schedule (Milestone-Based)}
+The remaining balance is due as follows upon acceptance of this update:
+\begin{center}
+\begin{tabular}{|l >{\raggedright\arraybackslash}p{7.2cm} c c|}
+\hline
+\rowcolor{lightgray}\textbf{Payment} & \textbf{Trigger Event / Milestone} & \textbf{Amount (CAD)} & \textbf{Status}\\
+\hline
+Initial Payment & Received previously & \textbf{\$4{,}280.00} & \textbf{PAID}\\
+\hline
+Installment 1 & Milestone 1 acceptance (Display \& Installation) & \textbf{\$3{,}980.40} & Pending\\
+\hline
+Installment 2 & Milestone 2 acceptance (Store OS + Payments \& Crypto) & \textbf{\$3{,}980.40} & Pending\\
+\hline
+Installment 3 & Milestone 3 acceptance (Analytics, Security, Handover) & \textbf{\$1{,}990.20} & Pending\\
+\hline
+\rowcolor{lightgray}\multicolumn{2}{|r|}{\textbf{TOTAL PHASE 2 (Updated)}} & \textbf{\$14{,}231.00} & \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Assets Budget (Pre-Funded, Separate From Service Fees)}
+\label{sec:assets}
+\begin{itemize}
+  \item \textbf{Amount:} \textbf{\$1{,}100.00 CAD} pre-funded by the Client.
+  \item \textbf{Purpose:} Hardware (e.g., Stripe readers, Raspberry~Pi/mini-PC, mounts/cables), domain/Workspace, initial API/data providers.
+  \item \textbf{Ownership \& Receipts:} All procured assets belong to the \textbf{Client}. The Developer maintains a CSV ledger and provides receipts. Unused funds are returned or rolled over with Client approval.
+\end{itemize}
+
+% --- ACCEPTANCE, CHANGE CONTROL, RESPONSIBILITIES ---
+\section{Acceptance, Change Control, and Responsibilities}
+\subsection*{Acceptance}
+Each milestone includes concrete acceptance criteria detailed in \textbf{Appendix F}. Acceptance occurs when criteria are met and the Client confirms in writing (email is sufficient) within five (5) business days of delivery. Absent response within that window, the milestone is deemed accepted. Any disputes follow the framework in \textbf{Appendix B}.
+
+\subsection*{Change Control}
+Any request that alters scope, deliverables, timelines, or costs requires a signed \textbf{Change Order}. The Developer will provide an impact estimate (scope/time/cost) prior to work.
+
+\subsection*{Client Responsibilities \& Dependencies}
+\begin{itemize}[leftmargin=*]
+  \item Provide timely access to premises, accounts (Stripe, domain registrar, Workspace), and required business details (legal name, address, tax IDs).
+  \item Complete provider onboarding/underwriting (e.g., Stripe) and ensure accounts remain in good standing.
+  \item Decide promptly on vendor selections from the procurement CSV (within three business days).
+  \item Acknowledge that third-party outages, KYC/AML reviews, and hardware lead times are outside the Developer’s control and may impact schedule without penalty.
+\end{itemize}
+
+% --- COMMERCIAL TERMS ---
+\section{Commercial Terms}
+\subsection*{Taxes and Currency}
+All amounts are in \textbf{CAD} and exclusive of applicable taxes (GST/HST/QST). Client is responsible for all taxes, duties, and governmental charges.
+
+\subsection*{Invoicing \& Late Payments}
+Invoices are due \textbf{Net 7} from issue date. Late amounts accrue interest at \textbf{1.5\% per month} (18\% APR) or the maximum permitted by law, whichever is less.
+
+\subsection*{Payment Methods}
+Milestone payments may be made via e-Transfer to the Developer's designated address or via Stripe Checkout/Invoice. Processing fees charged by third parties (e.g., Stripe) are \textbf{borne by the Client}.
+
+% --- SUPPORT & WARRANTY ---
+\section{Support \& Warranty}
+\subsection*{Warranty}
+For \textbf{30 days} after each milestone acceptance, the Developer will remediate reproducible defects in delivered scope at no additional cost. This warranty excludes issues caused by third-party outages, unsupported browser/OS, Client modifications, or new scope.
+
+\subsection*{Post-Handover Support}
+Out-of-scope support or enhancements are billed at the Developer's then-current rate and handled through the Change Order process.
+
+% --- PERFORMANCE NOTE ---
+\section{Performance Note (Clarity on Metrics)}
+The display engine targets a smooth operational experience on the agreed kiosk hardware (Raspberry~Pi~4\,GB or equivalent mini-PC) with continuous operation under typical store loads. ``Under 2 seconds'' page-load targets are not representative of the real-time rendering budget for a kiosk display; acceptance is based on the milestone functional and stability criteria defined above.
+
+% --- TERMS ---
+\section{Terms and Conditions (Key Points)}
+\begin{enumerate}[label=\textbf{8.\arabic*}, leftmargin=*, wide, labelwidth=!, labelindent=0pt]
+  \item \textbf{IP Ownership:} Upon full and final payment, all source code, designs, databases, configs, and materials are assigned to the Client. See \textbf{Appendix C.1} for delivery details.
+  \item \textbf{Source \& Credentials Delivery:} Upon completion and final payment, Developer delivers code, documentation, and admin credentials per progressive delivery schedule in \textbf{Appendix C.1.b}.
+  \item \textbf{No Resale Without Consent:} Developer will not reuse/resell project IP without Client's written consent.
+  \item \textbf{Domain/Hosting in Client Name:} Any domains/hosting purchased are registered in the Client's legal name and transferred as needed.
+  \item \textbf{Confidentiality:} Mutual confidentiality of business data and user data. Technical terms defined in \textbf{Appendix E}.
+  \item \textbf{Warranties/Disclaimers:} Services are provided per professional standards in \textbf{Appendix C.3}; otherwise ``AS IS''; implied warranties disclaimed to the extent permitted by law.
+  \item \textbf{Limitation of Liability (Capped):} Developer's aggregate liability is capped at total fees paid under Phase 2. No punitive, special, incidental, or consequential damages.
+  \item \textbf{Reasonable Penalties Only:} Only the late penalty in Section 5 applies; no uncapped or punitive penalties are accepted. See \textbf{Appendix C.2} for timeline adjustments.
+  \item \textbf{Compliance Disclaimer:} Developer provides technical tooling per \textbf{Appendix A.3} standards; Client remains responsible for legal/regulatory compliance and filings.
+  \item \textbf{Governing Law:} Province of Quebec, venue Montreal courts. Dispute resolution process detailed in \textbf{Appendix B.2}.
+\end{enumerate}
+
+% --- TERMINATION ---
+\section{Termination}
+Either party may terminate this Phase 2 Agreement for convenience with \textbf{7 days'} written notice. Upon termination, the Client shall pay for (i) all work performed up to the effective termination date, and (ii) all non-cancelable third-party costs and procured assets. For material breach (including non-payment), the non-breaching party may terminate after a \textbf{5-business-day} cure period.
+
+% --- SIGNATURES ---
+\section*{Acceptance \& Signature}
+By signing, the parties agree to the revised Phase 2 scope, pricing, payment schedule, assets budget, and terms.
+
+\bigskip
+\textit{Note: This document may include interactive fields. Use a compatible PDF viewer (e.g., Adobe Acrobat Reader) to fill and sign electronically.}
+\bigskip
+
+\begin{Form}
+\noindent
+\begin{minipage}[t]{0.48\textwidth}
+    {\large\bfseries For the Client}\par\bigskip
+    \textbf{Signature:}\\[5pt]
+    \TextField[name=client_signature,width=\linewidth,height=1.8cm,bordercolor={0.7 0.7 0.7}]{}
+    \vspace{0.5cm}
+
+    \textbf{Printed Name:}\\[5pt]
+    \TextField[name=client_name,width=\linewidth,value={Mr. Ali Mohammadi}]{}
+    \vspace{0.5cm}
+
+    \textbf{Company:}\\[5pt]
+    \TextField[name=client_company,width=\linewidth,value={Currency Exchange SAADAT},readonly=true]{}
+    \vspace{0.5cm}
+
+    \textbf{Date:}\\[5pt]
+    \TextField[name=client_date,width=4.5cm]{}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+    {\large\bfseries For the Developer}\par\bigskip
+    \textbf{Signature:}\\[5pt]
+    \TextField[name=developer_signature,width=\linewidth,height=1.8cm,bordercolor={0.7 0.7 0.7}]{}
+    \vspace{0.5cm}
+
+    \textbf{Printed Name:}\\[5pt]
+    \TextField[name=developer_name,width=\linewidth]{}
+    \vspace{0.5cm}
+
+    \textbf{Company:}\\[5pt]
+    \TextField[name=developer_company,width=\linewidth,value={Hypervelocity Capital\texttrademark},readonly=true]{}
+    \vspace{0.5cm}
+
+    \textbf{Date:}\\[5pt]
+    \TextField[name=developer_date,width=4.5cm]{}
+\end{minipage}
+
+\vspace{1cm}
+\noindent\textbf{Appendices acknowledged (check all): }\\[5pt]
+\CheckBox[name=ackA]{} Appendix A (Technical Specifications) \quad
+\CheckBox[name=ackB]{} Appendix B (Dispute Resolution) \quad
+\CheckBox[name=ackC]{} Appendix C (Terms \& Clarifications)\\
+\CheckBox[name=ackD]{} Appendix D (Timeline Dependencies) \quad
+\CheckBox[name=ackE]{} Appendix E (Glossary) \quad
+\CheckBox[name=ackF]{} Appendix F (Acceptance Criteria)\\
+\CheckBox[name=ackG]{} Appendix G (Hardware Recommendations)
+\end{Form}
+
+% --- APPENDICES ---
+\newpage
+\section*{APPENDICES}
+\addcontentsline{toc}{section}{Appendices}
+
+% --- APPENDIX A: TECHNICAL SPECIFICATIONS ---
+\subsection*{Appendix A: Technical Specifications \& Architecture}
+\label{appendix:tech}
+\begin{tabular}{@{}l@{\hfill}r@{}}
+\textit{Client initials: }\TextField[name=init_client_A,width=1.6cm,bordercolor={0.7 0.7 0.7}] &
+\textit{Developer initials: }\TextField[name=init_dev_A,width=1.6cm,bordercolor={0.7 0.7 0.7}]
+\end{tabular}
+\vspace{0.3cm}
+
+\subsubsection*{A.1 System Architecture}
+The LeaperFX system implements a \textbf{microservices-oriented architecture} with the following components:
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Frontend Layer:} React with TypeScript, modern build system, Tailwind CSS framework
+\item \textbf{Real-Time Engine:} High-performance WebSocket implementation with Ring Buffer architecture (5000-point capacity), 60fps RAF rendering loop, Signal Detection Engine with volatility monitoring
+\item \textbf{Data Pipeline:} Multi-provider aggregation (Coinbase WebSocket, FX API REST, TwelveData REST), Unified data normalization with CAD conversion, 5-minute FX rate cache with fallback mechanisms
+\item \textbf{Security Layer:} OWASP Top 10 compliance for financial applications, Content Security Policy (CSP) headers, Input validation and sanitization per SANS guidelines, Rate limiting (100 req/min per IP)
+\item \textbf{Infrastructure:} Production-grade PostgreSQL with connection pooling, Redis for session management and caching, Automated daily backups with 30-day retention
+\end{itemize}
+
+\subsubsection*{A.2 Performance Standards}
+\begin{itemize}[leftmargin=*]
+\item \textbf{Kiosk Display:} 60fps continuous operation on Raspberry Pi 4 (4GB RAM), Memory footprint under 512MB, CPU utilization under 40\% sustained
+\item \textbf{Data Latency:} WebSocket crypto updates: <100ms, REST API forex updates: <500ms, Dashboard render cycle: <16.67ms (60fps target)
+\item \textbf{Reliability:} 99.9\% uptime target (excluding planned maintenance), Automatic reconnection with exponential backoff, Graceful degradation on provider failures
+\end{itemize}
+
+\subsubsection*{A.3 Compliance \& Standards}
+All code deliverables shall conform to:
+\begin{itemize}[leftmargin=*]
+\item \textbf{FINTRAC Requirements:} LCTR flagging for transactions ≥\$10,000 CAD, Customer identity verification data retention (5 years), Suspicious transaction indicators per FINTRAC guidelines
+\item \textbf{PCI DSS Considerations:} No storage of card numbers (Stripe handles all PAN data), TLS 1.3 for all data in transit, Audit logging for all financial operations
+\item \textbf{PIPEDA Compliance:} Customer consent mechanisms, Data portability (export functions), Right to deletion workflows
+\end{itemize}
+
+% --- APPENDIX B: DISPUTE RESOLUTION ---
+\subsection*{Appendix B: Dispute Resolution \& Escalation Framework}
+\label{appendix:dispute}
+\begin{tabular}{@{}l@{\hfill}r@{}}
+\textit{Client initials: }\TextField[name=init_client_B,width=1.6cm,bordercolor={0.7 0.7 0.7}] &
+\textit{Developer initials: }\TextField[name=init_dev_B,width=1.6cm,bordercolor={0.7 0.7 0.7}]
+\end{tabular}
+\vspace{0.3cm}
+
+\subsubsection*{B.1 Modification History Acknowledgment}
+The parties acknowledge that an initial payment of \$4,280.00 CAD was made on \textbf{August 26, 2025}, constituting acceptance of original Phase 2 terms. Any modification attempts between August 26, 2025 and the execution date of this updated agreement are hereby \textbf{superseded and void}. This updated agreement represents the complete and final understanding between parties.
+
+\subsubsection*{B.2 Three-Tier Resolution Process}
+\begin{enumerate}
+\item \textbf{Level 1 - Direct Resolution (Days 1-5):} Written communication between parties documenting specific issues, proposed remedies, and timelines. Issues must be raised within 48 hours of discovery.
+
+\item \textbf{Level 2 - Technical Mediation (Days 6-10):} If unresolved, parties engage a mutually agreed technical expert for non-binding assessment. Cost split 50/50, capped at \$500 per party.
+
+\item \textbf{Level 3 - Formal Proceedings (Day 11+):} Only after Levels 1-2 exhausted may parties pursue legal remedies in Montreal courts per Section 8.10.
+\end{enumerate}
+
+\subsubsection*{B.3 Non-Disputable Items}
+The following are explicitly \textbf{not} subject to dispute:
+\begin{itemize}[leftmargin=*]
+\item Work already performed and accepted (deemed non-refundable)
+\item Third-party delays (payment processors, domain registrars, API providers)
+\item Industry-standard practices and conventions
+\item Aesthetic preferences not specified in writing prior to implementation
+\end{itemize}
+
+% --- APPENDIX C: CLARIFICATIONS ---
+\subsection*{Appendix C: Additional Terms \& Clarifications}
+\label{appendix:terms}
+\begin{tabular}{@{}l@{\hfill}r@{}}
+\textit{Client initials: }\TextField[name=init_client_C,width=1.6cm,bordercolor={0.7 0.7 0.7}] &
+\textit{Developer initials: }\TextField[name=init_dev_C,width=1.6cm,bordercolor={0.7 0.7 0.7}]
+\end{tabular}
+\vspace{0.3cm}
+
+\subsubsection*{C.1 Work Product \& Payments}
+\begin{enumerate}[label=\alph*.]
+\item \textbf{Non-Refundable Principle:} Any work performed, delivered, and not rejected in writing within 5 business days is deemed accepted and non-refundable, regardless of subsequent project status.
+\item \textbf{Progressive Delivery:} Source code and documentation shall be delivered via secured GitHub repository with tagged releases for each milestone. Client receives read access immediately, write access upon final payment.
+\item \textbf{Asset Ownership:} All hardware purchased with the Assets Budget is Client property upon purchase. Developer maintains no claims to physical assets.
+\end{enumerate}
+
+\subsubsection*{C.2 Timeline Adjustments}
+\begin{enumerate}[label=\alph*.]
+\item \textbf{Client-Caused Delays:} Timeline automatically extends day-for-day for delays attributable to Client including but not limited to: delayed access to accounts/premises, decision delays exceeding 3 business days, changes to agreed specifications, and unavailability for required approvals.
+\item \textbf{Force Majeure:} Neither party liable for delays due to acts of God, war, pandemic, government actions, or industry-wide service outages exceeding 24 hours.
+\item \textbf{Accelerated Delivery:} Should Developer complete milestones ahead of schedule, Client agrees to expedite acceptance testing and payment accordingly.
+\end{enumerate}
+
+\subsubsection*{C.3 Professional Standards}
+Developer warrants:
+\begin{itemize}[leftmargin=*]
+\item Code shall follow ESLint/Prettier standards for TypeScript/React
+\item Documentation shall include inline comments for complex logic
+\item Git commits shall be atomic with descriptive messages
+\item Test coverage shall target 70\% for business logic
+\item Security vulnerabilities rated Medium+ shall be remediated
+\end{itemize}
+
+% --- APPENDIX D: DEPENDENCY MATRIX ---
+\subsection*{Appendix D: Timeline Dependencies \& Risk Matrix}
+\label{appendix:timeline}
+\begin{tabular}{@{}l@{\hfill}r@{}}
+\textit{Client initials: }\TextField[name=init_client_D,width=1.6cm,bordercolor={0.7 0.7 0.7}] &
+\textit{Developer initials: }\TextField[name=init_dev_D,width=1.6cm,bordercolor={0.7 0.7 0.7}]
+\end{tabular}
+\vspace{0.3cm}
+
+\subsubsection*{D.1 Critical Path Dependencies}
+\begin{center}
+\small
+\begin{tabular}{|l|l|p{5cm}|l|}
+\hline
+\rowcolor{lightgray}
+\textbf{Task} & \textbf{Depends On} & \textbf{Blocking Risk} & \textbf{Mitigation}\\
+\hline
+Stripe Terminal Setup & Stripe KYC Approval & 3-10 business days & Begin immediately\\
+\hline
+Domain Transfer & Current registrar release & Up to 7 days & Initiate now\\
+\hline
+Crypto Integration & Stripe Crypto eligibility & Regional restrictions & Coinbase SDK fallback\\
+\hline
+Production Deploy & SSL certificate issuance & 1-24 hours & Pre-stage on staging URL\\
+\hline
+Hardware Delivery & Supplier stock & 3-14 days shipping & Order within 48h of funding\\
+\hline
+\end{tabular}
+\end{center}
+
+\subsubsection*{D.2 Risk Assessment}
+\begin{itemize}[leftmargin=*]
+\item \textbf{HIGH:} Payment provider rejection → Mitigation: Multiple provider applications
+\item \textbf{MEDIUM:} Hardware failure/DOA → Mitigation: Local supplier with return policy
+\item \textbf{LOW:} API rate limits → Mitigation: Caching layer and quota management
+\end{itemize}
+
+% --- APPENDIX E: GLOSSARY ---
+\subsection*{Appendix E: Technical \& Business Glossary}
+\label{appendix:glossary}
+\begin{tabular}{@{}l@{\hfill}r@{}}
+\textit{Client initials: }\TextField[name=init_client_E,width=1.6cm,bordercolor={0.7 0.7 0.7}] &
+\textit{Developer initials: }\TextField[name=init_dev_E,width=1.6cm,bordercolor={0.7 0.7 0.7}]
+\end{tabular}
+\vspace{0.3cm}
+
+\begin{description}[leftmargin=!,labelwidth=\widthof{\bfseries Ring Buffer Architecture:}]
+\item[RAF] requestAnimationFrame - Browser API for 60fps rendering
+\item[Ring Buffer] Circular data structure for efficient time-series storage
+\item[LCTR] Large Cash Transaction Report (FINTRAC requirement)
+\item[KYC] Know Your Customer - Identity verification requirement
+\item[MSB] Money Services Business - Regulatory classification
+\item[WebSocket] Full-duplex communication protocol for real-time data
+\item[CSP] Content Security Policy - Browser security mechanism
+\item[OWASP] Open Web Application Security Project standards
+\item[PCI DSS] Payment Card Industry Data Security Standard
+\item[PIPEDA] Personal Information Protection and Electronic Documents Act
+\item[Kiosk Mode] Locked display configuration preventing user system access
+\item[TOTP] Time-based One-Time Password for 2FA
+\item[CAD Conversion] Real-time foreign exchange to Canadian Dollar
+\item[Stripe Terminal] Point-of-sale payment processing SDK
+\item[Signal Detection] Algorithm for identifying unusual market movements
+\end{description}
+
+% --- APPENDIX F: ACCEPTANCE CRITERIA CHECKLIST ---
+\subsection*{Appendix F: Milestone Acceptance Criteria Checklists}
+\label{appendix:acceptance}
+\begin{tabular}{@{}l@{\hfill}r@{}}
+\textit{Client initials: }\TextField[name=init_client_F,width=1.6cm,bordercolor={0.7 0.7 0.7}] &
+\textit{Developer initials: }\TextField[name=init_dev_F,width=1.6cm,bordercolor={0.7 0.7 0.7}]
+\end{tabular}
+\vspace{0.3cm}
+
+\subsubsection*{F.1 Milestone 1 Checklist}
+\CheckBox[name=m1c1]{} Dashboard displays on kiosk without manual intervention after power-on\\
+\CheckBox[name=m1c2]{} System runs 24 hours continuously without crash or memory leak\\
+\CheckBox[name=m1c3]{} All display widgets render correctly at 1920x1080 resolution\\
+\CheckBox[name=m1c4]{} Procurement CSV delivered with receipts attached\\
+\CheckBox[name=m1c5]{} Kiosk device physically installed and configured
+
+\subsubsection*{F.2 Milestone 2 Checklist}
+\CheckBox[name=m2c1]{} Stripe Terminal SDK integrated and test charge successful\\
+\CheckBox[name=m2c2]{} Live charge processed and appears in Stripe Dashboard\\
+\CheckBox[name=m2c3]{} Crypto purchase flow accessible (subject to regional availability)\\
+\CheckBox[name=m2c4]{} Domain active and emails deliverable to @saadatexchange.com\\
+\CheckBox[name=m2c5]{} Production database migrated with automated backup verified\\
+\CheckBox[name=m2c6]{} FINTRAC exports generate valid CSV with required fields
+
+\subsubsection*{F.3 Milestone 3 Checklist}
+\CheckBox[name=m3c1]{} Analytics dashboard shows real business metrics\\
+\CheckBox[name=m3c2]{} Website achieves Lighthouse SEO score ≥85\\
+\CheckBox[name=m3c3]{} Security audit items addressed and documented\\
+\CheckBox[name=m3c4]{} Two-factor authentication operational\\
+\CheckBox[name=m3c5]{} Complete handover package delivered including credentials
+
+% --- APPENDIX G: RECOMMENDED HARDWARE ---
+\subsection*{Appendix G: Recommended Hardware (Indicative)}
+\label{appendix:hardware}
+\begin{tabular}{@{}l@{\hfill}r@{}}
+\textit{Client initials: }\TextField[name=init_client_G,width=1.6cm,bordercolor={0.7 0.7 0.7}] &
+\textit{Developer initials: }\TextField[name=init_dev_G,width=1.6cm,bordercolor={0.7 0.7 0.7}]
+\end{tabular}
+\vspace{0.3cm}
+\begin{itemize}[leftmargin=*]
+\item \textbf{Stripe Terminal Readers (CA):} BBPOS WisePOS E or Stripe Reader S700 (countertop); BBPOS WisePad 3 (handheld).
+\item \textbf{Kiosk Device:} Raspberry Pi 4 (4GB) or Intel N100 mini-PC; 1080p display; VESA mount; surge protector; CAT6 or stable Wi-Fi.
+\item \textbf{Additional Equipment:} Receipt printer (optional); Barcode scanner (future enhancement); UPS battery backup (recommended).
+\end{itemize}
+\textit{Note: Final selection subject to stock, lead times, and Stripe compatibility in Canada. All hardware purchased with Assets Budget becomes Client property.}
+
+% --- END OF APPENDICES ---
+\vspace{2cm}
+\begin{center}
+\rule{0.5\textwidth}{0.5pt}\\
+\vspace{0.5cm}
+{\small\textit{This Agreement, including all Appendices, constitutes the entire understanding between parties.\\
+Execution indicates acceptance of all terms, specifications, and standards herein.}}
+\end{center}
+
+\label{LastPage}
+\end{document}

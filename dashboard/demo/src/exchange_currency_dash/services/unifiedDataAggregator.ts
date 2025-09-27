@@ -4,7 +4,7 @@
  * Handles forex, crypto, commodities, and indices with fallback logic
  */
 
-import { INSTRUMENT_CATALOG, InstrumentDefinition, UPDATE_CADENCE_CONFIG } from '../config/instrumentCatalog';
+import { INSTRUMENT_CATALOG, InstrumentDefinition, UPDATE_CADENCE_CONFIG, FOREX_INSTRUMENTS } from '../config/instrumentCatalog';
 import coinbaseWebSocketService from './coinbaseWebSocketService';
 import realTimeDataManager from './realTimeDataManager';
 import { fetchLatestRates } from '../../services/exchangeRateService';
@@ -69,6 +69,7 @@ class UnifiedDataAggregator {
       alpaca: this.getEnv('VITE_ALPACA_URL') || 'https://data.alpaca.markets/v2',
       polygon: this.getEnv('VITE_POLYGON_URL') || 'https://api.polygon.io',
       finnhub: this.getEnv('VITE_FINNHUB_URL') || 'https://finnhub.io/api/v1',
+      // Note: during GH Pages/static hosting we directly hit BoC. In dev, set VITE_BOC_URL=/api/boc to use local proxy.
       bankofcanada: this.getEnv('VITE_BOC_URL') || 'https://www.bankofcanada.ca/valet'
     };
 
@@ -99,7 +100,7 @@ class UnifiedDataAggregator {
     console.log('[UnifiedDataAggregator] Initializing...');
 
     try {
-      // 1. Initialize critical FX rates first
+      // 1. Initialize critical FX rates first (Polygon first, Frankfurter fallback)
       await this.initializeFXRates();
 
       // 2. Connect to Coinbase for crypto (already exists)
@@ -130,85 +131,76 @@ class UnifiedDataAggregator {
    * Initialize critical FX rates for CAD conversion
    */
   private async initializeFXRates(): Promise<void> {
-    console.log('[UnifiedDataAggregator] Fetching initial FX rates...');
+    console.log('[UnifiedDataAggregator] Fetching initial FX rates (Polygon first)...');
 
-    try {
-      // Fetch live rates from CAD base
-      const cadRates = await fetchLatestRates('CAD');
+    const now = Date.now();
+    const polygonKey = this.getEnv('VITE_POLYGON_KEY');
 
-      if (cadRates) {
-        // Populate all X/CAD pairs for every forex instrument in the catalog
-        const now = Date.now();
-        const seenPairs = new Set<string>();
-        INSTRUMENT_CATALOG.forEach(inst => {
-          if (inst.category === 'forex' && inst.quoteCurrency === 'CAD') {
-            const base = inst.baseCurrency as keyof typeof cadRates;
+    // Build the set of pairs we care about: all X/CAD in catalog + critical crosses
+    const wantedPairs = new Set<string>();
+    FOREX_INSTRUMENTS.forEach(inst => {
+      if (inst.quoteCurrency === 'CAD') wantedPairs.add(`${inst.baseCurrency}/CAD`);
+    });
+    this.CRITICAL_FX_PAIRS.forEach(p => wantedPairs.add(p));
+
+    let polygonSuccessCount = 0;
+    if (polygonKey) {
+      for (const pair of wantedPairs) {
+        const rate = await this.fetchPolygonFxPair(pair, polygonKey);
+        if (Number.isFinite(rate) && rate! > 0) {
+          this.fxRateCache[pair] = { rate: rate!, timestamp: now, ttl: this.FX_CACHE_TTL };
+          polygonSuccessCount++;
+        }
+      }
+    }
+
+    // Ensure we have baseline values; if Polygon was unavailable/partial, fall back to Frankfurter
+    if (polygonSuccessCount < Math.max(3, Math.floor(wantedPairs.size * 0.5))) {
+      try {
+        const cadRates = await fetchLatestRates('CAD');
+        if (cadRates) {
+          wantedPairs.forEach(pair => {
+            const base = pair.split('/')[0] as keyof typeof cadRates;
             const cadBase = (cadRates as any)[base];
             if (typeof cadBase === 'number' && cadBase > 0) {
-              const pair = `${inst.baseCurrency}/CAD`;
-              this.fxRateCache[pair] = {
-                rate: 1 / cadBase, // inverse of CAD/base
-                timestamp: now,
-                ttl: this.FX_CACHE_TTL
-              };
-              seenPairs.add(pair);
+              this.fxRateCache[pair] = { rate: 1 / cadBase, timestamp: now, ttl: this.FX_CACHE_TTL };
             }
+          });
+          // Crosses for convenience
+          const usdRates = await fetchLatestRates('USD');
+          if (usdRates) {
+            this.fxRateCache['EUR/USD'] = { rate: (usdRates as any).EUR || 0.92, timestamp: now, ttl: this.FX_CACHE_TTL };
+            this.fxRateCache['GBP/USD'] = { rate: (usdRates as any).GBP || 0.79, timestamp: now, ttl: this.FX_CACHE_TTL };
           }
-        });
-
-        // Ensure critical majors are present even if not in catalog
-        const ensure = (pair: string, invFrom?: number) => {
-          if (!this.fxRateCache[pair]) {
-            const [base] = pair.split('/');
-            const v = invFrom ?? (1 / ((cadRates as any)[base] || 0));
-            if (Number.isFinite(v) && v > 0) {
-              this.fxRateCache[pair] = { rate: v, timestamp: now, ttl: this.FX_CACHE_TTL };
-            }
-          }
-        };
-        ensure('USD/CAD', 1 / ((cadRates as any).USD || 0.74));
-        ensure('EUR/CAD', 1 / ((cadRates as any).EUR || 0.68));
-        ensure('GBP/CAD', 1 / ((cadRates as any).GBP || 0.58));
-        ensure('JPY/CAD', 1 / ((cadRates as any).JPY || 108));
-        ensure('CHF/CAD', 1 / ((cadRates as any).CHF || 0.66));
-        ensure('AUD/CAD', 1 / ((cadRates as any).AUD || 1.14));
-        ensure('CNY/CAD', 1 / ((cadRates as any).CNY || 5.23));
-        ensure('HKD/CAD', 1 / ((cadRates as any).HKD || 5.71));
-        ensure('INR/CAD', 1 / ((cadRates as any).INR || 63.7));
-        ensure('KRW/CAD', 1 / ((cadRates as any).KRW || 1012));
-        ensure('THB/CAD', 1 / ((cadRates as any).THB || 23.56));
-        ensure('AED/CAD', 1 / ((cadRates as any).AED || 2.68));
-        ensure('SAR/CAD', 1 / ((cadRates as any).SAR || 2.73));
-        ensure('TRY/CAD', 1 / ((cadRates as any).TRY || 29.6));
-        ensure('MXN/CAD', 1 / ((cadRates as any).MXN || 13.53));
-        ensure('BRL/CAD', 1 / ((cadRates as any).BRL || 3.95));
-        ensure('NZD/CAD', 1 / ((cadRates as any).NZD || 1.22));
-        ensure('ZAR/CAD', 1 / ((cadRates as any).ZAR || 12.89));
-
-        // Also fetch USD rates for cross-rate calculations (e.g., EUR/USD)
-        const usdRates = await fetchLatestRates('USD');
-        if (usdRates) {
-          this.fxRateCache['EUR/USD'] = {
-            rate: usdRates.EUR || 0.92,
-            timestamp: now,
-            ttl: this.FX_CACHE_TTL
-          };
-          this.fxRateCache['GBP/USD'] = {
-            rate: usdRates.GBP || 0.79,
-            timestamp: now,
-            ttl: this.FX_CACHE_TTL
-          };
+        } else {
+          this.useFallbackRates();
         }
-
-        console.log('[UnifiedDataAggregator] Live FX rates loaded successfully');
-      } else {
-        // Fallback to hardcoded rates if API fails
-        console.warn('[UnifiedDataAggregator] Using fallback FX rates');
+      } catch (e) {
+        console.warn('[UnifiedDataAggregator] Frankfurter fallback failed, using static fallbacks', e);
         this.useFallbackRates();
       }
-    } catch (error) {
-      console.error('[UnifiedDataAggregator] Failed to fetch FX rates:', error);
-      this.useFallbackRates();
+    }
+
+    console.log('[UnifiedDataAggregator] FX init complete. Pairs cached:', Object.keys(this.fxRateCache).length);
+  }
+
+  /**
+   * Fetch a single FX pair via Polygon Aggregates (previous close).
+   * Example pair: 'USD/CAD' -> ticker 'C:USDCAD'
+   */
+  private async fetchPolygonFxPair(pair: string, apiKey: string): Promise<number | null> {
+    try {
+      const [base, quote] = pair.split('/');
+      const ticker = `C:${base}${quote}`;
+      const url = `${this.API_ENDPOINTS.polygon}/v2/aggs/ticker/${encodeURIComponent(ticker)}/prev?adjusted=true&apiKey=${apiKey}`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const json: any = await res.json();
+      const result = Array.isArray(json?.results) ? json.results[0] : null;
+      const value = result?.c ?? result?.close ?? result?.p ?? null;
+      return typeof value === 'number' && isFinite(value) ? value : null;
+    } catch {
+      return null;
     }
   }
 
@@ -272,12 +264,10 @@ class UnifiedDataAggregator {
    * Connect to forex data provider
    */
   private async connectForexProvider(): Promise<void> {
-    // Placeholder for forex WebSocket/API connection
-    // In production, implement actual connection to fxapi.com or similar
-    console.log('[UnifiedDataAggregator] Connecting to forex provider...');
+    console.log('[UnifiedDataAggregator] Connecting to forex provider (Polygon)...');
 
-    // Simulate connection
-    this.updateSourceStatus('fxapi', 'healthy');
+    // Mark polygon as active provider
+    this.updateSourceStatus('polygon', 'healthy');
 
     // Start polling for forex data
     const forexInstruments = this.getInstrumentsByCategory('forex');
@@ -400,14 +390,23 @@ class UnifiedDataAggregator {
         if (cached && this.isFXRateValid(cached)) {
           rawPrice = cached.rate;
         } else if (instrument.quoteCurrency === 'CAD') {
-          rawPrice = this.getCADRate(instrument.baseCurrency);
+          // On-demand polygon fetch if stale
+          const key = this.getEnv('VITE_POLYGON_KEY');
+          if (key) {
+            const fetched = await this.fetchPolygonFxPair(instrument.symbol, key);
+            if (Number.isFinite(fetched) && fetched! > 0) {
+              this.fxRateCache[instrument.symbol] = { rate: fetched!, timestamp: Date.now(), ttl: this.FX_CACHE_TTL };
+              rawPrice = fetched!;
+            }
+          }
+          if (!rawPrice) rawPrice = this.getCADRate(instrument.baseCurrency);
         } else if (instrument.symbol.includes('/USD')) {
           const pair = instrument.symbol;
           const cache = this.fxRateCache[pair];
           if (cache) rawPrice = cache.rate;
         }
-        // Mark FX source healthy
-        this.updateSourceStatus('fxapi', 'healthy');
+        // Mark provider health
+        this.updateSourceStatus('polygon', rawPrice ? 'healthy' : 'degraded');
       } else if (instrument.category === 'commodity') {
         // Try TwelveData (price in USD)
         const apiKey = this.getEnv('VITE_TWELVEDATA_KEY');

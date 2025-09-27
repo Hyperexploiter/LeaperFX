@@ -21,6 +21,15 @@ export default defineConfig({
       'X-XSS-Protection': '1; mode=block',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
       'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+    },
+    // Lightweight dev proxy for Bank of Canada Valet API
+    proxy: {
+      '/api/boc': {
+        target: 'https://www.bankofcanada.ca/valet',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/api\/boc/, '')
+      }
     }
   },
   build: {

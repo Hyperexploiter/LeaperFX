@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Clock, Sun, Moon, Plus, X, Loader, AlertTriangle, ArrowUp, TrendingUp, ArrowDown } from 'lucide-react';
 import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis, XAxis, CartesianGrid } from 'recharts';
-import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from '../services/exchangeRateService';
+// Note: Frankfurter-based exchangeRateService removed from UI for shipping velocity.
+// All FX rates now come from unifiedDataAggregator (Polygon-first) and will be revisited
+// when we move to a proper backend.
 import webSocketService, { WebSocketEvent } from '../services/webSocketService';
 import { RealTimeCryptoSection } from './components/RealTimeCryptoSection';
 import { useMarketHealth } from './hooks/useRealTimeData';
@@ -9,6 +11,7 @@ import { useHighPerformanceEngine } from './hooks/useHighPerformanceEngine';
 import { HighPerformanceSparkline } from './components/HighPerformanceSparkline';
 import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
 import type { RotationItem } from './services/RotationScheduler';
+import { FOREX_INSTRUMENTS } from './config/instrumentCatalog';
 import realTimeDataManager from './services/realTimeDataManager';
 import unifiedDataAggregator from './services/unifiedDataAggregator';
 import DataSourceStatus from './components/DataSourceStatus';
@@ -48,7 +51,7 @@ interface CurrencyInfo { name: string; code: string; }
 interface ChartData { name:string; value: number; }
 
 // --- Sub-Component Prop Types ---
-interface TickerProps { rates: RateData | null; baseCurrency: string; calculateRates: (currency: string) => { customerBuys: string; change24h: string }; }
+// Legacy TickerProps removed (Frankfurter UI removed). See AggregatorTicker below.
 interface DarkModeToggleProps { darkMode: boolean; setDarkMode: (value: boolean) => void; }
 interface ConnectionStatusProps {
   isConnected: boolean;
@@ -294,9 +297,8 @@ const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
 };
 
 export default function ExchangeDashboard(): React.ReactElement {
-  const [liveRates, setLiveRates] = useState<RateData | null>(null);
-  const [historicalRates, setHistoricalRates] = useState<RateData | null>(null);
-  const [allSupportedCurrencies, setAllSupportedCurrencies] = useState<SupportedCurrency[]>([]);
+  // Aggregator-backed FX snapshot for displayed currencies (shipping velocity on GH Pages)
+  const [fxMap, setFxMap] = useState<Record<string, { rate: number; prev: number | null; ts: number }>>({});
   const [displayedCurrencies, setDisplayedCurrencies] = useState<string[]>(['USD', 'EUR', 'GBP', 'JPY', 'CHF']);
   const [currencyToAdd, setCurrencyToAdd] = useState<string>('CNY');
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -419,41 +421,26 @@ export default function ExchangeDashboard(): React.ReactElement {
 
   const getCurrencyInfo = (code: string): CurrencyInfo => currencyInfo[code] || { name: code, code: '' };
 
-  const getRates = useCallback(async () => {
-    setError(null);
-    setIsLoading(true);
+  // Frankfurter fetching removed — aggregator is the single source of truth for FX.
 
-    const [latest, historical] = await Promise.all([
-      fetchLatestRates(BASE_CURRENCY),
-      fetchHistoricalRate(BASE_CURRENCY)
-    ]);
-
-    if (latest) setLiveRates(latest);
-    else setError("Failed to fetch latest rates.");
-
-    if (historical) setHistoricalRates(historical);
-
-    setIsLoading(false);
-  }, []);
-
+  // Subscribe to aggregator FX for displayed currencies
   useEffect(() => {
-    const loadInitialData = async () => {
-      setIsLoading(true);
-      const currencies = await fetchSupportedCurrencies();
-      setAllSupportedCurrencies(currencies);
-      if (currencies.length > 0 && !displayedCurrencies.includes('CNY')) setCurrencyToAdd('CNY');
-      await getRates();
-    };
-    loadInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
-  // Periodically refresh rates - run once on mount
-  useEffect(() => {
-     getRates(); // Initial call
-     const interval = setInterval(getRates, REFRESH_INTERVAL_MS);
-     return () => clearInterval(interval);
-  }, []);
+    const unsubs: Array<() => void> = [];
+    displayedCurrencies.forEach((ccy) => {
+      const symbol = `${ccy}/CAD`;
+      const unsub = unifiedDataAggregator.subscribe(symbol, (md) => {
+        const value = Number.isFinite(md.priceCAD) ? md.priceCAD : Number.isFinite(md.price) ? md.price : NaN;
+        if (!Number.isFinite(value)) return;
+        setFxMap((prev) => {
+          const prevEntry = prev[ccy];
+          return { ...prev, [ccy]: { rate: value, prev: prevEntry ? prevEntry.rate : null, ts: md.timestamp } };
+        });
+      });
+      unsubs.push(unsub);
+    });
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => { unsubs.forEach(fn => { try { fn(); } catch {} }); clearTimeout(timer); };
+  }, [displayedCurrencies]);
 
   // Set up WebSocket connection for real-time rate updates from store owner
   useEffect(() => {
@@ -466,12 +453,13 @@ export default function ExchangeDashboard(): React.ReactElement {
           if (!active) return;
           if (event.type === 'rate_update') {
             const { currency, buyRate, sellRate } = event.data;
-            setLiveRates(prevRates => {
-              if (!prevRates) return prevRates;
-              const avgRate = (parseFloat(buyRate) + parseFloat(sellRate)) / 2;
-              const newRate = 1 / avgRate;
-              return { ...prevRates, [currency]: newRate };
-            });
+            const avgRate = (parseFloat(buyRate) + parseFloat(sellRate)) / 2;
+            if (Number.isFinite(avgRate) && avgRate > 0) {
+              setFxMap(prev => {
+                const prevEntry = prev[currency];
+                return { ...prev, [currency]: { rate: avgRate, prev: prevEntry ? prevEntry.rate : null, ts: Date.now() } };
+              });
+            }
           }
         });
       } catch (err) {
@@ -543,45 +531,41 @@ export default function ExchangeDashboard(): React.ReactElement {
   };
 
   const calculateRates = useCallback((foreignCurrency: string) => {
-    if (!liveRates?.[foreignCurrency]) return { customerBuys: 'N/A', customerSells: 'N/A', spread: 'N/A', change24h: 'N/A', chartData: [] };
-    
-    const marketRate = 1 / liveRates[foreignCurrency];
+    const fx = fxMap[foreignCurrency];
+    if (!fx || !Number.isFinite(fx.rate)) return { customerBuys: '—', customerSells: '—', spread: '—', change24h: '—', chartData: [] };
+
+    const marketRate = fx.rate; // already X/CAD from aggregator
     const spreadAmount = marketRate * (DEFAULT_SPREAD_PERCENT / 100);
     const weBuyAt = marketRate - spreadAmount;
     const weSellAt = marketRate + spreadAmount;
     const spread = ((weSellAt - weBuyAt) / weBuyAt) * 100;
 
-    let change24h: string | number = 'N/A';
-    if (historicalRates?.[foreignCurrency]) {
-      const yesterdayRate = 1 / historicalRates[foreignCurrency];
-      change24h = ((marketRate - yesterdayRate) / yesterdayRate) * 100;
-    }
+    // NOTE: We will replace this with true 24h delta from backend later
+    const change24h: string | number = fx.prev && fx.prev > 0 ? ((marketRate - fx.prev) / fx.prev) * 100 : '—';
 
+    // Generate a synthetic Bloomberg-style mini-chart for visual continuity
+    const startRate = fx.prev && fx.prev > 0 ? fx.prev : marketRate * 0.99;
+    const endRate = marketRate;
+    const points = 12;
     const chartData: ChartData[] = [];
-    if (historicalRates?.[foreignCurrency]) {
-        const startRate = 1 / historicalRates[foreignCurrency];
-        const endRate = marketRate;
-        const points = 12; // More data points for smoother Bloomberg Terminal look
-        for (let i = 0; i < points; i++) {
-            const progress = i / (points - 1);
-            const linearValue = startRate + (endRate - startRate) * progress;
-            // Enhanced smooth wave-like movement with time-based synchronization
-            const timeOffset = Date.now() / 15000; // Synchronized wave timing
-            const waveOffset = Math.sin(progress * Math.PI * 1.5 + timeOffset) * (Math.abs(endRate - startRate) * 0.06);
-            const momentum = Math.sin((progress * Math.PI * 0.8) + timeOffset * 0.5) * (Math.abs(endRate - startRate) * 0.04);
-            const smoothJitter = (i > 0 && i < points - 1) ? (Math.random() - 0.5) * (Math.abs(endRate - startRate) * 0.03) : 0;
-            chartData.push({ name: `p${i}`, value: linearValue + waveOffset + momentum + smoothJitter });
-        }
+    for (let i = 0; i < points; i++) {
+      const progress = i / (points - 1);
+      const linearValue = startRate + (endRate - startRate) * progress;
+      const timeOffset = Date.now() / 15000;
+      const waveOffset = Math.sin(progress * Math.PI * 1.5 + timeOffset) * (Math.abs(endRate - startRate) * 0.06);
+      const momentum = Math.sin((progress * Math.PI * 0.8) + timeOffset * 0.5) * (Math.abs(endRate - startRate) * 0.04);
+      const smoothJitter = (i > 0 && i < points - 1) ? (Math.random() - 0.5) * (Math.abs(endRate - startRate) * 0.03) : 0;
+      chartData.push({ name: `p${i}`, value: linearValue + waveOffset + momentum + smoothJitter });
     }
 
     return {
       customerBuys: weSellAt.toFixed(4),
       customerSells: weBuyAt.toFixed(4),
       spread: spread.toFixed(2),
-      change24h: typeof change24h === 'number' ? change24h.toFixed(2) : 'N/A',
+      change24h: typeof change24h === 'number' ? change24h.toFixed(2) : '—',
       chartData,
     };
-  }, [liveRates, historicalRates]);
+  }, [fxMap]);
 
   // Get visible commodities (6 at a time with rotation)
   const visibleCommodities = useMemo(() => {
@@ -589,7 +573,13 @@ export default function ExchangeDashboard(): React.ReactElement {
     return rotatedCommodities.slice(0, 6);
   }, [allCommodities, commodityRotationIndex]);
 
-  const availableToAdd = allSupportedCurrencies.filter(c => !displayedCurrencies.includes(c.value) && c.value !== BASE_CURRENCY);
+  const availableToAdd = useMemo(() => {
+    // Build options from instrument catalog (X/CAD pairs only)
+    const opts = Array.from(new Set(FOREX_INSTRUMENTS.filter(i => i.quoteCurrency === 'CAD').map(i => i.baseCurrency)))
+      .filter(ccy => !displayedCurrencies.includes(ccy) && ccy !== BASE_CURRENCY)
+      .map(ccy => ({ value: ccy, label: ccy }));
+    return opts;
+  }, [displayedCurrencies]);
 
   return (
     <LocalErrorBoundary>
@@ -656,8 +646,8 @@ export default function ExchangeDashboard(): React.ReactElement {
                             boxShadow: 'inset 0 0 10px rgba(0, 20, 40, 0.3)'
                           }}>
                             <HighPerformanceSparkline
-                              symbol={currency}
-                              buffer={engine.getBuffer(currency)}
+                              symbol={`${currency}CAD`}
+                              buffer={engine.getBuffer(`${currency}CAD`)}
                               width={120}
                               height={50}
                               color={isPositive === null ? '#888888' : (isPositive ? '#FFD700' : '#FF4444')}
@@ -839,7 +829,7 @@ export default function ExchangeDashboard(): React.ReactElement {
               }}>SAADAT EXCHANGE</div>
             </div>
             <div className="flex-1 h-full">
-              <Ticker rates={liveRates} baseCurrency={BASE_CURRENCY} calculateRates={calculateRates}/>
+              <AggregatorTicker currencies={displayedCurrencies} fxMap={fxMap} />
             </div>
           </div>
         </footer>
@@ -884,6 +874,42 @@ function ConnectionStatus({ isConnected, health, error }: ConnectionStatusProps)
       {error && (
         <span className="text-xs text-red-400 ml-2" title={error}>⚠</span>
       )}
+    </div>
+  );
+}
+
+// Aggregator-backed ticker for shipping velocity on static hosting (GH Pages)
+// Revisit when backend/service layer is available.
+function AggregatorTicker({ currencies, fxMap }: { currencies: string[]; fxMap: Record<string, { rate: number; prev: number | null; ts: number }> }) {
+  const items = useMemo(() => {
+    return currencies.map((ccy) => {
+      const entry = fxMap[ccy];
+      const rate = entry?.rate ?? null;
+      const prev = entry?.prev ?? null;
+      const dir = rate && prev ? (rate >= prev ? 'up' : 'down') : null;
+      const display = rate ? rate.toFixed(rate >= 2 ? 2 : 4) : '—';
+      return { ccy, rate: display, dir } as { ccy: string; rate: string; dir: 'up' | 'down' | null };
+    });
+  }, [currencies, fxMap]);
+
+  const row = (
+    <div className="flex items-center gap-6 whitespace-nowrap px-4 py-1 text-xs font-mono">
+      {items.map((it) => (
+        <span key={it.ccy} className="flex items-center gap-1">
+          <span style={{ color: '#FFD700' }}>{it.ccy}</span>
+          {it.dir === 'up' ? <span style={{ color: '#00FF88' }}>▲</span> : it.dir === 'down' ? <span style={{ color: '#FF4444' }}>▼</span> : <span className="text-gray-500">•</span>}
+          <span className="text-white">{it.rate}</span>
+        </span>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="relative overflow-hidden w-full h-full">
+      <div className="absolute inset-0 flex animate-ticker-scroll">
+        {row}
+        {row}
+      </div>
     </div>
   );
 }

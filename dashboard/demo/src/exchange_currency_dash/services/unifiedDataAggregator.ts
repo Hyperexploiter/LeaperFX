@@ -237,11 +237,13 @@ class UnifiedDataAggregator {
     } as Record<string, number>;
 
     Object.entries(fallbackRates).forEach(([pair, rate]) => {
-      this.fxRateCache[pair] = {
-        rate,
-        timestamp: Date.now(),
-        ttl: this.FX_CACHE_TTL
-      };
+      if (!this.fxRateCache[pair]) {
+        this.fxRateCache[pair] = {
+          rate,
+          timestamp: Date.now(),
+          ttl: this.FX_CACHE_TTL
+        };
+      }
     });
   }
 

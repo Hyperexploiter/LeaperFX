@@ -16,6 +16,7 @@ import realTimeDataManager from './services/realTimeDataManager';
 import unifiedDataAggregator from './services/unifiedDataAggregator';
 import DataSourceStatus from './components/DataSourceStatus';
 import CadYieldCard from './components/CadYieldCard';
+import LiveClock from './components/LiveClock';
 import './styles/sexymodal.css';
 
 // Lightweight error boundary to prevent blank page on runtime errors

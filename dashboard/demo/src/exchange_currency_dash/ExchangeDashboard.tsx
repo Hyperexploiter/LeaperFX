@@ -11,7 +11,7 @@ import { useHighPerformanceEngine } from './hooks/useHighPerformanceEngine';
 import { HighPerformanceSparkline } from './components/HighPerformanceSparkline';
 import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
 import type { RotationItem } from './services/RotationScheduler';
-import { FOREX_INSTRUMENTS } from './config/instrumentCatalog';
+import { FOREX_INSTRUMENTS, CRYPTO_INSTRUMENTS } from './config/instrumentCatalog';
 import realTimeDataManager from './services/realTimeDataManager';
 import unifiedDataAggregator from './services/unifiedDataAggregator';
 import DataSourceStatus from './components/DataSourceStatus';
@@ -86,61 +86,48 @@ const generateMiniData = (trend: Trend, points = 20) => {
 };
 
 // Dynamic Bulletin Component
-interface CryptoMarketData {
-  symbol: string;
-  name: string;
-  change: number;
-}
-
-const topGainersData: CryptoMarketData[] = [
-  { symbol: 'BTC', name: 'Bitcoin', change: 5.2 },
-  { symbol: 'ETH', name: 'Ethereum', change: 4.8 },
-  { symbol: 'SOL', name: 'Solana', change: 8.3 },
-  { symbol: 'AVAX', name: 'Avalanche', change: 6.1 },
-  { symbol: 'MATIC', name: 'Polygon', change: 5.5 }
-];
-
-const topLosersData: CryptoMarketData[] = [
-  { symbol: 'ADA', name: 'Cardano', change: -3.2 },
-  { symbol: 'DOT', name: 'Polkadot', change: -2.8 },
-  { symbol: 'LINK', name: 'Chainlink', change: -4.1 },
-  { symbol: 'UNI', name: 'Uniswap', change: -2.5 },
-  { symbol: 'XRP', name: 'Ripple', change: -3.7 }
-];
+interface CryptoMarketData { symbol: string; name: string; change: number; }
 
 const DynamicBulletin: React.FC = () => {
   const [showGainers, setShowGainers] = useState(true);
-  const [currentData, setCurrentData] = useState(topGainersData);
+  const [currentData, setCurrentData] = useState<CryptoMarketData[]>([]);
+  const [cryptoMap, setCryptoMap] = useState<Record<string, { name: string; change: number }>>({});
 
-  // Add some volatility to the data
-  const [volatileData, setVolatileData] = useState(topGainersData);
+  // Subscribe to crypto aggregator and compute top gainers/losers
+  useEffect(() => {
+    const symbols = CRYPTO_INSTRUMENTS.map(i => i.symbol);
+    const unsubs = symbols.map(sym => unifiedDataAggregator.subscribe(sym, (md) => {
+      const base = sym.split('/')[0];
+      const chg = typeof md.changePercent24h === 'number' && Number.isFinite(md.changePercent24h)
+        ? md.changePercent24h
+        : 0;
+      setCryptoMap(prev => ({ ...prev, [sym]: { name: base, change: chg } }));
+    }));
+    return () => { unsubs.forEach(u => { try { u(); } catch {} }); };
+  }, []);
 
   // Rotate between gainers and losers every 60 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setShowGainers(prev => {
         const newShow = !prev;
-        setCurrentData(newShow ? topGainersData : topLosersData);
+        const list = Object.entries(cryptoMap).map(([sym, v]) => ({ symbol: sym.split('/')[0], name: v.name, change: v.change }));
+        const gainers = list.filter(x => x.change >= 0).sort((a, b) => b.change - a.change).slice(0, 5);
+        const losers = list.filter(x => x.change < 0).sort((a, b) => a.change - b.change).slice(0, 5);
+        setCurrentData(newShow ? gainers : losers);
         return newShow;
       });
     }, 60000); // 60 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [cryptoMap]);
 
-  // Add realistic volatility to the data every 10 seconds
+  // Seed initial list from current snapshot
   useEffect(() => {
-    const interval = setInterval(() => {
-      const baseData = showGainers ? topGainersData : topLosersData;
-      const volatileData = baseData.map(item => ({
-        ...item,
-        change: item.change + (Math.random() - 0.5) * 0.8 // ±0.4% volatility
-      }));
-      setVolatileData(volatileData);
-      setCurrentData(volatileData);
-    }, 10000); // Update every 10 seconds
-
-    return () => clearInterval(interval);
-  }, [showGainers]);
+    const list = Object.entries(cryptoMap).map(([sym, v]) => ({ symbol: sym.split('/')[0], name: v.name, change: v.change }));
+    const gainers = list.filter(x => x.change >= 0).sort((a, b) => b.change - a.change).slice(0, 5);
+    const losers = list.filter(x => x.change < 0).sort((a, b) => a.change - b.change).slice(0, 5);
+    setCurrentData(showGainers ? gainers : losers);
+  }, [cryptoMap, showGainers]);
 
   const formatCryptoList = (data: CryptoMarketData[]) => {
     return data.map(item =>

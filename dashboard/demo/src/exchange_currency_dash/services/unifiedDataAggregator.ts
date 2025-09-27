@@ -8,6 +8,9 @@ import { INSTRUMENT_CATALOG, InstrumentDefinition, UPDATE_CADENCE_CONFIG, FOREX_
 import coinbaseWebSocketService from './coinbaseWebSocketService';
 import realTimeDataManager from './realTimeDataManager';
 import { fetchLatestRates } from '../../services/exchangeRateService';
+import polygonFxProvider from './providers/polygonFxProvider';
+import twelveDataProvider from './providers/twelveDataProvider';
+import bocProvider from './providers/bocProvider';
 
 export interface MarketDataPoint {
   symbol: string;
@@ -135,6 +138,7 @@ class UnifiedDataAggregator {
 
     const now = Date.now();
     const polygonKey = this.getEnv('VITE_POLYGON_KEY');
+    const polygonBase = this.getEnv('VITE_POLYGON_URL');
 
     // Build the set of pairs we care about: all X/CAD in catalog + critical crosses
     const wantedPairs = new Set<string>();
@@ -146,7 +150,7 @@ class UnifiedDataAggregator {
     let polygonSuccessCount = 0;
     if (polygonKey) {
       for (const pair of wantedPairs) {
-        const rate = await this.fetchPolygonFxPair(pair, polygonKey);
+        const rate = await polygonFxProvider.getFxRate(pair, polygonKey, polygonBase);
         if (Number.isFinite(rate) && rate! > 0) {
           this.fxRateCache[pair] = { rate: rate!, timestamp: now, ttl: this.FX_CACHE_TTL };
           polygonSuccessCount++;
@@ -393,7 +397,8 @@ class UnifiedDataAggregator {
           // On-demand polygon fetch if stale
           const key = this.getEnv('VITE_POLYGON_KEY');
           if (key) {
-            const fetched = await this.fetchPolygonFxPair(instrument.symbol, key);
+            const base = this.getEnv('VITE_POLYGON_URL');
+            const fetched = await polygonFxProvider.getFxRate(instrument.symbol, key, base);
             if (Number.isFinite(fetched) && fetched! > 0) {
               this.fxRateCache[instrument.symbol] = { rate: fetched!, timestamp: Date.now(), ttl: this.FX_CACHE_TTL };
               rawPrice = fetched!;
@@ -416,37 +421,12 @@ class UnifiedDataAggregator {
         }
         if (apiKey && instrument.wsSymbol) {
           const symbol = /USD$/.test(instrument.wsSymbol) ? instrument.wsSymbol.replace('USD', '/USD') : instrument.wsSymbol;
-          try {
-            // First, try the simple price endpoint
-            const url = `${this.API_ENDPOINTS.twelvedata}/price?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`;
-            const res = await fetch(url);
-            if (res.ok) {
-              const json = await res.json();
-              const priceUSD = parseFloat(json?.price ?? json?.data?.price ?? '0');
-              if (Number.isFinite(priceUSD) && priceUSD > 0) {
-                rawPrice = priceUSD;
-                this.updateSourceStatus('twelvedata', 'healthy');
-              } else {
-                this.handleDataSourceError('twelvedata');
-              }
-            } else {
-              // Try time_series as a fallback
-              this.handleDataSourceError('twelvedata');
-              const tsUrl = `${this.API_ENDPOINTS.twelvedata}/time_series?symbol=${encodeURIComponent(symbol)}&interval=1min&outputsize=1&apikey=${apiKey}`;
-              const tsRes = await fetch(tsUrl);
-              if (tsRes.ok) {
-                const tsJson = await tsRes.json();
-                const close = parseFloat(tsJson?.values?.[0]?.close ?? tsJson?.data?.[0]?.close ?? '0');
-                if (Number.isFinite(close) && close > 0) {
-                  rawPrice = close;
-                  this.updateSourceStatus('twelvedata', 'healthy');
-                } else {
-                  this.handleDataSourceError('twelvedata');
-                }
-              }
-            }
-          } catch (e) {
-            // Mark degraded on exception
+          const base = this.getEnv('VITE_TWELVEDATA_URL');
+          const priceUSD = await twelveDataProvider.getCommodityUSD(symbol, apiKey, base);
+          if (Number.isFinite(priceUSD) && priceUSD! > 0) {
+            rawPrice = priceUSD!;
+            this.updateSourceStatus('twelvedata', 'healthy');
+          } else {
             this.handleDataSourceError('twelvedata');
           }
         }

@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   // Use the repository name for GitHub Pages base path
   // Ensure this matches the actual repo slug exactly (case-sensitive)
-  base: process.env.NODE_ENV === 'production' ? '/Leaper-Fx/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/LeaperFX/' : '/',
   server: {
     // CORS configuration for development
     cors: {

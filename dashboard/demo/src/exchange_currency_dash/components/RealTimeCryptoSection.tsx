@@ -402,11 +402,6 @@ export const RealTimeCryptoSection: React.FC = () => {
           ))}
         </div>
       </div>
-
-      {/* CAD Yield Chart - Properly separated from crypto section */}
-      <div className="mt-20 flex-shrink-0">
-        <YieldChart history={bondHistory} current={bondPoint} />
-      </div>
     </div>
   );
 };

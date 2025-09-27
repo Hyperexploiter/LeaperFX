@@ -200,21 +200,28 @@ class CoinbaseWebSocketService {
   private subscribeToDefaultChannels(): void {
     if (!this.ws || !this.isConnected) return;
 
-    // Guard against race condition - ensure WebSocket is fully OPEN
-    if (this.ws.readyState !== WebSocket.OPEN) {
-      console.log('[CoinbaseWS] WebSocket not ready, delaying subscription...');
-      setTimeout(() => this.subscribeToDefaultChannels(), 100);
-      return;
-    }
-
-    const subscribeMessage = {
+    const payload = {
       type: 'subscribe',
       product_ids: this.DEFAULT_SYMBOLS,
       channels: ['ticker', 'matches']
     };
 
-    console.log('[CoinbaseWS] Subscribing to channels:', subscribeMessage);
-    this.ws.send(JSON.stringify(subscribeMessage));
+    // Guard against CONNECTING state: send when OPEN or once on 'open'
+    if (this.ws.readyState === WebSocket.OPEN) {
+      console.log('[CoinbaseWS] Subscribing to channels immediately:', payload);
+      this.ws.send(JSON.stringify(payload));
+    } else {
+      console.log('[CoinbaseWS] WebSocket not OPEN, deferring subscription until open');
+      const sendOnOpen = () => {
+        try {
+          this.ws?.send(JSON.stringify(payload));
+          console.log('[CoinbaseWS] Subscribed after open event');
+        } catch (e) {
+          console.warn('[CoinbaseWS] Failed to send subscribe after open:', e);
+        }
+      };
+      this.ws?.addEventListener('open', sendOnOpen as any, { once: true } as any);
+    }
 
     this.DEFAULT_SYMBOLS.forEach(symbol => {
       this.subscribedSymbols.add(symbol);

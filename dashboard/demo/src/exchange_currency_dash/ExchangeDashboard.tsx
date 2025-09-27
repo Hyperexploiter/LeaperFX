@@ -10,7 +10,7 @@ import { HighPerformanceSparkline } from './components/HighPerformanceSparkline'
 import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
 import type { RotationItem } from './services/RotationScheduler';
 import realTimeDataManager from './services/realTimeDataManager';
-import unifiedDataAggregator from './services/unifiedDataAggregator';
+import unifiedDataAggregator, { MarketDataPoint } from './services/unifiedDataAggregator';
 import DataSourceStatus from './components/DataSourceStatus';
 import './styles/sexymodal.css';
 
@@ -54,6 +54,51 @@ interface DarkModeToggleProps { darkMode: boolean; setDarkMode: (value: boolean)
 const BASE_CURRENCY = 'CAD';
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const DEFAULT_SPREAD_PERCENT = 1.5;
+
+// YieldChart Component
+const YieldChart: React.FC<{ history: Array<{ time: string; value: number }>; current: MarketDataPoint | null }> = ({ history, current }) => {
+  const gradientId = 'yieldGradient-live';
+  const fallbackValue = current ? current.priceCAD : 4.5;
+  const chartData = history.length ? history : Array.from({ length: 30 }, (_, idx) => ({
+    time: `${idx}`,
+    value: fallbackValue
+  }));
+
+  return (
+    <div className="bg-black border transition-all duration-1000" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
+      <div className="p-4">
+        <h2 className="text-sm font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>
+          CAD 30-Year Yield
+        </h2>
+        <p className="text-sm font-bold" style={{ color: '#FFB000' }}>
+          {current ? `${current.priceCAD.toFixed(3)}%` : '—'}
+        </p>
+      </div>
+      <div className="h-40 px-4 pb-4" style={{
+        background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)'
+      }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
+                <stop offset="25%" stopColor="#FFB000" stopOpacity={0.6} />
+                <stop offset="50%" stopColor="#FF8C00" stopOpacity={0.4} />
+                <stop offset="75%" stopColor="#FF6B00" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="#FF4500" stopOpacity={0.05} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="rgba(255, 255, 255, 0.05)" strokeWidth={0.5} vertical={false} horizontal={true} strokeDasharray="2 2" />
+            <XAxis dataKey="time" hide tick={{ fill: '#666', fontSize: 9 }} />
+            <YAxis tick={{ fill: '#666', fontSize: 9 }} domain={[ (dataMin: number) => dataMin - 0.1, (dataMax: number) => dataMax + 0.1 ]} />
+            <Tooltip contentStyle={{ backgroundColor: 'rgba(0, 8, 20, 0.98)', border: '0.5px solid rgba(255, 215, 0, 0.3)', borderRadius: '2px', padding: '3px 6px' }} labelStyle={{ color: '#FFD700', fontSize: 10 }} itemStyle={{ color: '#FFB000', fontSize: 9 }} />
+            <Area type="monotoneX" dataKey="value" stroke="#FFD700" strokeWidth={1.2} fill={`url(#${gradientId})`} filter="drop-shadow(0 0 2px rgba(255, 215, 0, 0.3))" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
 
 // --- Sub-Components ---
 
@@ -149,8 +194,8 @@ const LiveClock: React.FC = () => {
     );
 };
 
-// Large Yield Chart section with Intraday and 1Y views
-const YieldChart: React.FC = () => {
+// Large Yield Chart section with Intraday and 1Y views (UNUSED - kept for reference)
+const LargeYieldChart: React.FC = () => {
   const [view, setView] = useState<'intraday' | '1y'>('intraday');
   const [data, setData] = useState<Array<{ time: string; value: number }>>([]);
 
@@ -493,6 +538,8 @@ export default function ExchangeDashboard(): React.ReactElement {
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [commodityRotationIndex, setCommodityRotationIndex] = useState<number>(0);
   const [showPerformanceMonitor, setShowPerformanceMonitor] = useState<boolean>(false);
+  const [bondPoint, setBondPoint] = useState<MarketDataPoint | null>(null);
+  const [bondHistory, setBondHistory] = useState<Array<{ time: string; value: number }>>([]);
 
   // Real-time data integration
   const { health, isConnected, error: marketError } = useMarketHealth();
@@ -600,20 +647,38 @@ export default function ExchangeDashboard(): React.ReactElement {
 
   const getRates = useCallback(async () => {
     setError(null);
-    if(!isLoading) setIsLoading(true);
-    
+    setIsLoading(true);
+
     const [latest, historical] = await Promise.all([
       fetchLatestRates(BASE_CURRENCY),
       fetchHistoricalRate(BASE_CURRENCY)
     ]);
-    
+
     if (latest) setLiveRates(latest);
     else setError("Failed to fetch latest rates.");
-    
+
     if (historical) setHistoricalRates(historical);
 
     setIsLoading(false);
-  }, [isLoading]);
+  }, []);
+
+  // Subscribe to bond yield data
+  useEffect(() => {
+    const unsubscribe = unifiedDataAggregator.subscribe('CA-30Y-YIELD', (md) => {
+      setBondPoint(md);
+      const rawValue = typeof md.priceCAD === 'number' ? md.priceCAD : md.price;
+      if (!Number.isFinite(rawValue)) {
+        return;
+      }
+      const rounded = Number(rawValue.toFixed(3));
+      setBondHistory(prev => {
+        const label = new Date(md.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const next = [...prev, { time: label, value: rounded }];
+        return next.length > 30 ? next.slice(-30) : next;
+      });
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -627,10 +692,12 @@ export default function ExchangeDashboard(): React.ReactElement {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
+  // Periodically refresh rates - run once on mount
   useEffect(() => {
+     getRates(); // Initial call
      const interval = setInterval(getRates, REFRESH_INTERVAL_MS);
      return () => clearInterval(interval);
-  }, [getRates]);
+  }, []);
 
   // Set up WebSocket connection for real-time rate updates from store owner
   useEffect(() => {
@@ -673,26 +740,6 @@ export default function ExchangeDashboard(): React.ReactElement {
     { name: 'NAT.GAS', symbol: 'NGAS', value: '2.876', change: '-0.08', changePercent: '2.87%', trend: 'down' }
   ]), []);
 
-  // Feed data to high-performance engine
-  useEffect(() => {
-    if (!liveRates) return;
-    const interval = setInterval(() => {
-      setLiveRates(prev => {
-        if (!prev) return prev;
-        const updated: RateData = { ...prev };
-        Object.keys(updated).forEach(k => {
-          if (k === BASE_CURRENCY) return;
-          const drift = 1 + (Math.random() - 0.5) * 0.002; // ±0.1%
-          updated[k] = updated[k] / drift; // adjust inverse rate subtly
-
-          // Push to ring buffer for sparkline rendering
-          engine.pushData(k, updated[k]);
-        });
-        return updated;
-      });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [liveRates, engine]);
 
   // Initialize rotation scheduler for commodities
   useEffect(() => {
@@ -944,15 +991,19 @@ export default function ExchangeDashboard(): React.ReactElement {
                   })}
                   </div>
 
-                  {/* Dynamic Bulletin - Under currency column, extends to fill space */}
+                  {/* CAD Yield Chart - Under currency column */}
                   <div className="flex-1 min-h-0">
-                    <DynamicBulletin />
+                    <YieldChart history={bondHistory} current={bondPoint} />
                   </div>
                 </div>
 
-                {/* Middle column - Real-Time Crypto Section + CAD Yield */}
+                {/* Middle column - Real-Time Crypto Section + Dynamic Bulletin */}
                 <div className="flex-1 min-w-0">
                   <RealTimeCryptoSection />
+                  {/* Dynamic Bulletin - Under crypto column */}
+                  <div className="mt-4">
+                    <DynamicBulletin />
+                  </div>
                 </div>
 
                 {/* Right column - commodities squares (one per line) */}

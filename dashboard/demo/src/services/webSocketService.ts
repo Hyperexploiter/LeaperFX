@@ -88,6 +88,14 @@ class WebSocketService {
 
       // Try to connect to WebSocket server
       const wsUrl = url || this.getWebSocketUrl();
+
+      // If URL is falsy (e.g., static hosting), switch to local mode
+      if (!wsUrl) {
+        console.log('[WebSocket] No WS URL available, falling back to local mode');
+        this.startLocalMode();
+        resolve(true);
+        return;
+      }
       
       try {
         this.ws = new WebSocket(wsUrl);
@@ -166,10 +174,14 @@ class WebSocketService {
   /**
    * Get WebSocket URL based on current environment
    */
-  private getWebSocketUrl(): string {
+  private getWebSocketUrl(): string | null {
     if (typeof window !== 'undefined') {
+      const host = window.location.host || window.location.hostname || '';
+      // Disable remote websocket attempts on static hosting like GitHub Pages
+      if (host.includes('github.io')) {
+        return null;
+      }
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
       return `${protocol}//${host}/ws`;
     }
     return 'ws://localhost:3001/ws';

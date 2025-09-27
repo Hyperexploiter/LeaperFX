@@ -50,6 +50,11 @@ interface ChartData { name:string; value: number; }
 // --- Sub-Component Prop Types ---
 interface TickerProps { rates: RateData | null; baseCurrency: string; calculateRates: (currency: string) => { customerBuys: string; change24h: string }; }
 interface DarkModeToggleProps { darkMode: boolean; setDarkMode: (value: boolean) => void; }
+interface ConnectionStatusProps {
+  isConnected: boolean;
+  health: 'healthy' | 'degraded' | 'unhealthy';
+  error?: string | null;
+}
 
 // --- Configuration ---
 const BASE_CURRENCY = 'CAD';
@@ -843,3 +848,40 @@ export default function ExchangeDashboard(): React.ReactElement {
     </LocalErrorBoundary>
   );
 }
+const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ isConnected, health, error }) => {
+  const getStatusColor = () => {
+    if (!isConnected) return '#FF4444';
+    switch (health) {
+      case 'healthy': return '#00FF88';
+      case 'degraded': return '#FFB000';
+      case 'unhealthy': return '#FF4444';
+      default: return '#666';
+    }
+  };
+
+  const getStatusText = () => {
+    if (!isConnected) return 'DISCONNECTED';
+    switch (health) {
+      case 'healthy': return 'LIVE';
+      case 'degraded': return 'DEGRADED';
+      case 'unhealthy': return 'UNHEALTHY';
+      default: return 'UNKNOWN';
+    }
+  };
+
+  return (
+    <div
+      className="flex items-center gap-2 px-3 py-1 border border-opacity-30"
+      style={{
+        borderColor: getStatusColor(),
+        background: `rgba(${getStatusColor() === '#00FF88' ? '0, 255, 136' : getStatusColor() === '#FFB000' ? '255, 176, 0' : '255, 68, 68'}, 0.1)`
+      }}
+    >
+      <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: getStatusColor() }} />
+      <span className="text-xs font-mono font-bold" style={{ color: getStatusColor() }}>{getStatusText()}</span>
+      {error && (
+        <span className="text-xs text-red-400 ml-2" title={error}>⚠</span>
+      )}
+    </div>
+  );
+};

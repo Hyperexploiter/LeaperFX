@@ -326,8 +326,13 @@ class UnifiedDataAggregator {
     const cadRate = this.getCADRate('USD');
     const cadPrice = usdPrice * cadRate;
 
-    // Debug logging to verify data flow
-    console.log(`[Crypto Data] ${instrument.symbol}: USD $${usdPrice} → CAD $${cadPrice.toFixed(2)}`);
+    // Debug logging to verify data flow (guarded by VITE_DEBUG_MODE)
+    try {
+      const dbg = this.getEnv('VITE_DEBUG_MODE');
+      if (String(dbg).toLowerCase() === 'true') {
+        console.debug(`[Aggregator] ${instrument.symbol} tick → USD ${usdPrice.toFixed(2)} | CAD ${cadPrice.toFixed(2)} | Δ24h ${(data.changePercent24h ?? 0).toFixed(2)}%`);
+      }
+    } catch {}
 
     const marketData: MarketDataPoint = {
       symbol: instrument.symbol,
@@ -346,6 +351,14 @@ class UnifiedDataAggregator {
     this.updateSourceStatus('coinbase', 'healthy');
 
     this.updateMarketData(instrument.symbol, marketData);
+
+    // Debug: confirm publish to subscribers
+    try {
+      const dbg = this.getEnv('VITE_DEBUG_MODE');
+      if (String(dbg).toLowerCase() === 'true') {
+        console.debug(`[Aggregator] published ${instrument.symbol} @ CAD ${cadPrice.toFixed(2)} (${new Date(marketData.timestamp).toLocaleTimeString()})`);
+      }
+    } catch {}
   }
 
   /**
@@ -454,10 +467,70 @@ class UnifiedDataAggregator {
       } else if (instrument.category === 'index') {
         // Special handling for Canadian bond yields
         if (instrument.subCategory === 'bond_yield') {
-          // Bank of Canada API endpoint has changed - mark as unavailable
-          rawPrice = NaN; // Proper error state, not mock data
-          this.handleDataSourceError('bankofcanada');
-          console.warn('[UnifiedDataAggregator] Bank of Canada API unavailable - bond yields not accessible');
+          // Try Bank of Canada Valet API for latest 30Y yield
+          try {
+            const valetUrl = 'https://www.bankofcanada.ca/valet/observations/group/bond_yields/json?recent=1';
+            const res = await fetch(valetUrl, { headers: { 'Accept': 'application/json' } });
+            if (res.ok) {
+              const json = await res.json();
+              const observations = Array.isArray(json?.observations) ? json.observations : [];
+              if (observations.length > 0) {
+                const latest = observations[observations.length - 1];
+                // Try to resolve the correct series key:
+                const preferredKeys = [
+                  String(instrument.metadata?.series || ''), // e.g., 'CGB.30Y' (if mapped by proxy)
+                  '30',
+                  'long',
+                  'long_term',
+                  '30y'
+                ].filter(Boolean) as string[];
+
+                let candidate: number | null = null;
+                for (const key of Object.keys(latest)) {
+                  if (key === 'd') continue;
+                  const lower = key.toLowerCase();
+                  const match = preferredKeys.some(pk => lower.includes(pk.toLowerCase()));
+                  const raw = (latest as any)[key];
+                  const val = typeof raw === 'object' && raw !== null ? parseFloat(raw.v) : parseFloat(raw);
+                  if (match && Number.isFinite(val)) {
+                    candidate = val;
+                    break;
+                  }
+                }
+
+                // Heuristic fallback: first numeric field if no preferred key matched
+                if (candidate === null) {
+                  for (const key of Object.keys(latest)) {
+                    if (key === 'd') continue;
+                    const raw = (latest as any)[key];
+                    const val = typeof raw === 'object' && raw !== null ? parseFloat(raw.v) : parseFloat(raw);
+                    if (Number.isFinite(val)) { candidate = val; break; }
+                  }
+                }
+
+                if (candidate !== null) {
+                  rawPrice = candidate; // percent value, already in CAD terms
+                  this.updateSourceStatus('bankofcanada', 'healthy');
+                } else {
+                  console.warn('[UnifiedDataAggregator] BoC Valet: could not resolve 30Y series from observation keys');
+                  this.handleDataSourceError('bankofcanada');
+                  rawPrice = NaN;
+                }
+              } else {
+                console.warn('[UnifiedDataAggregator] BoC Valet: observations array empty');
+                this.handleDataSourceError('bankofcanada');
+                rawPrice = NaN;
+              }
+            } else {
+              console.warn(`[UnifiedDataAggregator] BoC Valet HTTP ${res.status} for bond_yields group (consider proxying in prod)`);
+              this.handleDataSourceError('bankofcanada');
+              rawPrice = NaN;
+            }
+          } catch (e) {
+            console.warn('[UnifiedDataAggregator] BoC Valet request failed:', e);
+            this.handleDataSourceError('bankofcanada');
+            rawPrice = NaN;
+          }
         } else {
           // Try Alpaca first for US stocks/indices represented as tickers
           const alpacaKey = this.getEnv('VITE_ALPACA_KEY_ID') || this.getEnv('VITE_ALPACA_KEY');

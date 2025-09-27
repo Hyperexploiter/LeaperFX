@@ -303,8 +303,21 @@ export const RealTimeCryptoSection: React.FC = () => {
 
   // Subscribe to aggregator crypto feeds for display fallback
   useEffect(() => {
+    const debug = (() => {
+      try {
+        // Vite-first env resolution
+        const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env?.VITE_DEBUG_MODE : undefined;
+        const win = (typeof window !== 'undefined') ? (window as any).__ENV__?.VITE_DEBUG_MODE : undefined;
+        const node = (typeof process !== 'undefined') ? (process as any).env?.VITE_DEBUG_MODE : undefined;
+        return String(vite ?? win ?? node ?? '').toLowerCase() === 'true';
+      } catch { return false; }
+    })();
+
     const unsubs = aggregatorSymbols.map(symbol =>
       unifiedDataAggregator.subscribe(symbol, (md) => {
+        if (debug && Number.isFinite(md.priceCAD)) {
+          console.debug(`[UI] ${symbol} update → CAD ${md.priceCAD.toFixed(2)} (${new Date(md.timestamp).toLocaleTimeString()})`);
+        }
         setAggregatorCrypto(prev => ({ ...prev, [symbol]: md }));
       })
     );
@@ -343,7 +356,20 @@ export const RealTimeCryptoSection: React.FC = () => {
       rotatingVisible.push(...rotating.slice(0, remaining));
     }
 
-    return [...fixed, ...rotatingVisible];
+    const result = [...fixed, ...rotatingVisible];
+
+    // Debug: log a snapshot of symbols rendered
+    try {
+      const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env?.VITE_DEBUG_MODE : undefined;
+      const win = (typeof window !== 'undefined') ? (window as any).__ENV__?.VITE_DEBUG_MODE : undefined;
+      const node = (typeof process !== 'undefined') ? (process as any).env?.VITE_DEBUG_MODE : undefined;
+      const debug = String(vite ?? win ?? node ?? '').toLowerCase() === 'true';
+      if (debug) {
+        console.debug('[UI] Rendering crypto cards:', result.map(r => r.symbol).join(', '));
+      }
+    } catch {}
+
+    return result;
   }, [displayCryptos, rotationIndex]);
 
   // Loading state

@@ -574,6 +574,16 @@ export default function ExchangeDashboard(): React.ReactElement {
 
     // Initialize unified aggregator and connect it to the engine as the single producer
     const unsubscribe = unifiedDataAggregator.setEnginePushFunction(pushData);
+
+    // Debug: confirm engine wiring
+    try {
+      const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env?.VITE_DEBUG_MODE : undefined;
+      const win = (typeof window !== 'undefined') ? (window as any).__ENV__?.VITE_DEBUG_MODE : undefined;
+      const node = (typeof process !== 'undefined') ? (process as any).env?.VITE_DEBUG_MODE : undefined;
+      const debug = String(vite ?? win ?? node ?? '').toLowerCase() === 'true';
+      if (debug) console.debug('[Dashboard] Engine connected to UnifiedDataAggregator');
+    } catch {}
+
     unifiedDataAggregator.initialize().catch(err => console.error('Aggregator init failed', err));
 
     return () => {
@@ -583,7 +593,7 @@ export default function ExchangeDashboard(): React.ReactElement {
     };
   }, []); // Empty dependency array - run once on mount
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (avoid depending on entire engine object)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Ctrl/Cmd + Shift + P for performance monitor
@@ -622,7 +632,7 @@ export default function ExchangeDashboard(): React.ReactElement {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [displayedCurrencies, engine]);
+  }, [displayedCurrencies]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -741,7 +751,8 @@ export default function ExchangeDashboard(): React.ReactElement {
   ]), []);
 
 
-  // Initialize rotation scheduler for commodities
+  // Initialize rotation scheduler for commodities (depend on stable callbacks only)
+  const { initializeRotation, startRotation, stopRotation } = engine;
   useEffect(() => {
     const rotationItems: RotationItem[] = allCommodities.map((item, index) => ({
       id: `commodity_${item.symbol}`,
@@ -754,7 +765,7 @@ export default function ExchangeDashboard(): React.ReactElement {
       signalActive: false
     }));
 
-    engine.initializeRotation('commodities', rotationItems, {
+    initializeRotation('commodities', rotationItems, {
       fixedSlots: 3,
       spotlightSlots: 3,
       rotationInterval: 21,
@@ -762,10 +773,10 @@ export default function ExchangeDashboard(): React.ReactElement {
       sectorDiversity: false
     });
 
-    engine.startRotation('commodities', 21000);
+    startRotation('commodities', 21000);
 
-    return () => engine.stopRotation('commodities');
-  }, [engine, allCommodities]);
+    return () => stopRotation('commodities');
+  }, [initializeRotation, startRotation, stopRotation, allCommodities]);
 
   // Old rotation logic - kept for compatibility
   useEffect(() => {

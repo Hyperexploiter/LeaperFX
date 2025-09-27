@@ -102,6 +102,7 @@ class CoinbaseWebSocketService {
   private maxReconnectAttempts: number = 5;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private heartbeatTimer: NodeJS.Timeout | null = null;
+  private lastLogTs: Map<string, number> = new Map();
 
   // Subscribers
   private priceSubscribers: Map<string, PriceSubscriber[]> = new Map();
@@ -267,7 +268,7 @@ class CoinbaseWebSocketService {
     const price = parseFloat(ticker.price);
     const open24h = parseFloat(ticker.open_24h);
     const change24h = price - open24h;
-    const changePercent24h = (change24h / open24h) * 100;
+    const changePercent24h = open24h ? (change24h / open24h) * 100 : 0;
 
     const priceData: RealTimePrice = {
       symbol: ticker.product_id,
@@ -279,6 +280,26 @@ class CoinbaseWebSocketService {
       low24h: parseFloat(ticker.low_24h),
       timestamp: new Date(ticker.time).getTime()
     };
+
+    // Debug: throttle logs per symbol to avoid console spam
+    try {
+      const debugFlag = (() => {
+        try {
+          const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env?.VITE_DEBUG_MODE : undefined;
+          const win = (typeof window !== 'undefined') ? (window as any).__ENV__?.VITE_DEBUG_MODE : undefined;
+          const node = (typeof process !== 'undefined') ? (process as any).env?.VITE_DEBUG_MODE : undefined;
+          return String(vite ?? win ?? node ?? '').toLowerCase() === 'true';
+        } catch { return false; }
+      })();
+      if (debugFlag && (ticker.product_id === 'BTC-USD' || ticker.product_id === 'ETH-USD')) {
+        const now = Date.now();
+        const last = this.lastLogTs.get(ticker.product_id) || 0;
+        if (now - last > 30000) { // 30s throttle
+          console.debug(`[CoinbaseWS] ${ticker.product_id} ${price.toFixed(2)} (Δ24h ${(changePercent24h).toFixed(2)}%) @ ${new Date(priceData.timestamp).toLocaleTimeString()}`);
+          this.lastLogTs.set(ticker.product_id, now);
+        }
+      }
+    } catch {}
 
     // Store latest price
     this.latestPrices.set(ticker.product_id, priceData);

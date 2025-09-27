@@ -40,10 +40,18 @@ jobs:
       working-directory: dashboard/demo
       run: npm install
       
-    - name: Build application
+    - name: Build application (load VITE_ env from .env.developement)
       working-directory: dashboard/demo
       run: |
         echo "Building application with exchange_currency_dash included..."
+        set -a
+        if [ -f ../../.env.developement ]; then
+          echo "Loading ../../.env.developement"
+          . ../../.env.developement
+        else
+          echo "No .env.developement found at repo root"
+        fi
+        set +a
         NODE_ENV=production npm run build
         echo "Verifying build output includes exchange_currency_dash assets..."
         find dist -name "*exchange*" -o -name "*currency*" | head -5 || echo "No exchange/currency related files found in build output"

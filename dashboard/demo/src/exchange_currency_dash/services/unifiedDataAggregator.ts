@@ -512,26 +512,6 @@ class UnifiedDataAggregator {
             this.handleDataSourceError('bankofcanada');
             rawPrice = Number.NaN;
           }
-        } else {        } else {
-                  console.warn('[UnifiedDataAggregator] BoC Valet: could not resolve 30Y series from observation keys');
-                  this.handleDataSourceError('bankofcanada');
-                  rawPrice = NaN;
-                }
-              } else {
-                console.warn('[UnifiedDataAggregator] BoC Valet: observations array empty');
-                this.handleDataSourceError('bankofcanada');
-                rawPrice = NaN;
-              }
-            } else {
-              console.warn(`[UnifiedDataAggregator] BoC Valet HTTP ${res.status} for bond_yields group (consider proxying in prod)`);
-              this.handleDataSourceError('bankofcanada');
-              rawPrice = NaN;
-            }
-          } catch (e) {
-            console.warn('[UnifiedDataAggregator] BoC Valet request failed:', e);
-            this.handleDataSourceError('bankofcanada');
-            rawPrice = NaN;
-          }
         } else {
           // Try Alpaca first for US stocks/indices represented as tickers
           const alpacaKey = this.getEnv('VITE_ALPACA_KEY_ID') || this.getEnv('VITE_ALPACA_KEY');

@@ -11,51 +11,6 @@ import { useCryptoData, useAnimatedPrice } from '../hooks/useRealTimeData';
 import { Loader, AlertTriangle } from 'lucide-react';
 import unifiedDataAggregator, { MarketDataPoint } from '../services/unifiedDataAggregator';
 
-// Dynamic YieldChart Component backed by live aggregator data
-const YieldChart: React.FC<{ history: Array<{ time: string; value: number }>; current: MarketDataPoint | null }> = ({ history, current }) => {
-  const gradientId = 'yieldGradient-live';
-  const fallbackValue = current ? current.priceCAD : 4.5;
-  const chartData = history.length ? history : Array.from({ length: 30 }, (_, idx) => ({
-    time: `${idx}`,
-    value: fallbackValue
-  }));
-
-  return (
-    <div className="bg-black border transition-all duration-1000" style={{ borderColor: 'rgba(0, 212, 255, 0.15)', borderWidth: '0.5px' }}>
-      <div className="p-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>
-          CAD 30-Year Yield
-        </h2>
-        <p className="text-sm font-bold" style={{ color: '#FFB000' }}>
-          {current ? `${current.priceCAD.toFixed(3)}%` : '—'}
-        </p>
-      </div>
-      <div className="h-40 px-4 pb-4" style={{
-        background: 'linear-gradient(135deg, rgba(0, 40, 60, 0.15) 0%, rgba(0, 20, 35, 0.25) 50%, rgba(0, 8, 20, 0.35) 100%)'
-      }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
-                <stop offset="25%" stopColor="#FFB000" stopOpacity={0.6} />
-                <stop offset="50%" stopColor="#FF8C00" stopOpacity={0.4} />
-                <stop offset="75%" stopColor="#FF6B00" stopOpacity={0.2} />
-                <stop offset="100%" stopColor="#FF4500" stopOpacity={0.05} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid stroke="rgba(255, 255, 255, 0.05)" strokeWidth={0.5} vertical={false} horizontal={true} strokeDasharray="2 2" />
-            <XAxis dataKey="time" hide tick={{ fill: '#666', fontSize: 9 }} />
-            <YAxis tick={{ fill: '#666', fontSize: 9 }} domain={[ (dataMin: number) => dataMin - 0.1, (dataMax: number) => dataMax + 0.1 ]} />
-            <Tooltip contentStyle={{ backgroundColor: 'rgba(0, 8, 20, 0.98)', border: '0.5px solid rgba(255, 215, 0, 0.3)', borderRadius: '2px', padding: '3px 6px' }} labelStyle={{ color: '#FFD700', fontSize: 10 }} itemStyle={{ color: '#FFB000', fontSize: 9 }} />
-            <Area type="monotoneX" dataKey="value" stroke="#FFD700" strokeWidth={1.2} fill={`url(#${gradientId})`} filter="drop-shadow(0 0 2px rgba(255, 215, 0, 0.3))" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-};
-
 interface CryptoItem {
   symbol: string;
   name: string;

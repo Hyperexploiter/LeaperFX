@@ -465,53 +465,75 @@ class UnifiedDataAggregator {
           rawPrice = rawPrice * cf;
         }
       } else if (instrument.category === 'index') {
-        // Special handling for Canadian bond yields
         if (instrument.subCategory === 'bond_yield') {
-          // Try Bank of Canada Valet API for latest 30Y yield
-          try {
-            const valetUrl = 'https://www.bankofcanada.ca/valet/observations/group/bond_yields/json?recent=1';
-            const res = await fetch(valetUrl, { headers: { 'Accept': 'application/json' } });
-            if (res.ok) {
-              const json = await res.json();
-              const observations = Array.isArray(json?.observations) ? json.observations : [];
-              if (observations.length > 0) {
-                const latest = observations[observations.length - 1];
-                // Try to resolve the correct series key:
-                const preferredKeys = [
-                  String(instrument.metadata?.series || ''), // e.g., 'CGB.30Y' (if mapped by proxy)
-                  '30',
-                  'long',
-                  'long_term',
-                  '30y'
-                ].filter(Boolean) as string[];
+          const series = typeof instrument.metadata?.series === 'string'
+            ? instrument.metadata!.series
+            : undefined;
+          let handled = false;
 
-                let candidate: number | null = null;
-                for (const key of Object.keys(latest)) {
-                  if (key === 'd') continue;
-                  const lower = key.toLowerCase();
-                  const match = preferredKeys.some(pk => lower.includes(pk.toLowerCase()));
-                  const raw = (latest as any)[key];
-                  const val = typeof raw === 'object' && raw !== null ? parseFloat(raw.v) : parseFloat(raw);
-                  if (match && Number.isFinite(val)) {
-                    candidate = val;
-                    break;
-                  }
+          if (series) {
+            try {
+              const url = `${this.API_ENDPOINTS.bankofcanada}/observations/${series}.json?recent=1`;
+              const res = await fetch(url, { headers: { Accept: 'application/json' } });
+              if (res.ok) {
+                const json = await res.json();
+                const observations = Array.isArray(json?.observations) ? json.observations : [];
+                const latest = observations.length > 0 ? observations[observations.length - 1] : null;
+                const entry = latest ? (latest as any)[series] : undefined;
+                const val = entry ? parseFloat(entry.v ?? entry) : NaN;
+                if (Number.isFinite(val)) {
+                  rawPrice = val;
+                  this.updateSourceStatus('bankofcanada', 'healthy');
+                  handled = true;
                 }
+              }
+            } catch (error) {
+              console.warn('[UnifiedDataAggregator] BoC fetch failed', error);
+            }
+          }
 
-                // Heuristic fallback: first numeric field if no preferred key matched
-                if (candidate === null) {
+          if (!handled) {
+            try {
+              const fallbackUrl = `${this.API_ENDPOINTS.bankofcanada}/observations/group/bond_yields/json?recent=1`;
+              const res = await fetch(fallbackUrl, { headers: { Accept: 'application/json' } });
+              if (res.ok) {
+                const json = await res.json();
+                const observations = Array.isArray(json?.observations) ? json.observations : [];
+                if (observations.length > 0) {
+                  const latest = observations[observations.length - 1];
+                  const prefs = [String(series || ''), '30', 'long', '30y'].filter(Boolean) as string[];
+                  let candidate: number | null = null;
                   for (const key of Object.keys(latest)) {
                     if (key === 'd') continue;
                     const raw = (latest as any)[key];
                     const val = typeof raw === 'object' && raw !== null ? parseFloat(raw.v) : parseFloat(raw);
-                    if (Number.isFinite(val)) { candidate = val; break; }
+                    if (!Number.isFinite(val)) continue;
+                    const lower = key.toLowerCase();
+                    if (prefs.some(pk => lower.includes(pk.toLowerCase()))) {
+                      candidate = val;
+                      break;
+                    }
+                    if (candidate === null) {
+                      candidate = val;
+                    }
+                  }
+                  if (candidate !== null) {
+                    rawPrice = candidate;
+                    this.updateSourceStatus('bankofcanada', 'healthy');
+                    handled = true;
                   }
                 }
+              }
+            } catch (error) {
+              console.warn('[UnifiedDataAggregator] BoC group fetch failed', error);
+            }
+          }
 
-                if (candidate !== null) {
-                  rawPrice = candidate; // percent value, already in CAD terms
-                  this.updateSourceStatus('bankofcanada', 'healthy');
-                } else {
+          if (!handled) {
+            this.handleDataSourceError('bankofcanada');
+            rawPrice = Number.NaN;
+          }
+        } else {        } else {
                   console.warn('[UnifiedDataAggregator] BoC Valet: could not resolve 30Y series from observation keys');
                   this.handleDataSourceError('bankofcanada');
                   rawPrice = NaN;

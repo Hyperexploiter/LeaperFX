@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AreaChart, Area, ResponsiveContainer, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer, YAxis, CartesianGrid, Tooltip, XAxis } from 'recharts';
 import unifiedDataAggregator, { MarketDataPoint } from '../services/unifiedDataAggregator';
 
 const MAX_HISTORY_POINTS = 60;

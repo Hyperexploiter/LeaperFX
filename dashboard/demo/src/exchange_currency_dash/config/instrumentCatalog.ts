@@ -664,7 +664,7 @@ export const INDEX_INSTRUMENTS: InstrumentDefinition[] = [
     priority: 'high',
     tradeable: false,
     showInDashboard: true,
-    metadata: { unit: 'percent', decimals: 3, series: 'V122557' }
+    metadata: { unit: 'percent', decimals: 3, series: 'CGB.30Y' }
   }
 ];
 

@@ -3,7 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.NODE_ENV === 'production' ? '/LeaperFX/' : '/',
+  // Use the repository name for GitHub Pages base path
+  // Ensure this matches the actual repo slug exactly (case-sensitive)
+  base: process.env.NODE_ENV === 'production' ? '/Leaper-Fx/' : '/',
   server: {
     // CORS configuration for development
     cors: {

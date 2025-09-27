@@ -848,7 +848,9 @@ export default function ExchangeDashboard(): React.ReactElement {
     </LocalErrorBoundary>
   );
 }
-const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ isConnected, health, error }) => {
+
+// Use a function declaration to avoid any bundler/hoisting pitfalls in production builds
+function ConnectionStatus({ isConnected, health, error }: ConnectionStatusProps) {
   const getStatusColor = () => {
     if (!isConnected) return '#FF4444';
     switch (health) {
@@ -884,4 +886,4 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ isConnected, health
       )}
     </div>
   );
-};
+}

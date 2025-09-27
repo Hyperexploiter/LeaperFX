@@ -389,7 +389,7 @@ const DynamicBulletin: React.FC = () => {
   };
 
   return (
-    <div className="mt-3 bg-black border transition-all duration-1000 h-full flex flex-col" style={{
+    <div className="mt-3 bg-black border transition-all duration-1000 flex flex-col min-h-[200px]" style={{
       background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
       border: '0.5px solid rgba(255, 165, 0, 0.2)',
       borderLeftWidth: '4px',
@@ -864,8 +864,8 @@ export default function ExchangeDashboard(): React.ReactElement {
             <div className="flex-1 overflow-hidden">
               <div className="h-full flex flex-col xl:flex-row gap-3">
                 {/* Left column - Currency rectangles + Daily Bulletin */}
-                <div className="flex-1 min-w-0 flex flex-col">
-                  <div className="space-y-2">
+                <div className="flex-1 min-w-0 flex flex-col space-y-3 overflow-hidden">
+                  <div className="space-y-2 overflow-visible">
                   {displayedCurrencies.map((currency) => {
                     const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
                     const info = getCurrencyInfo(currency);
@@ -1003,7 +1003,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                   </div>
 
                   {/* CAD Yield Chart - Under currency column */}
-                  <div className="flex-1 min-h-0">
+                  <div className="pt-2">
                     <YieldChart history={bondHistory} current={bondPoint} />
                   </div>
                 </div>

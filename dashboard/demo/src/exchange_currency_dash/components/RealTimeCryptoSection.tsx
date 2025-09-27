@@ -240,6 +240,17 @@ export const RealTimeCryptoSection: React.FC = () => {
 
   // Merge real-time data with static data
   const displayCryptos = useMemo(() => {
+    const desiredMinimum = 5;
+    const used = new Set<string>();
+    const combined: CryptoItem[] = [];
+
+    const addItem = (item: CryptoItem | null | undefined) => {
+      if (!item) return;
+      if (used.has(item.symbol)) return;
+      combined.push(item);
+      used.add(item.symbol);
+    };
+
     const aggregatorList = aggregatorSymbols
       .map(symbol => {
         const md = aggregatorCrypto[symbol];
@@ -263,21 +274,29 @@ export const RealTimeCryptoSection: React.FC = () => {
       })
       .filter((item): item is CryptoItem => item !== null);
 
-    if (aggregatorList.length > 0) {
-      return aggregatorList;
+    aggregatorList.forEach(addItem);
+
+    const realtimeList = cryptoData.map(item => ({
+      symbol: item.symbol,
+      name: item.name,
+      price: item.value,
+      change: parseFloat(String(item.change)),
+      trend: item.trend as 'up' | 'down'
+    }));
+
+    realtimeList.forEach(item => {
+      if (combined.length < aggregatorSymbols.length) addItem(item);
+    });
+
+    staticCryptos.forEach(item => {
+      if (combined.length < aggregatorSymbols.length) addItem(item);
+    });
+
+    if (combined.length < desiredMinimum) {
+      return staticCryptos.slice(0, desiredMinimum);
     }
 
-    if (cryptoData.length > 0) {
-      return cryptoData.map(item => ({
-        symbol: item.symbol,
-        name: item.name,
-        price: item.value,
-        change: parseFloat(String(item.change)),
-        trend: item.trend as 'up' | 'down'
-      }));
-    }
-
-    return staticCryptos;
+    return combined;
   }, [aggregatorCrypto, aggregatorSymbols, cryptoData, staticCryptos]);
 
   // Subscribe to bond yield data for the CAD 30Y panel
@@ -414,19 +433,14 @@ export const RealTimeCryptoSection: React.FC = () => {
 
   return (
     <div className="w-full flex flex-col">
-      {/* Fixed height container for crypto rotation - exactly 5 items */}
-      <div className="h-[457px] overflow-hidden flex-shrink-0" style={{
-        background: 'transparent'
-      }}>
-        <div className="space-y-2">
-          {visibleCryptos.map((crypto, index) => (
-            <RealTimeCryptoCard
-              key={`${crypto.symbol}-${index}`}
-              crypto={crypto}
-              index={index}
-            />
-          ))}
-        </div>
+      <div className="space-y-2">
+        {visibleCryptos.map((crypto, index) => (
+          <RealTimeCryptoCard
+            key={`${crypto.symbol}-${index}`}
+            crypto={crypto}
+            index={index}
+          />
+        ))}
       </div>
     </div>
   );

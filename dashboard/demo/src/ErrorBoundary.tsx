@@ -80,7 +80,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                   Reload Page
                 </button>
                 <button
-                  onClick={() => window.location.href = '/'}
+                  onClick={() => { window.location.hash = '#/'; }}
                   className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors"
                 >
                   Return to Public Dashboard

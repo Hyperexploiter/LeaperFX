@@ -12,7 +12,7 @@ export interface FintracTransaction {
   toAmount: number;
   commission: number;
   profit: number;
-  
+
   // FINTRAC Compliance Fields
   status: 'locked' | 'completed' | 'submitted'; // Transaction status
   customerId?: string; // Reference to customer data
@@ -28,6 +28,24 @@ export interface FintracTransaction {
   reportSubmitted?: boolean; // Whether LCTR report has been submitted
   reportId?: string; // Reference to LCTR report
   reportSubmissionDate?: string; // Date of report submission
+
+  // Cryptocurrency-specific fields
+  isCryptoTransaction?: boolean; // Whether this involves cryptocurrency
+  cryptocurrency?: string; // BTC, ETH, etc.
+  cryptoAmount?: number; // Amount in cryptocurrency
+  walletAddressSender?: string; // Sender wallet address
+  walletAddressReceiver?: string; // Receiver wallet address
+  transactionHash?: string; // Blockchain transaction hash
+  blockHeight?: number; // Block height when confirmed
+  confirmations?: number; // Number of confirmations
+  networkFee?: number; // Network/gas fee paid
+  exchangeRate?: number; // Crypto to CAD exchange rate used
+  requiresVCTR?: boolean; // Whether VCTR is required (crypto ≥$1,000)
+  requiresLVCTR?: boolean; // Whether LVCTR is required (crypto ≥$10,000)
+  requiresSTR?: boolean; // Whether STR is required (suspicious activity)
+  ipAddress?: string; // Customer IP address during transaction
+  deviceId?: string; // Device identifier if applicable
+  sessionId?: string; // Session identifier
 }
 
 /**
@@ -69,6 +87,30 @@ export interface Customer {
   lastRiskAssessment?: string;
   riskFactors?: string[];
   requiresEnhancedMonitoring?: boolean;
+
+  // PEP (Politically Exposed Person) Status
+  pepStatus?: 'not_pep' | 'pep' | 'head_of_international_org' | 'family_member' | 'close_associate';
+  pepDetails?: string;
+  pepLastReview?: string;
+
+  // Cryptocurrency-specific information
+  cryptoExperience?: 'none' | 'beginner' | 'intermediate' | 'advanced';
+  cryptoWallets?: Array<{
+    address: string;
+    type: string; // BTC, ETH, etc.
+    verified: boolean;
+    dateAdded: string;
+  }>;
+  cryptoVerificationLevel?: 'none' | 'basic' | 'enhanced' | 'full_kyc';
+  cryptoTransactionHistory?: {
+    totalTransactions: number;
+    totalVolume: number;
+    largestTransaction: number;
+    firstTransaction?: string;
+    lastTransaction?: string;
+  };
+  citizenship?: string;
+  residenceCountry?: string;
   
   // Transaction History
   totalTransactionCount?: number;
@@ -190,4 +232,118 @@ export interface LCTRReport {
   createdAt: string;
   updatedAt: string;
   retentionDate: string; // 5 years from submission
+
+  // Cryptocurrency-specific fields for LCTR
+  involvesCryptocurrency?: boolean;
+  cryptoTransactions?: Array<{
+    transactionId: string;
+    cryptocurrency: string;
+    cryptoAmount: number;
+    walletAddresses: {
+      sender?: string;
+      receiver: string;
+    };
+    transactionHash: string;
+    exchangeRate: number;
+  }>;
+}
+
+/**
+ * Virtual Currency Transaction Report (VCTR) model
+ */
+export interface VCTRReport {
+  id: string;
+  reportType: 'VCTR';
+  reportReference: string;
+  submissionDate: string;
+
+  // Virtual Currency Transaction Details
+  transactionId: string;
+  virtualCurrencyType: string; // BTC, ETH, etc.
+  virtualCurrencyAmount: number;
+  cadEquivalent: number;
+  exchangeRate: number;
+
+  // Wallet Information
+  senderWalletAddress?: string;
+  receiverWalletAddress: string;
+  transactionHash: string;
+
+  // Technical Details
+  ipAddress?: string;
+  deviceId?: string;
+  networkFee: number;
+  confirmations: number;
+  blockHeight?: number;
+
+  // Customer Information
+  customerId: string;
+  customerData: any;
+  verificationLevel: 'none' | 'basic' | 'enhanced' | 'full_kyc';
+
+  // Risk Assessment
+  riskScore: number;
+  riskFactors: string[];
+  suspicious: boolean;
+
+  // Submission Details
+  submissionStatus: 'draft' | 'submitted' | 'acknowledged' | 'rejected';
+  submissionMethod: 'FWR' | 'API' | 'PAPER';
+  acknowledgmentReference?: string;
+
+  // Metadata
+  preparedBy: string;
+  reviewedBy?: string;
+  retentionDate: string;
+  auditHash: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Large Virtual Currency Transaction Report (LVCTR) model
+ */
+export interface LVCTRReport extends VCTRReport {
+  reportType: 'LVCTR';
+  aggregateTransactions: Array<{
+    transactionId: string;
+    date: string;
+    amount: number;
+    virtualCurrencyType: string;
+    cadEquivalent: number;
+  }>;
+  totalAggregateAmount: number;
+  aggregationPeriod: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
+/**
+ * Crypto Suspicious Transaction Report (STR) model
+ */
+export interface CryptoSTRReport extends VCTRReport {
+  reportType: 'STR';
+  suspicionIndicators: {
+    unusualTransactionPatterns: boolean;
+    multipleSmallAmounts: boolean;
+    rapidSuccession: boolean;
+    unknownSourceFunds: boolean;
+    inconsistentWithProfile: boolean;
+    highRiskJurisdiction: boolean;
+    mixerOrTumblerUsage: boolean;
+    privacyCoinUsage: boolean;
+    newWalletAddress: boolean;
+    largeRoundNumbers: boolean;
+    other: string[];
+  };
+  narrative: string;
+  conductReason: string;
+  actionTaken: string;
+  relatedTransactions?: Array<{
+    transactionId: string;
+    date: string;
+    amount: number;
+    relationship: string;
+  }>;
 }

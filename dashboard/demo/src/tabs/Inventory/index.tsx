@@ -10,7 +10,7 @@ const InventoryManagement: React.FC = () => {
   const [inventory, setInventory] = useState<any[]>([]);
   const [newStock, setNewStock] = useState({ currency: 'USD', amount: '', buyRate: '' });
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  // const [error, setError] = useState<string | null>(null); // Not currently used
+  const [, setError] = useState<string | null>(null); // error setter only (value not used)
   const [isAddingStock, setIsAddingStock] = useState<boolean>(false);
   
   // Modal and Toast states
@@ -64,7 +64,7 @@ const InventoryManagement: React.FC = () => {
     const setupWebSocket = async () => {
       try {
         // Connect to WebSocket (don't block if this fails)
-        webSocketService.connect().catch(err => console.warn('WebSocket connection failed:', err));
+        void webSocketService.connect().catch(err => console.warn('WebSocket connection failed:', err));
         
         // Subscribe to inventory updates
         const unsubscribe = webSocketService.subscribe((event) => {
@@ -80,7 +80,7 @@ const InventoryManagement: React.FC = () => {
               }
             };
             
-            fetchInventory();
+            void fetchInventory();
           }
         });
         
@@ -99,7 +99,7 @@ const InventoryManagement: React.FC = () => {
       }
     };
     
-    setupWebSocket();
+    void setupWebSocket();
   }, []);
   
   // Function to validate stock input
@@ -288,7 +288,7 @@ const InventoryManagement: React.FC = () => {
                 console.error('Failed to refresh inventory:', err);
               }
             };
-            fetchInventory();
+            void fetchInventory();
           }} 
         />
       </div>

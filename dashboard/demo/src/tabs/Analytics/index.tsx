@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import webSocketService from '../../services/webSocketService';
 
 const AnalyticsDashboard: React.FC = () => {
-  // const [dailyPerformance, setDailyPerformance] = useState<any[]>([]); // Not currently used
+  const [, setDailyPerformance] = useState<any[]>([]); // Setter only; series not rendered currently
   const [currencyPerformance, setCurrencyPerformance] = useState<any[]>([]);
   const [insights, setInsights] = useState<any[]>([]);
   const [profitAnalysis, setProfitAnalysis] = useState<any>(null);

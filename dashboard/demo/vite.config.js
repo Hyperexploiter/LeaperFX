@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // Use the repository name for GitHub Pages base path
+  // Ensure this matches the actual repo slug exactly (case-sensitive)
+  base: process.env.NODE_ENV === 'production' ? '/LeaperFX/' : '/',
   server: {
     // CORS configuration for development
     cors: {
@@ -11,14 +14,22 @@ export default defineConfig({
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
     },
-    // Security headers
+    // Security headers - Disabled CSP for development to allow email backend
     headers: {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'X-XSS-Protection': '1; mode=block',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; media-src 'self'; frame-src 'none';"
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+    },
+    // Lightweight dev proxy for Bank of Canada Valet API
+    proxy: {
+      '/api/boc': {
+        target: 'https://www.bankofcanada.ca/valet',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/api\/boc/, '')
+      }
     }
   },
   build: {
@@ -32,7 +43,10 @@ export default defineConfig({
       }
     },
     // Enable source map for debugging but not in production
-    sourcemap: process.env.NODE_ENV !== 'production'
+    sourcemap: process.env.NODE_ENV !== 'production',
+    // Add .nojekyll file to disable Jekyll processing
+    assetsInlineLimit: 0,
+    emptyOutDir: true
   },
   // Environment variables security
   define: {

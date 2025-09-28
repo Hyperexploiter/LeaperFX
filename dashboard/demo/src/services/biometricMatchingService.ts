@@ -171,12 +171,21 @@ class BiometricMatchingService {
             detected: selfieFace.landmarks.length, 
             total: 68 // Standard facial landmark count
           },
-          occlusion: selfieFace.occlusion
+          occlusion: {
+            forehead: selfieFace.occlusion.forehead,
+            eyes: !!(selfieFace.occlusion.leftEye || selfieFace.occlusion.rightEye),
+            nose: selfieFace.occlusion.nose,
+            mouth: selfieFace.occlusion.mouth
+          }
         },
 
         matchingFeatures,
 
-        livenessCheck: livenessResult,
+        livenessCheck: livenessResult ? {
+          isLive: livenessResult.isLive,
+          confidence: livenessResult.confidence,
+          flags: livenessResult.spoofingIndicators || []
+        } : undefined,
 
         photoQuality: {
           selfieQuality: this.calculatePhotoQuality(selfieFace),
@@ -240,7 +249,7 @@ class BiometricMatchingService {
   /**
    * Azure Face API face detection
    */
-  private async detectFaceAzure(file: DocumentFile, imageType: string): Promise<FaceDetectionResult> {
+  private async detectFaceAzure(_file: DocumentFile, imageType: string): Promise<FaceDetectionResult> {
     // Simulate Azure Face API call
     await new Promise(resolve => setTimeout(resolve, 1500));
     
@@ -250,7 +259,7 @@ class BiometricMatchingService {
   /**
    * AWS Rekognition face detection
    */
-  private async detectFaceAWS(file: DocumentFile, imageType: string): Promise<FaceDetectionResult> {
+  private async detectFaceAWS(_file: DocumentFile, imageType: string): Promise<FaceDetectionResult> {
     // Simulate AWS Rekognition call
     await new Promise(resolve => setTimeout(resolve, 1200));
     
@@ -260,7 +269,7 @@ class BiometricMatchingService {
   /**
    * Face++ API face detection
    */
-  private async detectFaceFacePlusPlus(file: DocumentFile, imageType: string): Promise<FaceDetectionResult> {
+  private async detectFaceFacePlusPlus(_file: DocumentFile, imageType: string): Promise<FaceDetectionResult> {
     // Simulate Face++ API call
     await new Promise(resolve => setTimeout(resolve, 1800));
     
@@ -270,7 +279,7 @@ class BiometricMatchingService {
   /**
    * Local face detection processing
    */
-  private async detectFaceLocal(file: DocumentFile, imageType: string): Promise<FaceDetectionResult> {
+  private async detectFaceLocal(_file: DocumentFile, imageType: string): Promise<FaceDetectionResult> {
     // Simulate local processing with longer time
     await new Promise(resolve => setTimeout(resolve, 3000));
     
@@ -280,7 +289,7 @@ class BiometricMatchingService {
   /**
    * Perform liveness detection on selfie
    */
-  private async performLivenessDetection(selfieFile: DocumentFile): Promise<LivenessDetectionResult> {
+  private async performLivenessDetection(_selfieFile: DocumentFile): Promise<LivenessDetectionResult> {
     console.log('Performing liveness detection...');
     
     // Simulate liveness detection processing
@@ -307,7 +316,7 @@ class BiometricMatchingService {
   /**
    * Extract face encoding/embedding for comparison
    */
-  private async extractFaceEncoding(file: DocumentFile, faceDetection: FaceDetectionResult): Promise<FaceEncoding> {
+  private async extractFaceEncoding(_file: DocumentFile, faceDetection: FaceDetectionResult): Promise<FaceEncoding> {
     console.log('Extracting face encoding...');
     
     // Simulate face encoding extraction

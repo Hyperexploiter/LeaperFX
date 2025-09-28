@@ -329,7 +329,6 @@ Overall confidence: 91%`;
             <div className="flex-1 relative overflow-auto bg-gray-100">
               {selectedDocument ? (
                 <div className="flex items-center justify-center h-full p-4">
-                  {/* Mock document display - in production, this would show actual images */}
                   <div 
                     className="bg-white border shadow-lg relative"
                     style={{
@@ -337,13 +336,22 @@ Overall confidence: 91%`;
                       transformOrigin: 'center',
                     }}
                   >
-                    <div className="w-96 h-64 flex items-center justify-center text-6xl">
-                      {selectedDocument.type === 'photo_id' && '🆔'}
-                      {selectedDocument.type === 'selfie' && '🤳'}
-                      {selectedDocument.type === 'proof_of_address' && '📄'}
-                    </div>
-                    
-                    {/* Mock document content overlay */}
+                    {selectedDocument.encryptedData && selectedDocument.mimeType?.startsWith('image/') ? (
+                      <img
+                        ref={imageRef}
+                        src={selectedDocument.encryptedData}
+                        alt={selectedDocument.fileName}
+                        style={{ maxWidth: '80vw', maxHeight: '65vh', display: 'block' }}
+                      />
+                    ) : (
+                      <div className="w-96 h-64 flex items-center justify-center text-6xl">
+                        {selectedDocument.type === 'photo_id' && '🆔'}
+                        {selectedDocument.type === 'selfie' && '🤳'}
+                        {selectedDocument.type === 'proof_of_address' && '📄'}
+                      </div>
+                    )}
+
+                    {/* Overlay info */}
                     <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity flex items-center justify-center">
                       <div className="text-center text-white opacity-0 hover:opacity-100 transition-opacity">
                         <p className="text-sm font-medium mb-2">{selectedDocument.fileName}</p>

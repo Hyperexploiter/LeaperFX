@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import ExchangeDashboard from './ExchangeDashboard';
+import { HashRouter as Router, Routes, Route, Navigate, useNavigate, useLocation, Link } from 'react-router-dom';
+import { ExchangeDashboard } from './exchange_currency_dash';
 import StoreOwnerDashboard from './StoreOwnerDashboard';
 import StoreOwnerDashboardSimple from './StoreOwnerDashboardSimple';
 import CustomerMobileForm from './components/CustomerMobileForm';
@@ -98,9 +98,9 @@ const Login: React.FC = () => {
           </div>
           
           <div className="text-center">
-            <a href="/" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link to="/" className="font-medium text-blue-600 hover:text-blue-500">
               Return to Public Dashboard
-            </a>
+            </Link>
           </div>
         </form>
       </div>

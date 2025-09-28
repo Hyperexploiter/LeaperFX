@@ -5,6 +5,7 @@ export type WebSocketEventType =
   | 'rate_update' 
   | 'inventory_update' 
   | 'transaction_created' 
+  | 'transaction_updated'
   | 'alert'
   | 'rate_lock_created'
   | 'rate_lock_completed'
@@ -22,7 +23,12 @@ export type WebSocketEventType =
   | 'form_document_uploaded'
   | 'form_document_approved'
   | 'form_document_rejected'
-  | 'form_audit_log';
+  | 'form_audit_log'
+  | 'customer_compliance_updated'
+  | 'customer_created'
+  | 'customer_updated'
+  | 'transaction_receipt_generated'
+  | 'fintrac_report_submitted';
 
 export interface WebSocketEvent {
   type: WebSocketEventType;
@@ -61,8 +67,20 @@ class WebSocketService {
    */
   connect(url?: string): Promise<boolean> {
     return new Promise((resolve) => {
-      // If no URL provided, start in local mode
-      if (!url && typeof window !== 'undefined') {
+      // Only use local mode for server-side rendering or tests
+      // In browser, always try to connect to real WebSocket
+      if (!url && typeof window === 'undefined') {
+        this.startLocalMode();
+        resolve(true);
+        return;
+      }
+
+      // Detect if we're on GitHub Pages or other static hosting
+      if (typeof window !== 'undefined' &&
+          (window.location.hostname.includes('github.io') ||
+           window.location.hostname.includes('vercel.app') ||
+           window.location.hostname.includes('netlify.app'))) {
+        console.log('[WebSocket] Static hosting detected, using local mode');
         this.startLocalMode();
         resolve(true);
         return;
@@ -70,6 +88,14 @@ class WebSocketService {
 
       // Try to connect to WebSocket server
       const wsUrl = url || this.getWebSocketUrl();
+
+      // If URL is falsy (e.g., static hosting), switch to local mode
+      if (!wsUrl) {
+        console.log('[WebSocket] No WS URL available, falling back to local mode');
+        this.startLocalMode();
+        resolve(true);
+        return;
+      }
       
       try {
         this.ws = new WebSocket(wsUrl);
@@ -148,10 +174,14 @@ class WebSocketService {
   /**
    * Get WebSocket URL based on current environment
    */
-  private getWebSocketUrl(): string {
+  private getWebSocketUrl(): string | null {
     if (typeof window !== 'undefined') {
+      const host = window.location.host || window.location.hostname || '';
+      // Disable remote websocket attempts on static hosting like GitHub Pages
+      if (host.includes('github.io')) {
+        return null;
+      }
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
       return `${protocol}//${host}/ws`;
     }
     return 'ws://localhost:3001/ws';

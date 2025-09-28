@@ -1,0 +1,70 @@
+name: Deploy LeaperFX to GitHub Pages
+
+on:
+  push:
+    branches: [ hyp3r ]
+    paths:
+      - 'dashboard/demo/**'  # Only trigger on changes to the React app
+      - 'dashboard/demo/src/exchange_currency_dash/**'  # Explicit path for exchange currency dashboard
+      - '.github/workflows/**'  # Or workflow changes
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Verify exchange_currency_dash directory
+      run: |
+        echo "Checking exchange_currency_dash directory structure:"
+        ls -la dashboard/demo/src/exchange_currency_dash/ || echo "exchange_currency_dash directory not found"
+        echo "Contents of exchange_currency_dash:"
+        find dashboard/demo/src/exchange_currency_dash -type f -name "*.ts" -o -name "*.tsx" -o -name "*.css" | head -10 || echo "No TypeScript/CSS files found"
+      
+    - name: Install dependencies
+      working-directory: dashboard/demo
+      run: npm install
+      
+    - name: Build application (load VITE_ env from .env.developement)
+      working-directory: dashboard/demo
+      run: |
+        echo "Building application with exchange_currency_dash included..."
+        set -a
+        if [ -f ../../.env.developement ]; then
+          echo "Loading ../../.env.developement"
+          . ../../.env.developement
+        else
+          echo "No .env.developement found at repo root"
+        fi
+        set +a
+        NODE_ENV=production npm run build
+        echo "Verifying build output includes exchange_currency_dash assets..."
+        find dist -name "*exchange*" -o -name "*currency*" | head -5 || echo "No exchange/currency related files found in build output"
+      
+    - name: Add .nojekyll file to disable Jekyll
+      run: |
+        touch dashboard/demo/dist/.nojekyll
+        echo "LeaperFX React App - No Jekyll Processing" > dashboard/demo/dist/.nojekyll
+      
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: dashboard/demo/dist
+        force_orphan: true
+        cname: false

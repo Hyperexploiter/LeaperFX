@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Upload, CheckCircle, AlertCircle, ArrowLeft, ArrowRight, Eye, EyeOff, Info } from 'lucide-react';
+import { Camera, Upload, CheckCircle, AlertCircle, ArrowLeft, ArrowRight, Info } from 'lucide-react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import formService from '../../services/formService';
-import customerService from '../../services/customerService';
 import { validateCanadianPostalCode, validateCanadianPhone, validateEmail, sanitizeInput, FINTRACValidation } from '../../utils/security';
 
 interface DocumentCapture {
@@ -112,7 +111,7 @@ const EnhancedCustomerForm: React.FC = () => {
       }
     };
 
-    validateSession();
+    void validateSession();
   }, [sessionId, token]);
 
   // Initialize camera
@@ -604,7 +603,7 @@ const EnhancedCustomerForm: React.FC = () => {
                     <button
                       onClick={() => {
                         setCurrentCapture('photo_id');
-                        initializeCamera();
+                        void initializeCamera();
                       }}
                       className="flex items-center justify-center w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
@@ -661,7 +660,7 @@ const EnhancedCustomerForm: React.FC = () => {
                     <button
                       onClick={() => {
                         setCurrentCapture('selfie');
-                        initializeCamera();
+                        void initializeCamera();
                       }}
                       className="flex items-center justify-center w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
@@ -773,7 +772,7 @@ const EnhancedCustomerForm: React.FC = () => {
                 onChange={(e) => setFormData(prev => ({
                   ...prev,
                   thirdPartyInfo: {
-                    ...prev.thirdPartyInfo,
+                    ...(prev.thirdPartyInfo ?? { isThirdParty: false }),
                     name: e.target.value
                   }
                 }))}
@@ -795,7 +794,7 @@ const EnhancedCustomerForm: React.FC = () => {
                 onChange={(e) => setFormData(prev => ({
                   ...prev,
                   thirdPartyInfo: {
-                    ...prev.thirdPartyInfo,
+                    ...(prev.thirdPartyInfo ?? { isThirdParty: false }),
                     relationship: e.target.value
                   }
                 }))}

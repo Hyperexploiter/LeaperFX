@@ -1,6 +1,9 @@
 // Real Transaction Service - Production Ready
 import databaseService from './databaseService';
 import type { Transaction as DBTransaction } from './databaseService';
+import fintracValidationService from './fintracValidationService';
+import secureDocumentService from './secureDocumentService';
+import type { PaymentMethod, UnifiedPaymentResult } from '../features/payments/types';
 
 // Types
 export interface Transaction {
@@ -12,7 +15,21 @@ export interface Transaction {
   toAmount: number;
   commission: number;
   profit: number;
-  
+
+  // Payment Method Fields
+  paymentMethod?: PaymentMethod;
+  paymentResult?: UnifiedPaymentResult;
+  paymentReferenceId?: string;
+  paymentDetails?: {
+    terminalDeviceId?: string;
+    cardLast4?: string;
+    cardBrand?: string;
+    cryptoTxHash?: string;
+    cryptoWallet?: string;
+    cryptoAmount?: number;
+    exchangeRate?: number;
+  };
+
   // FINTRAC Compliance Fields
   status?: 'pending' | 'locked' | 'completed' | 'submitted';
   requiresLCTR?: boolean;
@@ -37,10 +54,24 @@ export interface CreateTransactionParams {
   fromAmount: number;
   toAmount: number;
   commission: number;
-  
+
   // Optional customer linkage at creation time
   customerId?: string | null;
-  
+
+  // Payment Method Fields
+  paymentMethod?: PaymentMethod;
+  paymentResult?: UnifiedPaymentResult;
+  paymentReferenceId?: string;
+  paymentDetails?: {
+    terminalDeviceId?: string;
+    cardLast4?: string;
+    cardBrand?: string;
+    cryptoTxHash?: string;
+    cryptoWallet?: string;
+    cryptoAmount?: number;
+    exchangeRate?: number;
+  };
+
   // FINTRAC Compliance Fields
   status?: 'pending' | 'locked' | 'completed' | 'submitted';
   requiresLCTR?: boolean;
@@ -76,6 +107,10 @@ class TransactionService {
       profit: dbTransaction.profit,
       status: dbTransaction.status,
       customerId: (dbTransaction as any).customerId,
+      paymentMethod: (dbTransaction as any).paymentMethod || 'cash',
+      paymentResult: (dbTransaction as any).paymentResult,
+      paymentReferenceId: (dbTransaction as any).paymentReferenceId,
+      paymentDetails: (dbTransaction as any).paymentDetails,
       requiresLCTR: dbTransaction.complianceStatus === 'lctr_required',
       requiresEnhancedRecords: dbTransaction.complianceStatus === 'enhanced_records',
       lctrDeadline: dbTransaction.lctrDeadline,
@@ -105,7 +140,7 @@ class TransactionService {
   }
   
   /**
-   * Create a new transaction
+   * Create a new transaction with FINTRAC validation
    */
   async createTransaction(params: CreateTransactionParams): Promise<Transaction> {
     await this.ensureInitialized();
@@ -114,6 +149,19 @@ class TransactionService {
     
     // Check if transaction requires FINTRAC compliance
     const requiresCompliance = this.checkComplianceRequirements(params.fromAmount, params.fromCurrency);
+    
+    // Create transaction validation context
+    const validationContext = {
+      transactionId: 'temp', // Will be set after creation
+      amount: params.toAmount,
+      currency: params.toCurrency,
+      customerId: (params.customerId ?? undefined) as string | undefined,
+      paymentMethod: params.paymentMethod || 'cash',
+      conductorType: 'individual' as const,
+      thirdPartyInvolved: false,
+      country: 'Canada',
+      date: now.toISOString()
+    };
     
     const dbTransaction = await databaseService.createTransaction({
       date: now.toISOString().slice(0, 16).replace('T', ' '), // Format: YYYY-MM-DD HH:MM
@@ -126,12 +174,47 @@ class TransactionService {
       status: requiresCompliance.requiresLCTR ? 'locked' : 'completed',
       complianceStatus: requiresCompliance.requiresLCTR ? 'lctr_required' : 
                        requiresCompliance.requiresEnhancedRecords ? 'enhanced_records' : 'none',
-      lctrDeadline: requiresCompliance.requiresLCTR ? 
+      lctrDeadline: requiresCompliance.requiresLCTR ?
         new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString() : // 15 days from now
         undefined,
-      // Persist initial customer assignment if provided
-      customerId: params.customerId || undefined
+      customerId: params.customerId || undefined,
+      paymentMethod: params.paymentMethod,
+      paymentResult: params.paymentResult,
+      paymentReferenceId: params.paymentReferenceId,
+      paymentDetails: params.paymentDetails
     });
+    
+    // Run FINTRAC validation if compliance is required
+    if (requiresCompliance.requiresLCTR || requiresCompliance.requiresEnhancedRecords) {
+      try {
+        validationContext.transactionId = dbTransaction.id;
+        const validation = await fintracValidationService.validateTransaction(validationContext);
+        
+        // Store validation results
+        if (!validation.isCompliant) {
+          const mappedCompliance: Transaction['complianceStatus'] = ((): Transaction['complianceStatus'] => {
+            switch (validation.complianceLevel as any) {
+              case 'basic_records':
+                return 'enhanced_records';
+              case 'enhanced_records':
+              case 'lctr_required':
+              case 'completed':
+              case 'none':
+                return validation.complianceLevel as any;
+              default:
+                return 'none';
+            }
+          })();
+
+          await this.updateTransaction(dbTransaction.id, {
+            riskFactors: validation.riskFactors,
+            complianceStatus: mappedCompliance
+          });
+        }
+      } catch (error) {
+        console.warn('FINTRAC validation failed:', error);
+      }
+    }
 
     // If compliance is required, trigger the event
     if (requiresCompliance.requiresLCTR || requiresCompliance.requiresEnhancedRecords) {
@@ -150,7 +233,15 @@ class TransactionService {
       }));
     }
 
-    return this.mapDBTransactionToTransaction(dbTransaction);
+    const created = this.mapDBTransactionToTransaction(dbTransaction);
+    // Broadcast creation event
+    try {
+      const { default: webSocketService } = await import('./webSocketService');
+      webSocketService.send({ type: 'transaction_created', data: created as any });
+    } catch (e) {
+      console.warn('WebSocket broadcast failed for transaction creation:', e);
+    }
+    return created;
   }
 
   /**
@@ -180,6 +271,15 @@ class TransactionService {
     await databaseService.updateTransaction(id, dbUpdates);
 
     const updatedTransaction = await this.getTransactionById(id);
+    // Broadcast update event
+    try {
+      const { default: webSocketService } = await import('./webSocketService');
+      if (updatedTransaction) {
+        webSocketService.send({ type: 'transaction_updated', data: updatedTransaction as any });
+      }
+    } catch (e) {
+      console.warn('WebSocket broadcast failed for transaction update:', e);
+    }
     return updatedTransaction;
   }
   
@@ -229,6 +329,35 @@ class TransactionService {
   }
 
   /**
+   * Get transaction with complete customer and document information
+   */
+  async getTransactionWithDetails(id: string): Promise<Transaction & {
+    customerData?: any;
+    documents?: any[];
+    complianceValidation?: any;
+  } | null> {
+    const transaction = await this.getTransactionById(id);
+    if (!transaction) return null;
+    
+    const result = { ...transaction } as any;
+    
+    // Get customer details if linked
+    if (transaction.customerId) {
+      try {
+        const { default: customerService } = await import('./customerService');
+        result.customerData = await customerService.getCustomerById(transaction.customerId);
+        
+        // Get customer documents
+        result.documents = await secureDocumentService.getCustomerDocuments(transaction.customerId);
+      } catch (error) {
+        console.warn('Error loading customer details:', error);
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
    * Link a customer to an existing transaction (post-facto assignment)
    */
   async linkCustomerToTransaction(transactionId: string, customerId: string): Promise<Transaction | null> {
@@ -246,17 +375,6 @@ class TransactionService {
         customerId: customerId
       });
 
-      // Broadcast update to interested subscribers (Transactions, Compliance, Analytics)
-      try {
-        const { default: webSocketService } = await import('./webSocketService');
-        webSocketService.send({
-          type: 'transaction_updated',
-          data: { id: transactionId, customerId }
-        });
-      } catch (e) {
-        // Non-fatal: log but do not block the flow
-        console.warn('WebSocket broadcast failed for transaction update:', e);
-      }
 
       return updatedTransaction;
     } catch (error) {
@@ -276,13 +394,54 @@ class TransactionService {
   }
 
   /**
-   * Get transactions by customer ID
+   * Get transactions by customer ID with compliance status
    */
   async getTransactionsByCustomerId(customerId: string): Promise<Transaction[]> {
     await this.ensureInitialized();
     const allTransactions = await this.getTransactions();
     
-    return allTransactions.filter(tx => tx.customerId === customerId);
+    return allTransactions.filter(tx => tx.customerId === customerId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+  
+  /**
+   * Get customer's latest transaction with compliance info
+   */
+  async getCustomerLatestTransaction(customerId: string): Promise<Transaction | null> {
+    const transactions = await this.getTransactionsByCustomerId(customerId);
+    return transactions.length > 0 ? transactions[0] : null;
+  }
+  
+  /**
+   * Get customer transaction summary for compliance
+   */
+  async getCustomerTransactionSummary(customerId: string): Promise<{
+    totalTransactions: number;
+    totalVolume: number;
+    latestTransactionDate: string | null;
+    complianceTransactions: number;
+    riskRating: 'low' | 'medium' | 'high';
+  }> {
+    const transactions = await this.getTransactionsByCustomerId(customerId);
+    
+    const summary = {
+      totalTransactions: transactions.length,
+      totalVolume: transactions.reduce((sum, tx) => sum + tx.toAmount, 0),
+      latestTransactionDate: transactions.length > 0 ? transactions[0].date : null,
+      complianceTransactions: transactions.filter(tx => 
+        tx.complianceStatus === 'lctr_required' || tx.complianceStatus === 'enhanced_records'
+      ).length,
+      riskRating: 'low' as 'low' | 'medium' | 'high'
+    };
+    
+    // Calculate risk rating based on transaction patterns
+    if (summary.totalVolume > 100000 || summary.complianceTransactions > 5) {
+      summary.riskRating = 'high';
+    } else if (summary.totalVolume > 50000 || summary.complianceTransactions > 2) {
+      summary.riskRating = 'medium';
+    }
+    
+    return summary;
   }
 
   /**

@@ -41,6 +41,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check if user is already authenticated via secure server-side session (HttpOnly cookie)
   useEffect(() => {
     let mounted = true;
+    // Avoid hitting non-existent NextAuth endpoint on static hosting (GH Pages, Vercel, Netlify)
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isStatic = /github\.io$|vercel\.app$|netlify\.app$/.test(host);
+    if (isStatic) {
+      setIsAuthenticated(false);
+      return;
+    }
     (async () => {
       try {
         const res = await fetch('/api/auth/session', { credentials: 'include' });

@@ -447,12 +447,24 @@ class UnifiedDataAggregator {
         }
       } else if (instrument.category === 'index') {
         if (instrument.subCategory === 'bond_yield') {
-          const series = typeof instrument.metadata?.series === 'string'
-            ? instrument.metadata!.series
-            : undefined;
+          // First attempt: provider helper (shipping velocity)
+          const series = typeof instrument.metadata?.series === 'string' ? instrument.metadata!.series : undefined;
           let handled = false;
-
           if (series) {
+            try {
+              const val = await (await import('./providers/bocProvider')).then(m => m.default.getLatestYield(series, this.API_ENDPOINTS.bankofcanada));
+              if (Number.isFinite(val) && (val as number) > 0) {
+                rawPrice = val as number;
+                this.updateSourceStatus('bankofcanada', 'healthy');
+                handled = true;
+              }
+            } catch (e) {
+              // fall through to robust inline fallback
+            }
+          }
+
+          // Robust fallback (inline) if provider did not resolve a value
+          if (!handled && series) {
             try {
               const url = `${this.API_ENDPOINTS.bankofcanada}/observations/${series}.json?recent=1`;
               const res = await fetch(url, { headers: { Accept: 'application/json' } });

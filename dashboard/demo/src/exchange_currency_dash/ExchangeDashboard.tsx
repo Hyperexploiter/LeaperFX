@@ -11,7 +11,7 @@ import { useHighPerformanceEngine } from './hooks/useHighPerformanceEngine';
 import { HighPerformanceSparkline } from './components/HighPerformanceSparkline';
 import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
 import type { RotationItem } from './services/RotationScheduler';
-import { FOREX_INSTRUMENTS, CRYPTO_INSTRUMENTS } from './config/instrumentCatalog';
+import { FOREX_INSTRUMENTS, CRYPTO_INSTRUMENTS, COMMODITY_INSTRUMENTS } from './config/instrumentCatalog';
 import realTimeDataManager from './services/realTimeDataManager';
 import unifiedDataAggregator from './services/unifiedDataAggregator';
 import DataSourceStatus from './components/DataSourceStatus';
@@ -236,11 +236,16 @@ const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
       <div className="p-2 h-full flex items-center justify-between">
         <div className="flex-1">
           <div className="font-bold text-xs" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{item.symbol}</div>
-          <div className="text-white font-mono font-bold text-sm mt-0.5">{item.value}</div>
+          <div className={`font-mono font-bold text-sm mt-0.5 ${item.value === '—' ? 'text-gray-500' : 'text-white'}`}>{item.value}</div>
           <div className="font-bold text-xs mt-1" style={{ color: item.trend === 'up' ? '#00FF88' : '#FF4444' }}>
-            {item.trend === 'up' ? '▲' : '▼'} {item.change}
-            {item.changePercent && (
+            {item.value !== '—' ? (item.trend === 'up' ? '▲' : '▼') : '•'} {item.change}
+            {item.changePercent && item.value !== '—' && (
               <span className="ml-1" style={{ color: '#666' }}>({item.changePercent})</span>
+            )}
+            {item.value === '—' && (
+              <span className="ml-1 text-[10px] uppercase" style={{ color: '#666' }}>
+                No Data
+              </span>
             )}
           </div>
         </div>
@@ -462,15 +467,61 @@ export default function ExchangeDashboard(): React.ReactElement {
   }, []);
 
   // Define all commodities data
-  const allCommodities = useMemo<MarketItem[]>(() => ([
-    { name: 'GOLD', symbol: 'GOLD', value: '3547.35', change: '+14.51', changePercent: '0.41%', trend: 'up' },
-    { name: 'SILVER', symbol: 'SILVER', value: '41.72', change: '+0.13', changePercent: '0.32%', trend: 'up' },
-    { name: 'COPPER', symbol: 'COPPER', value: '403.65', change: '-1.45', changePercent: '0.36%', trend: 'down' },
-    { name: 'ALUM.FUT', symbol: 'ALUM', value: '2678.50', change: '-5.50', changePercent: '0.21%', trend: 'down' },
-    { name: 'PLAT.', symbol: 'PLAT', value: '1408.97', change: '-2.25', changePercent: '0.16%', trend: 'down' },
-    { name: 'CRUDE', symbol: 'CRUDE', value: '89.24', change: '+2.13', changePercent: '2.44%', trend: 'up' },
-    { name: 'NAT.GAS', symbol: 'NGAS', value: '2.876', change: '-0.08', changePercent: '2.87%', trend: 'down' }
-  ]), []);
+  // Aggregator-backed commodities snapshot (shipping velocity on GH Pages)
+  const [commoditiesMap, setCommoditiesMap] = useState<Record<string, MarketItem>>({});
+
+  // Map instrument symbols to UI labels (compact)
+  const commoditySymbols = useMemo(() => {
+    // Choose a core set for display
+    const wanted = ['XAU/CAD', 'XAG/CAD', 'XPT/CAD', 'WTI/CAD', 'BRENT/CAD', 'NG/CAD'];
+    const known = new Set(COMMODITY_INSTRUMENTS.map(i => i.symbol));
+    return wanted.filter(w => known.has(w));
+  }, []);
+
+  useEffect(() => {
+    const unsubs: Array<() => void> = [];
+    const toLabel = (sym: string) => {
+      if (sym.startsWith('XAU')) return 'GOLD';
+      if (sym.startsWith('XAG')) return 'SILVER';
+      if (sym.startsWith('XPT')) return 'PLAT.';
+      if (sym.startsWith('XPD')) return 'PALL.';
+      if (sym.startsWith('WTI')) return 'CRUDE';
+      if (sym.startsWith('BRENT')) return 'BRENT';
+      if (sym.startsWith('NG')) return 'NAT.GAS';
+      return sym.replace('/CAD','');
+    };
+    commoditySymbols.forEach((symbol) => {
+      const unsub = unifiedDataAggregator.subscribe(symbol, (md) => {
+        const price = Number.isFinite(md.priceCAD) ? md.priceCAD : Number.isFinite(md.price) ? md.price : NaN;
+        if (!Number.isFinite(price)) return;
+        const chgPct = typeof md.changePercent24h === 'number' && Number.isFinite(md.changePercent24h) ? md.changePercent24h : 0;
+        const trend: Trend = chgPct >= 0 ? 'up' : 'down';
+        setCommoditiesMap(prev => ({
+          ...prev,
+          [symbol]: {
+            name: toLabel(symbol),
+            symbol: toLabel(symbol),
+            value: price >= 1000 ? price.toFixed(0) : price >= 1 ? price.toFixed(2) : price.toFixed(4),
+            change: `${chgPct >= 0 ? '+' : ''}${Math.abs(chgPct).toFixed(2)}`,
+            changePercent: `${Math.abs(chgPct).toFixed(2)}%`,
+            trend
+          }
+        }));
+      });
+      unsubs.push(unsub);
+    });
+    return () => { unsubs.forEach(u => { try { u(); } catch {} }); };
+  }, [commoditySymbols]);
+
+  const allCommodities = useMemo<MarketItem[]>(() => {
+    const list: MarketItem[] = [];
+    commoditySymbols.forEach(sym => { const it = commoditiesMap[sym]; if (it) list.push(it); });
+    // Fallback “No Data” cards if nothing yet
+    if (list.length === 0) {
+      return commoditySymbols.slice(0, 6).map(sym => ({ name: sym.replace('/CAD',''), symbol: sym.replace('/CAD',''), value: '—', change: '—', changePercent: undefined, trend: 'down' as Trend }));
+    }
+    return list;
+  }, [commoditiesMap, commoditySymbols]);
 
 
   // Initialize rotation scheduler for commodities (depend on stable callbacks only)
@@ -557,8 +608,9 @@ export default function ExchangeDashboard(): React.ReactElement {
 
   // Get visible commodities (6 at a time with rotation)
   const visibleCommodities = useMemo(() => {
-    const rotatedCommodities = allCommodities.slice(commodityRotationIndex).concat(allCommodities.slice(0, commodityRotationIndex));
-    return rotatedCommodities.slice(0, 6);
+    if (allCommodities.length <= 6) return allCommodities;
+    const rotated = allCommodities.slice(commodityRotationIndex).concat(allCommodities.slice(0, commodityRotationIndex));
+    return rotated.slice(0, 6);
   }, [allCommodities, commodityRotationIndex]);
 
   const availableToAdd = useMemo(() => {
@@ -597,6 +649,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                     const changeValue = parseFloat(change24h);
                     const isPositive = Number.isFinite(changeValue) ? changeValue >= 0 : null;
 
+                    const noData = customerBuys === '—' && customerSells === '—';
                     return (
                       <div key={currency} className="h-[105px] relative group overflow-hidden transition-all duration-200" style={{
                         background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
@@ -617,12 +670,15 @@ export default function ExchangeDashboard(): React.ReactElement {
                             <div className="space-y-1">
                               <div className="text-sm">
                                 <span style={{ color: '#4A90E2' }}>We Buy: </span>
-                                <span className="font-mono font-bold text-white">{customerSells}</span>
+                                <span className={`font-mono font-bold ${noData ? 'text-gray-500' : 'text-white'}`}>{customerSells}</span>
                               </div>
                               <div className="text-sm">
                                 <span style={{ color: '#4A90E2' }}>We Sell: </span>
-                                <span className="font-mono font-bold" style={{ color: '#00FF88' }}>{customerBuys}</span>
+                                <span className="font-mono font-bold" style={{ color: noData ? '#888888' : '#00FF88' }}>{customerBuys}</span>
                               </div>
+                              {noData && (
+                                <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#666' }}>No Data</div>
+                              )}
                             </div>
                           </div>
 

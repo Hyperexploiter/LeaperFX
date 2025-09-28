@@ -12,11 +12,13 @@ import { HighPerformanceSparkline } from './components/HighPerformanceSparkline'
 import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/SignalEffects';
 import type { RotationItem } from './services/RotationScheduler';
 import { FOREX_INSTRUMENTS, CRYPTO_INSTRUMENTS, COMMODITY_INSTRUMENTS } from './config/instrumentCatalog';
+import { getSparklineTheme } from './services/themePresets';
 import realTimeDataManager from './services/realTimeDataManager';
 import unifiedDataAggregator from './services/unifiedDataAggregator';
 import DataSourceStatus from './components/DataSourceStatus';
 import CadYieldCard from './components/CadYieldCard';
 import LiveClock from './components/LiveClock';
+import AutoSpotlight from './components/AutoSpotlight';
 import './styles/sexymodal.css';
 
 // Lightweight error boundary to prevent blank page on runtime errors
@@ -251,23 +253,22 @@ const MarketWatchCard: React.FC<{ item: MarketItem; getBuffer: (symbol: string) 
           </div>
         </div>
         <div className="w-24 h-12 flex items-center">
+          {(() => { const th = getSparklineTheme('commodity'); return (
           <HighPerformanceSparkline
             symbol={item.engineSymbol || item.symbol}
             buffer={getBuffer(item.engineSymbol || item.symbol)}
             width={96}
             height={48}
-            color={item.trend === 'up' ? '#FFD700' : '#8B0000'}
-            glowIntensity={2}
+            color={item.trend === 'up' ? th.colorUp : th.colorDown}
+            glowIntensity={th.glowIntensity}
             showStats={false}
             isSignalActive={false}
             volatilityAdaptive={true}
-            baseLineWidth={1.1}
-            maxLineWidth={2.2}
-            smoothingFactor={0.2}
-            expandOnHover={true}
-            expandedWidth={220}
-            expandedHeight={90}
-          />
+            baseLineWidth={th.baseLineWidth}
+            maxLineWidth={th.maxLineWidth}
+            smoothingFactor={th.smoothingFactor}
+            expandOnHover={false}
+          />) })()}
         </div>
       </div>
     </div>
@@ -675,23 +676,22 @@ export default function ExchangeDashboard(): React.ReactElement {
                             borderRadius: '0px',
                             boxShadow: 'inset 0 0 10px rgba(0, 20, 40, 0.3)'
                           }}>
+                            {(() => { const th = getSparklineTheme('forex'); return (
                             <HighPerformanceSparkline
                               symbol={`${currency}CAD`}
                               buffer={engine.getBuffer(`${currency}CAD`)}
                               width={120}
                               height={50}
-                              color={isPositive === null ? '#888888' : (isPositive ? '#FFD700' : '#FF4444')}
-                              glowIntensity={3}
+                              color={isPositive === null ? '#888888' : (isPositive ? th.colorUp : th.colorDown)}
+                              glowIntensity={th.glowIntensity}
                               showStats={false}
                               isSignalActive={engine.engineState.topSignal?.symbol === currency}
                               volatilityAdaptive={true}
-                              baseLineWidth={1.25}
-                              maxLineWidth={2.4}
-                              smoothingFactor={0.3}
-                              expandOnHover={true}
-                              expandedWidth={260}
-                              expandedHeight={110}
-                            />
+                              baseLineWidth={th.baseLineWidth}
+                              maxLineWidth={th.maxLineWidth}
+                              smoothingFactor={th.smoothingFactor}
+                              expandOnHover={false}
+                            />) })()}
                           </div>
 
                           {/* Keep old chart as fallback - hidden */}
@@ -839,6 +839,16 @@ export default function ExchangeDashboard(): React.ReactElement {
             fps={engine.engineState.fps}
             frameTime={engine.engineState.frameTime}
             visible={showPerformanceMonitor}
+          />
+
+          {/* Automated Spotlight (no interaction) */}
+          <AutoSpotlight
+            engine={engine as any}
+            forexSymbols={displayedCurrencies.map(c => `${c}CAD`)}
+            commoditySymbols={commoditySymbols.map(c => c.replace('/',''))}
+            cryptoSymbols={['BTCCAD','ETHCAD']}
+            intervalMs={12000}
+            show={true}
           />
 
           {/* Ticker Takeover for high-priority signals */}

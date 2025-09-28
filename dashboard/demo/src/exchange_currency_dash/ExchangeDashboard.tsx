@@ -267,6 +267,8 @@ const MarketWatchCard: React.FC<{ item: MarketItem; getBuffer: (symbol: string) 
             baseLineWidth={th.baseLineWidth}
             maxLineWidth={th.maxLineWidth}
             smoothingFactor={th.smoothingFactor}
+            renderMode={'areaNeon'}
+            lineColor={'#FFFFFF'}
             expandOnHover={false}
           />) })()}
         </div>
@@ -690,6 +692,8 @@ export default function ExchangeDashboard(): React.ReactElement {
                               baseLineWidth={th.baseLineWidth}
                               maxLineWidth={th.maxLineWidth}
                               smoothingFactor={th.smoothingFactor}
+                              renderMode={'areaNeon'}
+                              lineColor={'#FFFFFF'}
                               expandOnHover={false}
                             />) })()}
                           </div>

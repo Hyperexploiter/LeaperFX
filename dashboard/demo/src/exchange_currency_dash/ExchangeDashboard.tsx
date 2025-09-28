@@ -16,9 +16,9 @@ import { getSparklineTheme } from './services/themePresets';
 import realTimeDataManager from './services/realTimeDataManager';
 import unifiedDataAggregator from './services/unifiedDataAggregator';
 import DataSourceStatus from './components/DataSourceStatus';
-import CadYieldCard from './components/CadYieldCard';
+import MarketIndicesGrid from './components/MarketIndicesGrid';
 import LiveClock from './components/LiveClock';
-import AutoSpotlight from './components/AutoSpotlight';
+import TopMoversGrid from './components/TopMoversGrid';
 import './styles/sexymodal.css';
 
 // Lightweight error boundary to prevent blank page on runtime errors
@@ -779,18 +779,18 @@ export default function ExchangeDashboard(): React.ReactElement {
                   })}
                   </div>
 
-                  {/* CAD Yield Chart - Under currency column */}
+                  {/* Indices & Yields Grid - Under currency column */}
                   <div className="pt-2">
-                    <CadYieldCard />
+                    <MarketIndicesGrid getBuffer={engine.getBuffer} />
                   </div>
                 </div>
 
                 {/* Middle column - Real-Time Crypto Section + Dynamic Bulletin */}
                 <div className="flex-1 min-w-0">
                   <RealTimeCryptoSection />
-                  {/* Dynamic Bulletin - Under crypto column */}
+                  {/* Top Movers Grid with integrated spotlight */}
                   <div className="mt-4">
-                    <DynamicBulletin />
+                    <TopMoversGrid getBuffer={engine.getBuffer} />
                   </div>
                 </div>
 
@@ -845,15 +845,7 @@ export default function ExchangeDashboard(): React.ReactElement {
             visible={showPerformanceMonitor}
           />
 
-          {/* Automated Spotlight (no interaction) */}
-          <AutoSpotlight
-            engine={engine as any}
-            forexSymbols={displayedCurrencies.map(c => `${c}CAD`)}
-            commoditySymbols={commoditySymbols.map(c => c.replace('/',''))}
-            cryptoSymbols={['BTCCAD','ETHCAD']}
-            intervalMs={12000}
-            show={true}
-          />
+          {/* Spotlight now integrated in TopMoversGrid */}
 
           {/* Ticker Takeover for high-priority signals */}
           <TickerTakeover

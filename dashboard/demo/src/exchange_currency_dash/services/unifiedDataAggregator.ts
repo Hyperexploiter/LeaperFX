@@ -840,10 +840,10 @@ class UnifiedDataAggregator {
         const unsub = this.subscribe(instrument.symbol, (data) => {
           // Only push valid prices to engine, skip NaN/undefined
           if (Number.isFinite(data.priceCAD)) {
+            // Unified engine key mapping: remove delimiters and keep quote for CAD (e.g., USD/CAD -> USDCAD; BTC/CAD -> BTCCAD)
             const engineSymbol = instrument.symbol
-              .replace('/CAD', '')
-              .replace('-USD', '')
-              .replace('/', '');
+              .replace('/', '')
+              .replace('-', '');
 
             pushData(engineSymbol, data.priceCAD, data.timestamp);
           }

@@ -76,6 +76,7 @@ interface MarketItem {
   change: string;
   changePercent?: string;
   trend: Trend;
+  engineSymbol?: string; // for sparkline buffers
 }
 
 const generateMiniData = (trend: Trend, points = 20) => {
@@ -196,7 +197,7 @@ const DynamicBulletin: React.FC = () => {
   );
 };
 
-const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
+const MarketWatchCard: React.FC<{ item: MarketItem; getBuffer: (symbol: string) => any }> = ({ item, getBuffer }) => {
   const color = item.trend === 'up' ? '#00FF88' : '#FF4444';
   const gradientId = `mw-${item.symbol}-grad`;
   const [data, setData] = useState(() => generateMiniData(item.trend, 20));
@@ -249,40 +250,24 @@ const MarketWatchCard: React.FC<{ item: MarketItem }> = ({ item }) => {
             )}
           </div>
         </div>
-        <div className="w-24 h-12">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  {item.trend === 'up' ? (
-                    <>
-                      <stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
-                      <stop offset="30%" stopColor="#FFB000" stopOpacity={0.6} />
-                      <stop offset="70%" stopColor="#FF8C00" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#FF6B00" stopOpacity={0.1} />
-                    </>
-                  ) : (
-                    <>
-                      <stop offset="0%" stopColor="#8B0000" stopOpacity={0.8} />
-                      <stop offset="30%" stopColor="#B22222" stopOpacity={0.6} />
-                      <stop offset="70%" stopColor="#DC143C" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#FF4444" stopOpacity={0.1} />
-                    </>
-                  )}
-                </linearGradient>
-              </defs>
-              <YAxis hide domain={['dataMin', 'dataMax']} />
-              <Area
-                type="monotoneX"
-                dataKey="value"
-                stroke={item.trend === 'up' ? '#FFD700' : '#8B0000'}
-                strokeWidth={1.0}
-                fill={`url(#${gradientId})`}
-                dot={false}
-                filter={`drop-shadow(0 0 2px ${item.trend === 'up' ? 'rgba(255, 215, 0, 0.3)' : 'rgba(139, 0, 0, 0.3)'})`}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="w-24 h-12 flex items-center">
+          <HighPerformanceSparkline
+            symbol={item.engineSymbol || item.symbol}
+            buffer={getBuffer(item.engineSymbol || item.symbol)}
+            width={96}
+            height={48}
+            color={item.trend === 'up' ? '#FFD700' : '#8B0000'}
+            glowIntensity={2}
+            showStats={false}
+            isSignalActive={false}
+            volatilityAdaptive={true}
+            baseLineWidth={1.1}
+            maxLineWidth={2.2}
+            smoothingFactor={0.2}
+            expandOnHover={true}
+            expandedWidth={220}
+            expandedHeight={90}
+          />
         </div>
       </div>
     </div>
@@ -501,6 +486,7 @@ export default function ExchangeDashboard(): React.ReactElement {
           [symbol]: {
             name: toLabel(symbol),
             symbol: toLabel(symbol),
+            engineSymbol: symbol.replace('/',''),
             value: price >= 1000 ? price.toFixed(0) : price >= 1 ? price.toFixed(2) : price.toFixed(4),
             change: `${chgPct >= 0 ? '+' : ''}${Math.abs(chgPct).toFixed(2)}`,
             changePercent: `${Math.abs(chgPct).toFixed(2)}%`,
@@ -698,6 +684,13 @@ export default function ExchangeDashboard(): React.ReactElement {
                               glowIntensity={3}
                               showStats={false}
                               isSignalActive={engine.engineState.topSignal?.symbol === currency}
+                              volatilityAdaptive={true}
+                              baseLineWidth={1.25}
+                              maxLineWidth={2.4}
+                              smoothingFactor={0.3}
+                              expandOnHover={true}
+                              expandedWidth={260}
+                              expandedHeight={110}
                             />
                           </div>
 
@@ -802,7 +795,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                   {/* Fixed height container for commodity rotation */}
                   <div className="h-[690px] overflow-hidden flex flex-col gap-2">
                     {visibleCommodities.map((item, idx) => (
-                      <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} />
+                      <MarketWatchCard key={`${item.symbol}-${idx}`} item={item} getBuffer={engine.getBuffer} />
                     ))}
                   </div>
                   {/* Weather & Time Widget - Combined */}

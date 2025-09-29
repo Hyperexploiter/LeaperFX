@@ -58,7 +58,7 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
           ...prev,
           [inst.symbol]: {
             symbol: name,
-            engineSymbol: inst.symbol.replace('/',''),
+            engineSymbol: inst.symbol.replace('/','').replace(/-/g,''),
             change: chg,
             price: priceCAD,
             trend: chg >= 0 ? 'up' : 'down'
@@ -78,7 +78,7 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
           ...prev,
           [inst.symbol]: {
             symbol: display,
-            engineSymbol: inst.symbol.replace('/',''),
+            engineSymbol: inst.symbol.replace('/','').replace(/-/g,''),
             change: chg,
             price: priceCAD,
             trend: chg >= 0 ? 'up' : 'down'
@@ -104,13 +104,27 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
   }, [tick]);
 
   // Build top gainers/losers list across both crypto + indices (yield included but may have 0 change)
+  const sequence = useMemo(() => {
+    try {
+      const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env?.VITE_MOVERS_SEQUENCE : undefined;
+      const win = (typeof window !== 'undefined') ? (window as any).__ENV__?.VITE_MOVERS_SEQUENCE : undefined;
+      const node = (typeof process !== 'undefined') ? (process as any).env?.VITE_MOVERS_SEQUENCE : undefined;
+      const raw = String(vite ?? win ?? node ?? 'gainers,indices,losers');
+      const parts = raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      const valid = ['gainers','losers','indices'];
+      const seq = parts.filter(p => valid.includes(p));
+      return seq.length ? seq : ['gainers','indices','losers'];
+    } catch { return ['gainers','indices','losers']; }
+  }, []);
+
   const visible = useMemo(() => {
     const arr = Object.values(movers);
     if (arr.length === 0) return [] as MoverItem[];
     const gainers = arr.filter(x => x.change >= 0).sort((a,b) => b.change - a.change).slice(0, 6);
     const losers = arr.filter(x => x.change < 0).sort((a,b) => a.change - b.change).slice(0, 6);
-    // Alternate modes by tick: even shows gainers, odd shows losers
-    const chosen = (tick % 2 === 0 ? gainers : losers);
+    const indices = MOVERS_INDEX_SYMBOLS.map(sym => movers[sym]).filter(Boolean).slice(0,6);
+    const mode = sequence[tick % sequence.length];
+    const chosen = mode === 'gainers' ? gainers : mode === 'losers' ? losers : indices;
     // Ensure 6 entries (pad with placeholders if needed)
     while (chosen.length < 6) chosen.push({ symbol: '—', engineSymbol: '—', change: 0, price: null, trend: 'down' });
     return chosen.slice(0,6);
@@ -123,7 +137,7 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="text-xs font-bold uppercase tracking-wider" style={{ color: '#FFA500', fontFamily: 'monospace' }}>
-          {tick % 2 === 0 ? 'Top Gainers' : 'Top Losers'}
+          {(() => { const mode = sequence[tick % sequence.length]; return mode === 'gainers' ? 'Top Gainers' : mode === 'losers' ? 'Top Losers' : 'Market Indices'; })()}
         </div>
         <div className="text-[10px] text-gray-500 font-mono">Auto‑rotating</div>
       </div>

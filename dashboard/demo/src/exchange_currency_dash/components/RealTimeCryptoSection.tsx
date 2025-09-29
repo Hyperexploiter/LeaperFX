@@ -87,15 +87,11 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
 
   return (
     <div
-      className={`h-[85px] relative group overflow-hidden transition-all duration-200 ${
+      className={`h-[85px] relative group overflow-hidden transition-all duration-200 bloomberg-terminal-card movers-card ${
         isAnimating ? 'ring-1 ring-blue-400/50' : ''
       }`}
-      style={{
-        background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-        border: '0.5px solid rgba(0, 212, 255, 0.15)',
-        boxShadow: '0 0 20px rgba(0, 212, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
-      }}
     >
+      <div className="card-blue-inner blue-pulse"></div>
       <div className="h-full flex items-center px-4">
         {/* Left section - Crypto info */}
         <div className="flex-1">

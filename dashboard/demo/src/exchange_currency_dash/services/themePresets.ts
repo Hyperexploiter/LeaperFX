@@ -9,7 +9,7 @@ export interface SparklineTheme {
   maxLineWidth: number;
 }
 
-const THEMES: Record<ThemeCategory, SparklineTheme> = {
+const BASE_THEMES: Record<ThemeCategory, SparklineTheme> = {
   forex: {
     colorUp: '#FFD700', // gold
     colorDown: '#8B0000', // deep red
@@ -37,5 +37,26 @@ const THEMES: Record<ThemeCategory, SparklineTheme> = {
 };
 
 export function getSparklineTheme(category: ThemeCategory): SparklineTheme {
-  return THEMES[category];
+  const env = getDisplayEnv();
+  const base = BASE_THEMES[category];
+  const mult = env === 'bright' ? 0.85 : env === 'dim' ? 1.15 : 1.0;
+  const smoothAdj = env === 'bright' ? -0.02 : env === 'dim' ? +0.02 : 0;
+  return {
+    ...base,
+    glowIntensity: Math.max(1, base.glowIntensity * mult),
+    smoothingFactor: Math.max(0.15, Math.min(0.4, base.smoothingFactor + smoothAdj))
+  };
+}
+
+type DisplayEnv = 'auto' | 'bright' | 'normal' | 'dim';
+
+export function getDisplayEnv(): DisplayEnv {
+  try {
+    const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env?.VITE_DISPLAY_ENV : undefined;
+    const win = (typeof window !== 'undefined') ? (window as any).__ENV__?.VITE_DISPLAY_ENV : undefined;
+    const node = (typeof process !== 'undefined') ? (process as any).env?.VITE_DISPLAY_ENV : undefined;
+    const raw = String(vite ?? win ?? node ?? '').toLowerCase();
+    if (raw === 'bright' || raw === 'dim' || raw === 'normal' || raw === 'auto') return raw as DisplayEnv;
+  } catch {}
+  return 'auto';
 }

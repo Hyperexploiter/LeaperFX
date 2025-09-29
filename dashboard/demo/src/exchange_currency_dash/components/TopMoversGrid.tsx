@@ -27,6 +27,8 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
   const [movers, setMovers] = useState<Record<string, MoverItem>>({});
   const [tick, setTick] = useState(0);
   const [featureIndex, setFeatureIndex] = useState(0);
+  const [fade, setFade] = useState(false);
+  const [lastTick, setLastTick] = useState(0);
 
   // Subscribe to crypto + selected indices / yield
   useEffect(() => {
@@ -75,6 +77,16 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
     return () => { unsubs.forEach(u => { try { u(); } catch {} }); clearInterval(t); clearInterval(f); };
   }, []);
 
+  // Trigger grid fade on mode changes
+  useEffect(() => {
+    if (tick !== lastTick) {
+      setFade(true);
+      setLastTick(tick);
+      const id = setTimeout(() => setFade(false), 600); // match CSS duration
+      return () => clearTimeout(id);
+    }
+  }, [tick]);
+
   // Build top gainers/losers list across both crypto + indices (yield included but may have 0 change)
   const visible = useMemo(() => {
     const arr = Object.values(movers);
@@ -101,14 +113,14 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
       </div>
 
       {/* Grid: 3 columns, 2 rows; first cell can be featured (span 3 on first row) */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className={`grid grid-cols-3 gap-2 ${fade ? 'fade-in' : ''}`}>
         {visible.map((it, idx) => {
           const featured = idx === (featureIndex % 6);
           const key = `${it.symbol}-${idx}`;
           return (
             <div
-              key={key}
-              className={`relative overflow-hidden ${featured ? 'col-span-3 h-[110px]' : 'h-[85px]'} transition-all duration-300 bloomberg-terminal-card movers-card slide-up data-update`}
+              key={`${key}-${featured ? 'f' : 'n'}`}
+              className={`relative overflow-hidden ${featured ? 'col-span-3 h-[110px]' : 'h-[85px]'} transition-all duration-300 bloomberg-terminal-card movers-card slide-up ${featured ? 'feature-zoom' : 'data-update'}`}
             >
               <div className="h-full flex items-center px-3">
                 {/* Left info */}

@@ -70,8 +70,8 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
       });
       unsubs.push(unsub);
     });
-    const t = setInterval(() => setTick(t => t + 1), 20000); // rotate set every 20s
-    const f = setInterval(() => setFeatureIndex(i => (i + 1) % 6), 12000); // feature cycles every 12s
+    const t = setInterval(() => setTick(t => t + 1), 30000); // rotate set every 30s
+    const f = setInterval(() => setFeatureIndex(i => (i + 1) % 6), 15000); // feature cycles every 15s
     return () => { unsubs.forEach(u => { try { u(); } catch {} }); clearInterval(t); clearInterval(f); };
   }, []);
 
@@ -108,7 +108,7 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
           return (
             <div
               key={key}
-              className={`relative overflow-hidden ${featured ? 'col-span-3 h-[110px]' : 'h-[85px]'} transition-all duration-300 bloomberg-terminal-card movers-card`}
+              className={`relative overflow-hidden ${featured ? 'col-span-3 h-[110px]' : 'h-[85px]'} transition-all duration-300 bloomberg-terminal-card movers-card slide-up data-update`}
             >
               <div className="h-full flex items-center px-3">
                 {/* Left info */}
@@ -126,12 +126,12 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
                   </div>
                 </div>
                 {/* Sparkline */}
-                <div className={`${featured ? 'w-[220px] h-[80px]' : 'w-[120px] h-[50px]'} ml-3 flex items-center`}>
+                <div className={`${featured ? 'w-[240px] h-[90px]' : 'w-[120px] h-[50px]'} ml-3 flex items-center`}>
                   <HighPerformanceSparkline
                     symbol={`${it.engineSymbol}`}
                     buffer={getBuffer(it.engineSymbol)}
-                    width={featured ? 220 : 120}
-                    height={featured ? 80 : 50}
+                    width={featured ? 240 : 120}
+                    height={featured ? 90 : 50}
                     color={it.trend === 'up' ? th.colorUp : th.colorDown}
                     glowIntensity={th.glowIntensity}
                     showStats={false}
@@ -143,6 +143,7 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
                     renderMode={'areaNeon'}
                     lineColor={'#FFFFFF'}
                     expandOnHover={false}
+                    sampleCount={featured ? 360 : 160}
                   />
                 </div>
               </div>

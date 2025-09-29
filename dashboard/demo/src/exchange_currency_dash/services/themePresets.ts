@@ -13,7 +13,7 @@ const THEMES: Record<ThemeCategory, SparklineTheme> = {
   forex: {
     colorUp: '#FFD700', // gold
     colorDown: '#8B0000', // deep red
-    glowIntensity: 3,
+    glowIntensity: 2,     // slightly lower glow for storefront readability
     smoothingFactor: 0.30,
     baseLineWidth: 1.25,
     maxLineWidth: 2.4,
@@ -39,4 +39,3 @@ const THEMES: Record<ThemeCategory, SparklineTheme> = {
 export function getSparklineTheme(category: ThemeCategory): SparklineTheme {
   return THEMES[category];
 }
-

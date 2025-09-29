@@ -28,6 +28,7 @@ interface HighPerformanceSparklineProps {
   areaTopColor?: string; // gradient start color for fill (defaults derived from color)
   areaBottomColor?: string; // gradient end color (defaults to transparent)
   glowPulseSpeed?: number; // pulses per second for glow modulation
+  sampleCount?: number; // override sample count
 }
 
 export const HighPerformanceSparkline: React.FC<HighPerformanceSparklineProps> = ({
@@ -50,7 +51,8 @@ export const HighPerformanceSparkline: React.FC<HighPerformanceSparklineProps> =
   lineColor = '#FFFFFF',
   areaTopColor,
   areaBottomColor,
-  glowPulseSpeed = 0.6
+  glowPulseSpeed = 0.6,
+  sampleCount
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const expandedRef = useRef<HTMLCanvasElement>(null);
@@ -104,7 +106,8 @@ export const HighPerformanceSparkline: React.FC<HighPerformanceSparklineProps> =
       ctx.clearRect(0, 0, width, height);
 
       // Get data
-      const raw = buffer.getLastN(Math.min(width, 300));
+      const n = sampleCount && sampleCount > 0 ? Math.min(sampleCount, 1000) : Math.min(width, 300);
+      const raw = buffer.getLastN(n);
       if (raw.length < 2) {
         animationFrame = requestAnimationFrame(render);
         return;

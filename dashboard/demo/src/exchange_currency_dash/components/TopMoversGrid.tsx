@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import unifiedDataAggregator from '../services/unifiedDataAggregator';
 import { CRYPTO_INSTRUMENTS, INDEX_INSTRUMENTS } from '../config/instrumentCatalog';
+import { MOVERS_INDEX_SYMBOLS, getMoversTiming } from '../config/dashboardLayout';
 import { HighPerformanceSparkline } from './HighPerformanceSparkline';
 import { getSparklineTheme } from '../services/themePresets';
 
@@ -30,6 +31,20 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
   const [fade, setFade] = useState(false);
   const [lastTick, setLastTick] = useState(0);
 
+  // Read blue overlay params from env
+  const blueParams = useMemo(() => {
+    try {
+      const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env : undefined;
+      const winEnv = (typeof window !== 'undefined') ? (window as any).__ENV__ : undefined;
+      const nodeEnv = (typeof process !== 'undefined') ? (process as any).env : undefined;
+      const speedRaw = String((vite && vite.VITE_BLUE_PULSE_SPEED) || (winEnv && winEnv.VITE_BLUE_PULSE_SPEED) || (nodeEnv && nodeEnv.VITE_BLUE_PULSE_SPEED) || '6');
+      const opacRaw = String((vite && vite.VITE_BLUE_WASH_OPACITY) || (winEnv && winEnv.VITE_BLUE_WASH_OPACITY) || (nodeEnv && nodeEnv.VITE_BLUE_WASH_OPACITY) || '1.0');
+      const speed = Math.max(2, Math.min(12, parseFloat(speedRaw)));
+      const opacity = Math.max(0.05, Math.min(1.0, parseFloat(opacRaw)));
+      return { speed, opacity };
+    } catch { return { speed: 6, opacity: 1.0 }; }
+  }, []);
+
   // Subscribe to crypto + selected indices / yield
   useEffect(() => {
     const unsubs: Array<() => void> = [];
@@ -53,7 +68,7 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
       unsubs.push(unsub);
     });
     // Indices and yield: include TSX, TSX60, SPX/CAD, DJI/CAD, NASDAQ/CAD, CA-30Y-YIELD
-    const wanted = new Set(['CA-30Y-YIELD', 'TSX', 'TSX60', 'SPX/CAD', 'DJI/CAD', 'NASDAQ/CAD']);
+    const wanted = new Set(MOVERS_INDEX_SYMBOLS);
     INDEX_INSTRUMENTS.filter(i => wanted.has(i.symbol)).forEach(inst => {
       const unsub = unifiedDataAggregator.subscribe(inst.symbol, (md) => {
         const display = inst.symbol.replace('/CAD','');
@@ -72,8 +87,9 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
       });
       unsubs.push(unsub);
     });
-    const t = setInterval(() => setTick(t => t + 1), 30000); // rotate set every 30s
-    const f = setInterval(() => setFeatureIndex(i => (i + 1) % 6), 15000); // feature cycles every 15s
+    const { modeMs, featureMs } = getMoversTiming();
+    const t = setInterval(() => setTick(t => t + 1), modeMs);
+    const f = setInterval(() => setFeatureIndex(i => (i + 1) % 6), featureMs);
     return () => { unsubs.forEach(u => { try { u(); } catch {} }); clearInterval(t); clearInterval(f); };
   }, []);
 
@@ -123,7 +139,7 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
               className={`relative overflow-hidden ${featured ? 'col-span-3 h-[110px]' : 'h-[85px]'} transition-all duration-300 bloomberg-terminal-card movers-card slide-up ${featured ? 'feature-zoom' : 'data-update'}`}
             >
               <div className="h-full flex items-center px-3">
-                <div className="card-blue-inner blue-pulse"></div>
+                <div className="card-blue-inner blue-pulse" style={{ opacity: blueParams.opacity, animationDuration: `${blueParams.speed}s` }}></div>
                 {/* Left info */}
                 <div className="flex-1">
                   <div className="mb-1">

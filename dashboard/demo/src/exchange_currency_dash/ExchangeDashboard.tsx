@@ -229,12 +229,23 @@ const MarketWatchCard: React.FC<{ item: MarketItem; getBuffer: (symbol: string) 
     setData(generateMiniData(item.trend, 20));
   }, [item.trend]);
 
+  // Blue overlay env
+  const blue = (() => {
+    try {
+      const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env : undefined;
+      const winEnv = (typeof window !== 'undefined') ? (window as any).__ENV__ : undefined;
+      const nodeEnv = (typeof process !== 'undefined') ? (process as any).env : undefined;
+      const speedRaw = String((vite && vite.VITE_BLUE_PULSE_SPEED) || (winEnv && winEnv.VITE_BLUE_PULSE_SPEED) || (nodeEnv && nodeEnv.VITE_BLUE_PULSE_SPEED) || '6');
+      const opacRaw = String((vite && vite.VITE_BLUE_WASH_OPACITY) || (winEnv && winEnv.VITE_BLUE_WASH_OPACITY) || (nodeEnv && nodeEnv.VITE_BLUE_WASH_OPACITY) || '1.0');
+      const speed = Math.max(2, Math.min(12, parseFloat(speedRaw)));
+      const opacity = Math.max(0.05, Math.min(1.0, parseFloat(opacRaw)));
+      return { speed, opacity };
+    } catch { return { speed: 6, opacity: 1.0 }; }
+  })();
+
   return (
-    <div className="bg-black border h-[110px]" style={{
-      background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-      border: '0.5px solid rgba(0, 212, 255, 0.15)',
-      boxShadow: '0 0 15px rgba(0, 212, 255, 0.03)'
-    }}>
+    <div className="h-[110px] bloomberg-terminal-card movers-card">
+      <div className="card-blue-inner blue-pulse" style={{ opacity: blue.opacity, animationDuration: `${blue.speed}s` }}></div>
       <div className="p-2 h-full flex items-center justify-between">
         <div className="flex-1">
           <div className="font-bold text-xs" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{item.symbol}</div>
@@ -410,6 +421,20 @@ export default function ExchangeDashboard(): React.ReactElement {
       const raw = String(vite ?? win ?? node ?? 'true').toLowerCase();
       return raw === 'true' || raw === '1' || raw === 'yes';
     } catch { return true; }
+  }, []);
+
+  // Blue overlay env for currency/commodity cards
+  const blueOverlay = useMemo(() => {
+    try {
+      const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env : undefined;
+      const winEnv = (typeof window !== 'undefined') ? (window as any).__ENV__ : undefined;
+      const nodeEnv = (typeof process !== 'undefined') ? (process as any).env : undefined;
+      const speedRaw = String((vite && vite.VITE_BLUE_PULSE_SPEED) || (winEnv && winEnv.VITE_BLUE_PULSE_SPEED) || (nodeEnv && nodeEnv.VITE_BLUE_PULSE_SPEED) || '6');
+      const opacRaw = String((vite && vite.VITE_BLUE_WASH_OPACITY) || (winEnv && winEnv.VITE_BLUE_WASH_OPACITY) || (nodeEnv && nodeEnv.VITE_BLUE_WASH_OPACITY) || '1.0');
+      const speed = Math.max(2, Math.min(12, parseFloat(speedRaw)));
+      const opacity = Math.max(0.05, Math.min(1.0, parseFloat(opacRaw)));
+      return { speed, opacity };
+    } catch { return { speed: 6, opacity: 1.0 }; }
   }, []);
 
   // Frankfurter fetching removed — aggregator is the single source of truth for FX.
@@ -641,7 +666,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                 {/* Left column - Currency rectangles + Daily Bulletin */}
                 <div className="flex-1 min-w-0 flex flex-col space-y-3 overflow-hidden">
                   <div className="space-y-2 overflow-visible">
-                  {displayedCurrencies.map((currency) => {
+          {displayedCurrencies.map((currency) => {
                     const { customerBuys, customerSells, spread, change24h, chartData } = calculateRates(currency);
                     const info = getCurrencyInfo(currency);
                     // Handle N/A values properly - show neutral state when no data
@@ -651,7 +676,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                     const noData = customerBuys === '—' && customerSells === '—';
                     return (
                       <div key={currency} className="h-[105px] relative group overflow-hidden transition-all duration-200 bloomberg-terminal-card movers-card">
-                        <div className="card-blue-inner blue-pulse"></div>
+                        <div className="card-blue-inner blue-pulse" style={{ opacity: blueOverlay.opacity, animationDuration: `${blueOverlay.speed}s` }}></div>
                         <button onClick={() => handleRemoveCurrency(currency)} className="absolute top-2 right-2 z-10 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
                         <div className="h-full flex items-center px-4">
                           {/* Left section - Currency info */}

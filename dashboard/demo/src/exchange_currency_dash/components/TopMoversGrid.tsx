@@ -31,6 +31,8 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
   const [featureIndex, setFeatureIndex] = useState(0);
   const [fade, setFade] = useState(false);
   const [lastTick, setLastTick] = useState(0);
+  type LayoutMode = 'six' | 'twoPlusRect' | 'threePlusRect';
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('six');
 
   // Read blue overlay params from env
   const blueParams = useMemo(() => {
@@ -94,11 +96,13 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
     return () => { unsubs.forEach(u => { try { u(); } catch {} }); clearInterval(t); clearInterval(f); };
   }, []);
 
-  // Trigger grid fade on mode changes
+  // Trigger grid fade on mode changes and rotate layout mode
   useEffect(() => {
     if (tick !== lastTick) {
       setFade(true);
       setLastTick(tick);
+      // Rotate layout pattern every mode tick: six → 2+rect → 3+rect → six
+      setLayoutMode(prev => prev === 'six' ? 'twoPlusRect' : prev === 'twoPlusRect' ? 'threePlusRect' : 'six');
       const id = setTimeout(() => setFade(false), 600); // match CSS duration
       return () => clearTimeout(id);
     }
@@ -146,21 +150,19 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
         <div className="text-[10px] text-gray-500 font-mono">Auto‑rotating</div>
       </div>
 
-      {/* Grid: 3 columns, 2 rows; first cell can be featured (span 3 on first row) */}
+      {/* Grid: 3 columns with fixed row height; layout pattern rotates to avoid truncation */}
       <div className={`grid grid-cols-3 gap-2 ${fade ? 'fade-in' : ''}`}>
-        {visible.map((it, idx) => {
-          const featured = idx === (featureIndex % 6);
-          const key = `${it.symbol}-${idx}`;
-          return (
+        {(() => {
+          const renderSmall = (it: MoverItem, key: string) => (
             <div
-              key={`${key}-${featured ? 'f' : 'n'}`}
-              className={`relative overflow-hidden ${featured ? 'col-span-3 h-[110px]' : 'h-[85px]'} transition-all duration-300 bloomberg-terminal-card movers-card slide-up ${featured ? 'feature-zoom' : 'data-update'}`}
+              key={key}
+              className={`relative overflow-hidden h-[90px] transition-all duration-300 bloomberg-terminal-card movers-card slide-up data-update min-w-0`}
             >
               <div className="h-full flex items-center px-3">
                 <div className="card-blue-inner blue-pulse" style={{ opacity: blueParams.opacity, animationDuration: `${blueParams.speed}s` }}></div>
                 {/* Left info */}
-                <div className="flex-1">
-                  <div className="mb-1">
+                <div className="flex-1 min-w-0">
+                  <div className="mb-1 truncate">
                     <div className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{it.symbol}</div>
                   </div>
                   <div className="text-xs">
@@ -173,12 +175,12 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
                   </div>
                 </div>
                 {/* Sparkline */}
-                <div className={`${featured ? 'w-[240px] h-[90px]' : 'w-[120px] h-[50px]'} ml-3 flex items-center`}>
+                <div className={`w-[120px] h-[50px] ml-3 flex items-center`}>
                   <HighPerformanceSparkline
                     symbol={`${it.engineSymbol}`}
                     buffer={getBuffer(it.engineSymbol)}
-                    width={featured ? 240 : 120}
-                    height={featured ? 90 : 50}
+                    width={120}
+                    height={50}
                     color={it.trend === 'up' ? th.colorUp : th.colorDown}
                     glowIntensity={th.glowIntensity}
                     showStats={false}
@@ -190,13 +192,83 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
                     renderMode={'areaNeon'}
                     lineColor={'#FFFFFF'}
                     expandOnHover={false}
-                    sampleCount={featured ? 360 : 160}
+                    sampleCount={160}
                   />
                 </div>
               </div>
             </div>
           );
-        })}
+
+          const renderRect = (it: MoverItem, key: string) => (
+            <div
+              key={key}
+              className={`relative overflow-hidden col-span-3 h-[90px] transition-all duration-300 bloomberg-terminal-card movers-card feature-zoom min-w-0`}
+            >
+              <div className="h-full flex items-center px-3">
+                <div className="card-blue-inner blue-pulse" style={{ opacity: blueParams.opacity, animationDuration: `${blueParams.speed}s` }}></div>
+                {/* Left info */}
+                <div className="flex-1 min-w-0">
+                  <div className="mb-1 truncate">
+                    <div className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{it.symbol}</div>
+                  </div>
+                  <div className="text-xs">
+                    <span style={{ color: '#4A90E2' }}>Price: </span>
+                    <span className={`font-mono font-bold ${it.price === null ? 'text-gray-500' : 'text-white'}`}>{formatPrice(it.price)}</span>
+                    <span className="ml-1 text-[10px] text-gray-500">CAD</span>
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: it.change >= 0 ? '#00FF88' : '#FF4444' }}>
+                    {it.price !== null ? (it.change >= 0 ? '▲' : '▼') : '•'} {Math.abs(it.change).toFixed(2)}%
+                  </div>
+                </div>
+                {/* Sparkline */}
+                <div className={`w-[240px] h-[70px] ml-3 flex items-center`}>
+                  <HighPerformanceSparkline
+                    symbol={`${it.engineSymbol}`}
+                    buffer={getBuffer(it.engineSymbol)}
+                    width={240}
+                    height={70}
+                    color={it.trend === 'up' ? th.colorUp : th.colorDown}
+                    glowIntensity={th.glowIntensity}
+                    showStats={false}
+                    isSignalActive={false}
+                    volatilityAdaptive={true}
+                    baseLineWidth={th.baseLineWidth}
+                    maxLineWidth={th.maxLineWidth}
+                    smoothingFactor={th.smoothingFactor}
+                    renderMode={'areaNeon'}
+                    lineColor={'#FFFFFF'}
+                    expandOnHover={false}
+                    sampleCount={300}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+
+          // Prepare items based on layout mode
+          const smallCount = layoutMode === 'six' ? 6 : layoutMode === 'twoPlusRect' ? 2 : 3;
+          const items: JSX.Element[] = [];
+          for (let i = 0; i < Math.min(smallCount, visible.length); i++) {
+            items.push(renderSmall(visible[i], `${visible[i].symbol}-s-${i}`));
+          }
+
+          // Fill the remaining spot on the first row when we only render 2 squares (for visual balance)
+          if (layoutMode === 'twoPlusRect') {
+            items.push(<div key="ph" className="h-[90px] invisible" />);
+          }
+
+          if (layoutMode !== 'six') {
+            const rectIdx = (smallCount + (featureIndex % Math.max(1, visible.length - smallCount))) % visible.length;
+            items.push(renderRect(visible[rectIdx], `${visible[rectIdx].symbol}-r`));
+          } else {
+            // Ensure exactly 6 squares in six mode
+            for (let i = smallCount; i < 6; i++) {
+              items.push(renderSmall(visible[i], `${visible[i].symbol}-s-${i}`));
+            }
+          }
+
+          return items;
+        })()}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import unifiedDataAggregator from '../services/unifiedDataAggregator';
-import { CRYPTO_INSTRUMENTS } from '../config/instrumentCatalog';
+import { CRYPTO_INSTRUMENTS, INDEX_INSTRUMENTS } from '../config/instrumentCatalog';
 import { HighPerformanceSparkline } from './HighPerformanceSparkline';
 import { getSparklineTheme } from '../services/themePresets';
 
@@ -21,14 +21,17 @@ const formatPrice = (p: number | null) => {
   return p.toFixed(4);
 };
 
+type ItemType = 'crypto' | 'index' | 'yield';
+
 const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBuffer }) => {
   const [movers, setMovers] = useState<Record<string, MoverItem>>({});
   const [tick, setTick] = useState(0);
   const [featureIndex, setFeatureIndex] = useState(0);
 
-  // Subscribe to all crypto instruments
+  // Subscribe to crypto + selected indices / yield
   useEffect(() => {
     const unsubs: Array<() => void> = [];
+    // Crypto instruments
     CRYPTO_INSTRUMENTS.forEach(inst => {
       const unsub = unifiedDataAggregator.subscribe(inst.symbol, (md) => {
         const name = inst.symbol.split('/')[0];
@@ -47,12 +50,32 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
       });
       unsubs.push(unsub);
     });
+    // Indices and yield: include TSX, TSX60, SPX/CAD, DJI/CAD, NASDAQ/CAD, CA-30Y-YIELD
+    const wanted = new Set(['CA-30Y-YIELD', 'TSX', 'TSX60', 'SPX/CAD', 'DJI/CAD', 'NASDAQ/CAD']);
+    INDEX_INSTRUMENTS.filter(i => wanted.has(i.symbol)).forEach(inst => {
+      const unsub = unifiedDataAggregator.subscribe(inst.symbol, (md) => {
+        const display = inst.symbol.replace('/CAD','');
+        const chg = typeof md.changePercent24h === 'number' && Number.isFinite(md.changePercent24h) ? md.changePercent24h : 0;
+        const priceCAD = Number.isFinite(md.priceCAD) ? md.priceCAD : (Number.isFinite(md.price) ? md.price : null);
+        setMovers(prev => ({
+          ...prev,
+          [inst.symbol]: {
+            symbol: display,
+            engineSymbol: inst.symbol.replace('/',''),
+            change: chg,
+            price: priceCAD,
+            trend: chg >= 0 ? 'up' : 'down'
+          }
+        }));
+      });
+      unsubs.push(unsub);
+    });
     const t = setInterval(() => setTick(t => t + 1), 20000); // rotate set every 20s
     const f = setInterval(() => setFeatureIndex(i => (i + 1) % 6), 12000); // feature cycles every 12s
     return () => { unsubs.forEach(u => { try { u(); } catch {} }); clearInterval(t); clearInterval(f); };
   }, []);
 
-  // Build top gainers/losers list
+  // Build top gainers/losers list across both crypto + indices (yield included but may have 0 change)
   const visible = useMemo(() => {
     const arr = Object.values(movers);
     if (arr.length === 0) return [] as MoverItem[];
@@ -82,16 +105,10 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
         {visible.map((it, idx) => {
           const featured = idx === (featureIndex % 6);
           const key = `${it.symbol}-${idx}`;
-          const cardStyle = {
-            background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-            border: '0.5px solid rgba(0, 212, 255, 0.15)',
-            boxShadow: '0 0 20px rgba(0, 212, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
-          } as React.CSSProperties;
           return (
             <div
               key={key}
-              className={`relative overflow-hidden ${featured ? 'col-span-3 h-[110px]' : 'h-[85px]'} transition-all duration-300`}
-              style={cardStyle}
+              className={`relative overflow-hidden ${featured ? 'col-span-3 h-[110px]' : 'h-[85px]'} transition-all duration-300 bloomberg-terminal-card movers-card`}
             >
               <div className="h-full flex items-center px-3">
                 {/* Left info */}

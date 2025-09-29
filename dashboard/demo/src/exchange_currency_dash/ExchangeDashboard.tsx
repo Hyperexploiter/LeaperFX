@@ -16,7 +16,6 @@ import { getSparklineTheme } from './services/themePresets';
 import realTimeDataManager from './services/realTimeDataManager';
 import unifiedDataAggregator from './services/unifiedDataAggregator';
 import DataSourceStatus from './components/DataSourceStatus';
-import MarketIndicesGrid from './components/MarketIndicesGrid';
 import LiveClock from './components/LiveClock';
 import TopMoversGrid from './components/TopMoversGrid';
 import './styles/sexymodal.css';
@@ -779,10 +778,7 @@ export default function ExchangeDashboard(): React.ReactElement {
                   })}
                   </div>
 
-                  {/* Indices & Yields Grid - Under currency column */}
-                  <div className="pt-2">
-                    <MarketIndicesGrid getBuffer={engine.getBuffer} />
-                  </div>
+                  {/* Reserved for future currency-specific panels (e.g., CNY, ILS) */}
                 </div>
 
                 {/* Middle column - Real-Time Crypto Section + Dynamic Bulletin */}

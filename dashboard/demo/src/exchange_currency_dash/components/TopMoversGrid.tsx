@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import unifiedDataAggregator from '../services/unifiedDataAggregator';
 import { CRYPTO_INSTRUMENTS, INDEX_INSTRUMENTS } from '../config/instrumentCatalog';
 import { MOVERS_INDEX_SYMBOLS, getMoversTiming } from '../config/dashboardLayout';
+import orchestrator from '../services/layoutOrchestrator';
 import { HighPerformanceSparkline } from './HighPerformanceSparkline';
 import { getSparklineTheme } from '../services/themePresets';
 
@@ -113,7 +114,10 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
       const parts = raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
       const valid = ['gainers','losers','indices'];
       const seq = parts.filter(p => valid.includes(p));
-      return seq.length ? seq : ['gainers','indices','losers'];
+      if (seq.length) return seq as any;
+      // fallback from orchestrator
+      const lc = orchestrator.getLayoutConfig();
+      return lc.cryptoMovers.sequence;
     } catch { return ['gainers','indices','losers']; }
   }, []);
 

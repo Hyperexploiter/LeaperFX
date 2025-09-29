@@ -13,6 +13,7 @@ import { SignalEffects, TickerTakeover, PerformanceMonitor } from './components/
 import type { RotationItem } from './services/RotationScheduler';
 import { FOREX_INSTRUMENTS, CRYPTO_INSTRUMENTS, COMMODITY_INSTRUMENTS } from './config/instrumentCatalog';
 import { getSparklineTheme } from './services/themePresets';
+import orchestrator from './services/layoutOrchestrator';
 import realTimeDataManager from './services/realTimeDataManager';
 import unifiedDataAggregator from './services/unifiedDataAggregator';
 import DataSourceStatus from './components/DataSourceStatus';
@@ -290,7 +291,8 @@ const MarketWatchCard: React.FC<{ item: MarketItem; getBuffer: (symbol: string) 
 export default function ExchangeDashboard(): React.ReactElement {
   // Aggregator-backed FX snapshot for displayed currencies (shipping velocity on GH Pages)
   const [fxMap, setFxMap] = useState<Record<string, { rate: number; prev: number | null; ts: number }>>({});
-  const [displayedCurrencies, setDisplayedCurrencies] = useState<string[]>(['USD', 'EUR', 'GBP', 'JPY', 'CHF']);
+  const layout = useMemo(() => orchestrator.getLayoutConfig(), []);
+  const [displayedCurrencies, setDisplayedCurrencies] = useState<string[]>(layout.forex.symbols);
   const [currencyToAdd, setCurrencyToAdd] = useState<string>('CNY');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -495,11 +497,10 @@ export default function ExchangeDashboard(): React.ReactElement {
 
   // Map instrument symbols to UI labels (compact)
   const commoditySymbols = useMemo(() => {
-    // Choose a core set for display
-    const wanted = ['XAU/CAD', 'XAG/CAD', 'XPT/CAD', 'WTI/CAD', 'BRENT/CAD', 'NG/CAD'];
+    const wanted = layout.commodities.symbols;
     const known = new Set(COMMODITY_INSTRUMENTS.map(i => i.symbol));
     return wanted.filter(w => known.has(w));
-  }, []);
+  }, [layout]);
 
   useEffect(() => {
     const unsubs: Array<() => void> = [];

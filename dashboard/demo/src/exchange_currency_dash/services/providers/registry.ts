@@ -34,9 +34,39 @@ export function getPrimaryProvider(cat: ProviderCategory): string | null {
   return (order[cat] && order[cat][0]) || null;
 }
 
+/**
+ * Priority per category (and optional symbol overrides) for future fine control.
+ */
+const CATEGORY_PRIORITY: Record<ProviderCategory, string[]> = {
+  forex: ['polygon', 'fxapi'],
+  commodity: ['twelvedata', 'polygon'],
+  crypto: ['coinbase'],
+  index: ['polygon', 'alpaca'],
+  yield: ['boc']
+};
+
+const SYMBOL_PRIORITY: Record<string, string[]> = {
+  // e.g., 'XAU/CAD': ['twelvedata']
+};
+
+export function getProviderPriority(category: ProviderCategory, symbol?: string): string[] {
+  if (symbol && SYMBOL_PRIORITY[symbol]) return SYMBOL_PRIORITY[symbol];
+  return CATEGORY_PRIORITY[category] || [];
+}
+
+export function setSymbolPriority(symbol: string, providers: string[]) {
+  SYMBOL_PRIORITY[symbol] = providers;
+}
+
+export function setCategoryPriority(category: ProviderCategory, providers: string[]) {
+  CATEGORY_PRIORITY[category] = providers;
+}
+
 export default {
   PROVIDERS,
   listProvidersByCategory,
-  getPrimaryProvider
+  getPrimaryProvider,
+  getProviderPriority,
+  setSymbolPriority,
+  setCategoryPriority
 };
-

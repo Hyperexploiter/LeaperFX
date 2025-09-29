@@ -401,6 +401,17 @@ export default function ExchangeDashboard(): React.ReactElement {
 
   const getCurrencyInfo = (code: string): CurrencyInfo => currencyInfo[code] || { name: code, code: '' };
 
+  // Professional look: allow hiding flags via env (default true)
+  const showFlags = useMemo(() => {
+    try {
+      const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env?.VITE_SHOW_FLAGS : undefined;
+      const win = (typeof window !== 'undefined') ? (window as any).__ENV__?.VITE_SHOW_FLAGS : undefined;
+      const node = (typeof process !== 'undefined') ? (process as any).env?.VITE_SHOW_FLAGS : undefined;
+      const raw = String(vite ?? win ?? node ?? 'true').toLowerCase();
+      return raw === 'true' || raw === '1' || raw === 'yes';
+    } catch { return true; }
+  }, []);
+
   // Frankfurter fetching removed — aggregator is the single source of truth for FX.
 
   // Subscribe to aggregator FX for displayed currencies
@@ -639,17 +650,16 @@ export default function ExchangeDashboard(): React.ReactElement {
 
                     const noData = customerBuys === '—' && customerSells === '—';
                     return (
-                      <div key={currency} className="h-[105px] relative group overflow-hidden transition-all duration-200" style={{
-                        background: 'linear-gradient(135deg, #000000 0%, #000814 50%, #001428 100%)',
-                        border: '0.5px solid rgba(0, 212, 255, 0.15)',
-                        boxShadow: '0 0 20px rgba(0, 212, 255, 0.05), inset 0 0 30px rgba(0, 20, 40, 0.3)'
-                      }}>
+                      <div key={currency} className="h-[105px] relative group overflow-hidden transition-all duration-200 bloomberg-terminal-card movers-card">
+                        <div className="card-blue-inner blue-pulse"></div>
                         <button onClick={() => handleRemoveCurrency(currency)} className="absolute top-2 right-2 z-10 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
                         <div className="h-full flex items-center px-4">
                           {/* Left section - Currency info */}
                           <div className="flex-1">
                             <div className="flex items-center mb-3">
-                              <img src={`https://flagcdn.com/w40/${info.code}.png`} width="24" alt={`${info.name} flag`} className="mr-2"/>
+                              {showFlags && (
+                                <img src={`https://flagcdn.com/w40/${info.code}.png`} width="24" alt={`${info.name} flag`} className="mr-2"/>
+                              )}
                               <h3 className="text-base font-bold" style={{
                                 color: '#FFA500',
                                 fontFamily: 'monospace'

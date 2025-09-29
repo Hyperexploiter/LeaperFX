@@ -123,6 +123,7 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
               className={`relative overflow-hidden ${featured ? 'col-span-3 h-[110px]' : 'h-[85px]'} transition-all duration-300 bloomberg-terminal-card movers-card slide-up ${featured ? 'feature-zoom' : 'data-update'}`}
             >
               <div className="h-full flex items-center px-3">
+                <div className="card-blue-inner blue-pulse"></div>
                 {/* Left info */}
                 <div className="flex-1">
                   <div className="mb-1">

@@ -19,6 +19,7 @@ import unifiedDataAggregator from './services/unifiedDataAggregator';
 import DataSourceStatus from './components/DataSourceStatus';
 import LiveClock from './components/LiveClock';
 import TopMoversGrid from './components/TopMoversGrid';
+import UnifiedTicker from './components/UnifiedTicker';
 import './styles/sexymodal.css';
 
 // Lightweight error boundary to prevent blank page on runtime errors
@@ -904,7 +905,12 @@ export default function ExchangeDashboard(): React.ReactElement {
               }}>SAADAT EXCHANGE</div>
             </div>
             <div className="flex-1 h-full">
-              <AggregatorTicker currencies={displayedCurrencies} fxMap={fxMap} />
+              <UnifiedTicker
+                fxBases={displayedCurrencies}
+                cryptoSymbols={layout.cryptoMain.symbols}
+                commoditySymbols={layout.commodities.symbols}
+                indexSymbols={layout.indices.symbols}
+              />
             </div>
           </div>
         </footer>

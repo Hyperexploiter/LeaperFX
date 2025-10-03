@@ -73,3 +73,5 @@ dashboard/demo/src/exchange_currency_dash/.env
 .env
 .env.*
 .env.developement
+
+share/

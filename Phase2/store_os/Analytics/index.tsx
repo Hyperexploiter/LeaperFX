@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import webSocketService from '../../services/webSocketService';
+import webSocketService from '../common/services/webSocketService';
 
 const AnalyticsDashboard: React.FC = () => {
   const [, setDailyPerformance] = useState<any[]>([]); // Setter only; series not rendered currently

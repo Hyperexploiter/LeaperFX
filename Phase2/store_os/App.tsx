@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useNavigate, useLocation, Link } from 'react-router-dom';
-import { ExchangeDashboard } from './exchange_currency_dash';
-import StoreOwnerDashboard from './StoreOwnerDashboard';
-import StoreOwnerDashboardSimple from './StoreOwnerDashboardSimple';
-import CustomerMobileForm from './components/CustomerMobileForm';
-import EnhancedCustomerForm from './components/EnhancedCustomerForm';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import ErrorBoundary from './ErrorBoundary';
-import databaseService from './services/databaseService';
+import { ExchangeDashboard } from '../exchange_dashboard/exchange_currency_dash';
+import StoreOwnerDashboard from './Clients/StoreOwnerDashboard';
+import StoreOwnerDashboardSimple from './Clients/StoreOwnerDashboardSimple';
+import CustomerMobileForm from './common/components/CustomerMobileForm';
+import EnhancedCustomerForm from './common/components/EnhancedCustomerForm';
+import { AuthProvider, useAuth } from './common/contexts/AuthContext';
+import ErrorBoundary from './common/ErrorBoundary';
+import databaseService from './common/services/databaseService';
 import './index.css';
 
 // Login Component

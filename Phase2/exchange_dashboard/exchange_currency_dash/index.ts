@@ -1,4 +1,4 @@
-export { default as ExchangeDashboard } from './ExchangeDashboard';
+export { default as ExchangeDashboard } from '../ExchangeDashboard';
 export { default as RealTimeCryptoSection } from './components/RealTimeCryptoSection';
 export { useRealTimeData } from './hooks/useRealTimeData';
 

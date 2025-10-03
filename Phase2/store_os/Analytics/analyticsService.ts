@@ -1,7 +1,7 @@
 // Real Analytics Service - Production Ready
-import transactionService from './transactionService';
-import inventoryService from './inventoryService';
-import websiteService from './websiteService';
+import transactionService from '../Transactions/transactionService';
+import inventoryService from '../Inventory/inventoryService';
+import websiteService from '../Website/websiteService';
 
 // Types
 export interface DailyPerformance {

@@ -7,9 +7,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
-import { useCryptoData, useAnimatedPrice } from '../hooks/useRealTimeData';
+import { useCryptoData, useAnimatedPrice } from '../../hooks/useRealTimeData';
 import { Loader, AlertTriangle } from 'lucide-react';
-import unifiedDataAggregator, { MarketDataPoint } from '../services/unifiedDataAggregator';
+import unifiedDataAggregator, { MarketDataPoint } from '../../services/unifiedDataAggregator';
 
 interface CryptoItem {
   symbol: string;

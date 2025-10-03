@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Clock, Sun, Moon, Plus, X, Loader, AlertTriangle, ArrowUp, TrendingUp, ArrowDown } from 'lucide-react';
 import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis } from 'recharts';
-import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from './services/exchangeRateService';
-import webSocketService, { WebSocketEvent } from './services/webSocketService';
+import { fetchLatestRates, fetchSupportedCurrencies, fetchHistoricalRate, RateData, SupportedCurrency } from './exchangeRateService';
+import webSocketService, { WebSocketEvent } from '../store_os/common/services/webSocketService';
 
-import logoWhite from './assets/logo_white-removebg-preview.png';
-import logoBlack from './assets/logo_black.png';
-import saadatWhite from './assets/saadat_white-removebg-preview.png';
-import saadatBlack from './assets/saadat_black.PNG';
+import logoWhite from '../store_os/common/assets/logo_white-removebg-preview.png';
+import logoBlack from '../store_os/common/assets/logo_black.png';
+import saadatWhite from '../store_os/common/assets/saadat_white-removebg-preview.png';
+import saadatBlack from '../store_os/common/assets/saadat_black.PNG';
 
 // --- Type Definitions for TypeScript ---
 interface CurrencyInfo { name: string; code: string; }

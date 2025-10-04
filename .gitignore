@@ -75,3 +75,5 @@ dashboard/demo/src/exchange_currency_dash/.env
 .env.developement
 
 share/
+
+backend/

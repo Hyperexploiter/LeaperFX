@@ -401,3 +401,328 @@
   transform: scale(1.05);
   transition: all 0.2s ease;
 }
+
+/* Configuration Panel Specific Styles */
+
+/* Modal backdrop with subtle animation */
+.config-modal-backdrop {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 8, 20, 0.9) 100%);
+  backdrop-filter: blur(8px);
+  animation: configBackdropFadeIn 0.3s ease-out;
+}
+
+@keyframes configBackdropFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+/* Enhanced configuration panel animation */
+.config-panel-enter {
+  animation: configPanelSlideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes configPanelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Professional toggle switches */
+.config-toggle-container {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.config-toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.config-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #2c2c2c;
+  transition: 0.3s;
+  border-radius: 24px;
+  border: 0.5px solid rgba(0, 212, 255, 0.3);
+}
+
+.config-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 2px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.config-toggle-input:checked + .config-toggle-slider {
+  background: linear-gradient(45deg, #FFA500, #FF8C00);
+  border-color: rgba(255, 165, 0, 0.6);
+  box-shadow: 0 0 10px rgba(255, 165, 0, 0.3);
+}
+
+.config-toggle-input:checked + .config-toggle-slider:before {
+  transform: translateX(24px);
+}
+
+/* Enhanced slider styles */
+.config-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  transition: background 0.3s ease;
+}
+
+.config-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: #FFA500;
+  border: 2px solid #000;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(255, 165, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+.config-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 12px rgba(255, 165, 0, 0.6);
+}
+
+.config-range-slider::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: #FFA500;
+  border: 2px solid #000;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(255, 165, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+/* Color picker enhancements */
+.config-color-picker {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 40px;
+  border: 0.5px solid rgba(0, 212, 255, 0.3);
+  border-radius: 0px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.config-color-picker:hover {
+  border-color: rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+}
+
+/* Priority button grid */
+.config-priority-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.config-priority-button {
+  aspect-ratio: 1;
+  border: 2px solid rgba(0, 212, 255, 0.3);
+  background: transparent;
+  color: #999;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.config-priority-button:hover {
+  border-color: rgba(0, 212, 255, 0.6);
+  color: #fff;
+}
+
+.config-priority-button.active {
+  border-color: #FFA500;
+  background: rgba(255, 165, 0, 0.2);
+  color: #FFA500;
+  text-shadow: 0 0 6px rgba(255, 165, 0, 0.4);
+}
+
+/* Search input enhancement */
+.config-search-input {
+  background: linear-gradient(135deg, rgba(0, 8, 20, 0.8) 0%, rgba(0, 20, 40, 0.6) 100%);
+  border: 0.5px solid rgba(0, 212, 255, 0.3);
+  color: #fff;
+  transition: all 0.3s ease;
+}
+
+.config-search-input:focus {
+  border-color: rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+  outline: none;
+}
+
+.config-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Enhanced button styles */
+.config-button-primary {
+  background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%);
+  border: 0.5px solid rgba(255, 165, 0, 0.6);
+  color: #000;
+  font-weight: bold;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  transition: all 0.2s ease;
+  text-shadow: none;
+}
+
+.config-button-primary:hover {
+  background: linear-gradient(135deg, #FF8C00 0%, #FF7F00 100%);
+  box-shadow: 0 0 15px rgba(255, 165, 0, 0.4);
+  transform: translateY(-1px);
+}
+
+.config-button-secondary {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 150, 255, 0.2) 100%);
+  border: 0.5px solid rgba(0, 212, 255, 0.3);
+  color: #00D4FF;
+  font-weight: bold;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  transition: all 0.2s ease;
+}
+
+.config-button-secondary:hover {
+  border-color: rgba(0, 212, 255, 0.6);
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(0, 150, 255, 0.3) 100%);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+}
+
+/* Panel section headers */
+.config-section-header {
+  background: linear-gradient(90deg, rgba(255, 165, 0, 0.1) 0%, transparent 100%);
+  border-left: 3px solid #FFA500;
+  padding: 12px 16px;
+  margin: 16px 0 8px 0;
+}
+
+.config-section-title {
+  color: #FFA500;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Status indicators */
+.config-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.config-status-healthy {
+  background: #00FF88;
+  box-shadow: 0 0 6px rgba(0, 255, 136, 0.4);
+}
+
+.config-status-degraded {
+  background: #FFB000;
+  box-shadow: 0 0 6px rgba(255, 176, 0, 0.4);
+}
+
+.config-status-unhealthy {
+  background: #FF4444;
+  box-shadow: 0 0 6px rgba(255, 68, 68, 0.4);
+}
+
+/* Responsive design */
+@media (max-width: 1400px) {
+  .config-panel-container {
+    width: 95vw;
+    height: 90vh;
+  }
+}
+
+@media (max-width: 1024px) {
+  .config-panel-container {
+    width: 98vw;
+    height: 95vh;
+  }
+
+  .config-sidebar {
+    width: 240px;
+  }
+
+  .config-content {
+    padding: 16px;
+  }
+}
+
+/* Accessibility enhancements */
+.config-button:focus-visible,
+.config-input:focus-visible,
+.config-select:focus-visible {
+  outline: 2px solid #FFA500;
+  outline-offset: 2px;
+}
+
+/* Smooth loading states */
+.config-loading {
+  opacity: 0.6;
+  pointer-events: none;
+  position: relative;
+}
+
+.config-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 165, 0, 0.1), transparent);
+  animation: configLoadingShimmer 1.5s infinite;
+}
+
+@keyframes configLoadingShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}

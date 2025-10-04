@@ -20,6 +20,7 @@ import DataSourceStatus from './components/DataSourceStatus';
 import LiveClock from './components/LiveClock';
 import TopMoversGrid from './components/TopMoversGrid';
 import UnifiedTicker from './components/UnifiedTicker';
+import ConfigurationPanel from './components/ConfigurationPanel';
 import './styles/sexymodal.css';
 
 // Lightweight error boundary to prevent blank page on runtime errors
@@ -300,6 +301,7 @@ export default function ExchangeDashboard(): React.ReactElement {
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [commodityRotationIndex, setCommodityRotationIndex] = useState<number>(0);
   const [showPerformanceMonitor, setShowPerformanceMonitor] = useState<boolean>(false);
+  const [showConfigurationPanel, setShowConfigurationPanel] = useState<boolean>(false);
 
   // Real-time data integration
   const { health, isConnected, error: marketError } = useMarketHealth();
@@ -360,6 +362,12 @@ export default function ExchangeDashboard(): React.ReactElement {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
         e.preventDefault();
         setShowPerformanceMonitor(prev => !prev);
+      }
+
+      // Ctrl/Cmd + Shift + C for configuration panel
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+        setShowConfigurationPanel(prev => !prev);
       }
 
       // Ctrl/Cmd + Shift + S for simulated signal
@@ -884,6 +892,17 @@ export default function ExchangeDashboard(): React.ReactElement {
           <TickerTakeover
             signal={engine.engineState.topSignal}
             duration={10000}
+          />
+
+          {/* Configuration Panel */}
+          <ConfigurationPanel
+            isVisible={showConfigurationPanel}
+            onClose={() => setShowConfigurationPanel(false)}
+            onApply={(config) => {
+              console.log('Configuration applied:', config);
+              // Apply configuration changes to the dashboard
+              // This could trigger re-renders, theme changes, etc.
+            }}
           />
         </main>
 

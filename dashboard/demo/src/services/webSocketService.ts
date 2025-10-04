@@ -177,6 +177,15 @@ class WebSocketService {
   private getWebSocketUrl(): string | null {
     if (typeof window !== 'undefined') {
       const host = window.location.host || window.location.hostname || '';
+
+      // Check for unified API base URL first
+      const apiBaseUrl = this.getEnv('VITE_API_BASE_URL');
+      if (apiBaseUrl) {
+        // Convert HTTP base URL to WebSocket URL
+        const wsUrl = apiBaseUrl.replace(/^https?:/, window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '/websocket';
+        return wsUrl;
+      }
+
       // Disable remote websocket attempts on static hosting like GitHub Pages
       if (host.includes('github.io')) {
         return null;
@@ -185,6 +194,20 @@ class WebSocketService {
       return `${protocol}//${host}/ws`;
     }
     return 'ws://localhost:3001/ws';
+  }
+
+  /**
+   * Get environment variable with proper fallback
+   */
+  private getEnv(key: string): string | undefined {
+    try {
+      const viteEnv = (typeof import.meta !== 'undefined') ? (import.meta as any).env : undefined;
+      const win: any = (typeof window !== 'undefined') ? (window as any) : {};
+      const nodeEnv: any = (typeof process !== 'undefined') ? (process as any).env : undefined;
+      return (viteEnv && viteEnv[key]) || (win.__ENV__ && win.__ENV__[key]) || (nodeEnv && nodeEnv[key]);
+    } catch {
+      return undefined;
+    }
   }
   
   /**

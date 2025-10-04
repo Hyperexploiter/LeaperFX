@@ -1,0 +1,42 @@
+{
+  "name": "@leaperfx/backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LeaperFX Backend API - Secure data proxy and configuration management",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "type-check": "tsc --noEmit",
+    "lint": "next lint",
+    "vercel-build": "next build"
+  },
+  "dependencies": {
+    "next": "14.0.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@vercel/kv": "^1.0.1",
+    "cors": "^2.8.5",
+    "rate-limiter-flexible": "^4.0.1",
+    "node-cache": "^5.1.2",
+    "uuid": "^9.0.1",
+    "jose": "^5.1.3",
+    "ws": "^8.14.2",
+    "axios": "^1.6.2",
+    "helmet": "^7.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.2",
+    "@types/react": "^18.2.42",
+    "@types/react-dom": "^18.2.17",
+    "@types/cors": "^2.8.17",
+    "@types/uuid": "^9.0.7",
+    "@types/ws": "^8.5.9",
+    "typescript": "^5.3.2",
+    "eslint": "^8.54.0",
+    "eslint-config-next": "14.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

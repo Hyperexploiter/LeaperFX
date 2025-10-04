@@ -5,6 +5,7 @@ import { DisplayPanel } from './DisplayPanel';
 import { ColorsPanel } from './ColorsPanel';
 import { PerformancePanel } from './PerformancePanel';
 import { ProvidersPanel } from './ProvidersPanel';
+import { RatesPanel } from './RatesPanel';
 import { useConfigurationState } from './hooks/useConfigurationState';
 import { useConfigurationPreview } from './hooks/useConfigurationPreview';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -15,7 +16,7 @@ interface ConfigurationPanelProps {
   onApply?: (config: any) => void;
 }
 
-type TabId = 'timing' | 'display' | 'colors' | 'performance' | 'providers';
+type TabId = 'timing' | 'display' | 'colors' | 'performance' | 'providers' | 'rates';
 
 interface TabConfig {
   id: TabId;
@@ -54,6 +55,12 @@ const TABS: TabConfig[] = [
     label: 'Providers',
     icon: <div className="w-3 h-3 border-2 border-current rounded-sm" />,
     component: ProvidersPanel
+  },
+  {
+    id: 'rates',
+    label: 'Rates',
+    icon: <div className="w-3 h-3 bg-gradient-to-br from-current to-transparent rounded-sm" />,
+    component: RatesPanel
   }
 ];
 

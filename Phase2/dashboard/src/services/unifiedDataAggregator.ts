@@ -7,7 +7,7 @@
 import { INSTRUMENT_CATALOG, InstrumentDefinition, UPDATE_CADENCE_CONFIG, FOREX_INSTRUMENTS } from '../config/instrumentCatalog';
 import coinbaseWebSocketService from './coinbaseWebSocketService';
 import realTimeDataManager from './realTimeDataManager';
-import { fetchLatestRates } from '../../services/exchangeRateService';
+import { fetchLatestRates } from '../../../exchangeRateService';
 import polygonFxProvider from './providers/polygonFxProvider';
 import twelveDataProvider from './providers/twelveDataProvider';
 import bocProvider from './providers/bocProvider';
@@ -65,15 +65,14 @@ class UnifiedDataAggregator {
   private API_ENDPOINTS!: { fxapi: string; twelvedata: string; alpaca: string; polygon: string; finnhub: string; bankofcanada: string; };
 
   constructor() {
-    // Initialize API endpoints from environment (Vite first), with sensible defaults
+    // Initialize API endpoints from environment (unified backend proxy first)
     this.API_ENDPOINTS = {
-      fxapi: this.getEnv('VITE_FXAPI_URL') || 'https://api.fxapi.com/v1',
-      twelvedata: this.getEnv('VITE_TWELVEDATA_URL') || 'https://api.twelvedata.com',
-      alpaca: this.getEnv('VITE_ALPACA_URL') || 'https://data.alpaca.markets/v2',
-      polygon: this.getEnv('VITE_POLYGON_URL') || 'https://api.polygon.io',
-      finnhub: this.getEnv('VITE_FINNHUB_URL') || 'https://finnhub.io/api/v1',
-      // Note: during GH Pages/static hosting we directly hit BoC. In dev, set VITE_BOC_URL=/api/boc to use local proxy.
-      bankofcanada: this.getEnv('VITE_BOC_URL') || 'https://www.bankofcanada.ca/valet'
+      fxapi: this.getEnv('VITE_API_BASE_URL') ? `${this.getEnv('VITE_API_BASE_URL')}/data/forex` : this.getEnv('VITE_FXAPI_URL') || 'https://api.fxapi.com/v1',
+      twelvedata: this.getEnv('VITE_API_BASE_URL') ? `${this.getEnv('VITE_API_BASE_URL')}/data/commodities` : this.getEnv('VITE_TWELVEDATA_URL') || 'https://api.twelvedata.com',
+      alpaca: this.getEnv('VITE_API_BASE_URL') ? `${this.getEnv('VITE_API_BASE_URL')}/data/indices` : this.getEnv('VITE_ALPACA_URL') || 'https://data.alpaca.markets/v2',
+      polygon: this.getEnv('VITE_API_BASE_URL') ? `${this.getEnv('VITE_API_BASE_URL')}/data/indices` : this.getEnv('VITE_POLYGON_URL') || 'https://api.polygon.io',
+      finnhub: this.getEnv('VITE_API_BASE_URL') ? `${this.getEnv('VITE_API_BASE_URL')}/data/indices` : this.getEnv('VITE_FINNHUB_URL') || 'https://finnhub.io/api/v1',
+      bankofcanada: this.getEnv('VITE_API_BASE_URL') ? `${this.getEnv('VITE_API_BASE_URL')}/data/bonds` : this.getEnv('VITE_BOC_URL') || 'https://www.bankofcanada.ca/valet'
     };
 
     // Load instruments into map for quick lookup
@@ -253,17 +252,91 @@ class UnifiedDataAggregator {
   private async connectCoinbase(): Promise<void> {
     const cryptoInstruments = this.getInstrumentsByCategory('crypto');
 
-    for (const instrument of cryptoInstruments) {
-      if (instrument.wsSymbol) {
-        // Subscribe through existing Coinbase service
-        coinbaseWebSocketService.subscribePriceUpdates(
-          instrument.wsSymbol,
-          (data) => this.handleCryptoUpdate(instrument, data)
-        );
+    // Check if we should use unified API for crypto data
+    const useUnifiedApi = this.getEnv('VITE_API_BASE_URL');
+
+    if (useUnifiedApi) {
+      // Use unified WebSocket for crypto updates
+      this.connectUnifiedCryptoWebSocket();
+    } else {
+      // Fall back to direct Coinbase connection
+      for (const instrument of cryptoInstruments) {
+        if (instrument.wsSymbol) {
+          // Subscribe through existing Coinbase service
+          coinbaseWebSocketService.subscribePriceUpdates(
+            instrument.wsSymbol,
+            (data) => this.handleCryptoUpdate(instrument, data)
+          );
+        }
       }
     }
 
     this.updateSourceStatus('coinbase', 'healthy');
+  }
+
+  /**
+   * Connect to unified WebSocket for crypto data
+   */
+  private connectUnifiedCryptoWebSocket(): void {
+    const apiBaseUrl = this.getEnv('VITE_API_BASE_URL');
+    if (!apiBaseUrl) return;
+
+    const wsUrl = apiBaseUrl.replace(/^https?:/, window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '/data/crypto/websocket';
+
+    try {
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log('[UnifiedDataAggregator] Connected to unified crypto WebSocket');
+        this.updateSourceStatus('unified_crypto', 'healthy');
+
+        // Subscribe to crypto instruments
+        const cryptoInstruments = this.getInstrumentsByCategory('crypto');
+        const symbols = cryptoInstruments.map(i => i.wsSymbol).filter(Boolean);
+
+        ws.send(JSON.stringify({
+          type: 'subscribe',
+          symbols: symbols
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'price_update' && data.symbol) {
+            // Find the instrument for this symbol
+            const instrument = this.getInstrumentsByCategory('crypto')
+              .find(i => i.wsSymbol === data.symbol);
+
+            if (instrument) {
+              this.handleCryptoUpdate(instrument, data);
+            }
+          }
+        } catch (error) {
+          console.error('[UnifiedDataAggregator] Error parsing unified WebSocket message:', error);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('[UnifiedDataAggregator] Unified crypto WebSocket disconnected');
+        this.updateSourceStatus('unified_crypto', 'error');
+
+        // Attempt to reconnect after delay
+        setTimeout(() => {
+          this.connectUnifiedCryptoWebSocket();
+        }, 5000);
+      };
+
+      ws.onerror = (error) => {
+        console.error('[UnifiedDataAggregator] Unified crypto WebSocket error:', error);
+        this.updateSourceStatus('unified_crypto', 'error');
+      };
+
+      this.wsConnections.set('unified_crypto', ws);
+    } catch (error) {
+      console.error('[UnifiedDataAggregator] Failed to create unified crypto WebSocket:', error);
+      this.updateSourceStatus('unified_crypto', 'error');
+    }
   }
 
   /**

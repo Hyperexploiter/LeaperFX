@@ -7,7 +7,38 @@
 import { INSTRUMENT_CATALOG, InstrumentDefinition, UPDATE_CADENCE_CONFIG, FOREX_INSTRUMENTS } from '../config/instrumentCatalog';
 import coinbaseWebSocketService from './coinbaseWebSocketService';
 import realTimeDataManager from './realTimeDataManager';
-import { fetchLatestRates } from '../../../exchangeRateService';
+// exchangeRateService removed - now using unified API backend
+
+// Unified API rate fetching
+async function fetchUnifiedAPIRates(baseCurrency: string = 'CAD'): Promise<any> {
+  try {
+    const baseUrl = (
+      (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL) ||
+      (typeof window !== 'undefined' && (window as any).__ENV__?.VITE_API_BASE_URL) ||
+      '/api'
+    );
+
+    const response = await fetch(`${baseUrl}/rates/current`);
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const rates = await response.json();
+
+    // Convert to expected format for compatibility
+    const formattedRates: any = {};
+    rates.forEach((rate: any) => {
+      if (rate.symbol !== baseCurrency) {
+        formattedRates[rate.symbol] = rate.marketRate;
+      }
+    });
+
+    return formattedRates;
+  } catch (error) {
+    console.warn('Unified API rates fetch failed:', error);
+    return null;
+  }
+}
 import polygonFxProvider from './providers/polygonFxProvider';
 import twelveDataProvider from './providers/twelveDataProvider';
 import bocProvider from './providers/bocProvider';
@@ -160,7 +191,7 @@ class UnifiedDataAggregator {
     // Ensure we have baseline values; if Polygon was unavailable/partial, fall back to Frankfurter
     if (polygonSuccessCount < Math.max(3, Math.floor(wantedPairs.size * 0.5))) {
       try {
-        const cadRates = await fetchLatestRates('CAD');
+        const cadRates = await fetchUnifiedAPIRates('CAD');
         if (cadRates) {
           wantedPairs.forEach(pair => {
             const base = pair.split('/')[0] as keyof typeof cadRates;
@@ -170,7 +201,7 @@ class UnifiedDataAggregator {
             }
           });
           // Crosses for convenience
-          const usdRates = await fetchLatestRates('USD');
+          const usdRates = await fetchUnifiedAPIRates('USD');
           if (usdRates) {
             this.fxRateCache['EUR/USD'] = { rate: (usdRates as any).EUR || 0.92, timestamp: now, ttl: this.FX_CACHE_TTL };
             this.fxRateCache['GBP/USD'] = { rate: (usdRates as any).GBP || 0.79, timestamp: now, ttl: this.FX_CACHE_TTL };

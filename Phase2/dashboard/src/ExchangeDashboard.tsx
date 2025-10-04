@@ -4,7 +4,7 @@ import { AreaChart, Area, Tooltip, ResponsiveContainer, YAxis, XAxis, CartesianG
 // Note: Frankfurter-based exchangeRateService removed from UI for shipping velocity.
 // All FX rates now come from unifiedDataAggregator (Polygon-first) and will be revisited
 // when we move to a proper backend.
-import webSocketService, { WebSocketEvent } from '../services/webSocketService';
+import webSocketService, { WebSocketEvent } from './services/webSocketService';
 import { RealTimeCryptoSection } from './components/RealTimeCryptoSection';
 import { useMarketHealth } from './hooks/useRealTimeData';
 import { useHighPerformanceEngine } from './hooks/useHighPerformanceEngine';

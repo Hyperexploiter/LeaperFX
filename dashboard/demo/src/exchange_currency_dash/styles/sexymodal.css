@@ -401,3 +401,10 @@
   transform: scale(1.05);
   transition: all 0.2s ease;
 }
+
+/* Crypto chart container styling */
+.crypto-chart-container {
+  background: rgba(0, 20, 40, 0.4);
+  border: 0.5px solid rgba(255, 215, 0, 0.15);
+  border-radius: 2px;
+}

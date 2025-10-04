@@ -5,6 +5,8 @@ import { MOVERS_INDEX_SYMBOLS, getMoversTiming } from '../config/dashboardLayout
 import orchestrator from '../services/layoutOrchestrator';
 import { HighPerformanceSparkline } from './HighPerformanceSparkline';
 import { getSparklineTheme } from '../services/themePresets';
+import { TerminalCard } from './shared/TerminalCard';
+import { TERMINAL_COLORS } from '../config/terminalTheme';
 
 type Trend = 'up' | 'down';
 
@@ -28,25 +30,8 @@ type ItemType = 'crypto' | 'index' | 'yield';
 const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBuffer }) => {
   const [movers, setMovers] = useState<Record<string, MoverItem>>({});
   const [tick, setTick] = useState(0);
-  const [featureIndex, setFeatureIndex] = useState(0);
   const [fade, setFade] = useState(false);
   const [lastTick, setLastTick] = useState(0);
-  type LayoutMode = 'six' | 'twoPlusRect' | 'threePlusRect';
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>('six');
-
-  // Read blue overlay params from env
-  const blueParams = useMemo(() => {
-    try {
-      const vite = (typeof import.meta !== 'undefined') ? (import.meta as any).env : undefined;
-      const winEnv = (typeof window !== 'undefined') ? (window as any).__ENV__ : undefined;
-      const nodeEnv = (typeof process !== 'undefined') ? (process as any).env : undefined;
-      const speedRaw = String((vite && vite.VITE_BLUE_PULSE_SPEED) || (winEnv && winEnv.VITE_BLUE_PULSE_SPEED) || (nodeEnv && nodeEnv.VITE_BLUE_PULSE_SPEED) || '6');
-      const opacRaw = String((vite && vite.VITE_BLUE_WASH_OPACITY) || (winEnv && winEnv.VITE_BLUE_WASH_OPACITY) || (nodeEnv && nodeEnv.VITE_BLUE_WASH_OPACITY) || '1.0');
-      const speed = Math.max(2, Math.min(12, parseFloat(speedRaw)));
-      const opacity = Math.max(0.05, Math.min(1.0, parseFloat(opacRaw)));
-      return { speed, opacity };
-    } catch { return { speed: 6, opacity: 1.0 }; }
-  }, []);
 
   // Subscribe to crypto + selected indices / yield
   useEffect(() => {
@@ -90,23 +75,20 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
       });
       unsubs.push(unsub);
     });
-    const { modeMs, featureMs } = getMoversTiming();
+    const { modeMs } = getMoversTiming();
     const t = setInterval(() => setTick(t => t + 1), modeMs);
-    const f = setInterval(() => setFeatureIndex(i => (i + 1) % 6), featureMs);
-    return () => { unsubs.forEach(u => { try { u(); } catch {} }); clearInterval(t); clearInterval(f); };
+    return () => { unsubs.forEach(u => { try { u(); } catch {} }); clearInterval(t); };
   }, []);
 
-  // Trigger grid fade on mode changes and rotate layout mode
+  // Trigger grid fade on mode changes
   useEffect(() => {
     if (tick !== lastTick) {
       setFade(true);
       setLastTick(tick);
-      // Rotate layout pattern every mode tick: six → 2+rect → 3+rect → six
-      setLayoutMode(prev => prev === 'six' ? 'twoPlusRect' : prev === 'twoPlusRect' ? 'threePlusRect' : 'six');
       const id = setTimeout(() => setFade(false), 600); // match CSS duration
       return () => clearTimeout(id);
     }
-  }, [tick]);
+  }, [tick, lastTick]);
 
   // Build top gainers/losers list across both crypto + indices (yield included but may have 0 change)
   const sequence = useMemo(() => {
@@ -144,131 +126,68 @@ const TopMoversGrid: React.FC<{ getBuffer: (symbol: string) => any }> = ({ getBu
     <div className="w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-bold uppercase tracking-wider" style={{ color: '#FFA500', fontFamily: 'monospace' }}>
+        <div className="text-xs font-bold uppercase tracking-wider" style={{ color: TERMINAL_COLORS.primary.orange, fontFamily: 'monospace' }}>
           {(() => { const mode = sequence[tick % sequence.length]; return mode === 'gainers' ? 'Top Gainers' : mode === 'losers' ? 'Top Losers' : 'Market Indices'; })()}
         </div>
         <div className="text-[10px] text-gray-500 font-mono">Auto‑rotating</div>
       </div>
 
-      {/* Grid: 3 columns with fixed row height; layout pattern rotates to avoid truncation */}
+      {/* Grid: Simple 3x2 layout (6 tiles) */}
       <div className={`grid grid-cols-3 gap-2 ${fade ? 'fade-in' : ''}`}>
-        {(() => {
-          const renderSmall = (it: MoverItem, key: string) => (
-            <div
-              key={key}
-              className={`relative overflow-hidden h-[90px] transition-all duration-300 bloomberg-terminal-card movers-card slide-up data-update min-w-0`}
-            >
+        {visible.map((it, idx) => {
+          const isYield = it.engineSymbol.endsWith('YIELD');
+
+          return (
+            <TerminalCard key={`${it.engineSymbol}-${idx}`} height="90px" variant="mover">
               <div className="h-full flex items-center px-3">
-                <div className="card-blue-inner blue-pulse" style={{ opacity: blueParams.opacity, animationDuration: `${blueParams.speed}s` }}></div>
                 {/* Left info */}
                 <div className="flex-1 min-w-0">
                   <div className="mb-1 truncate">
-                    <div className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{it.symbol}</div>
+                    <div className="text-sm font-bold" style={{ color: TERMINAL_COLORS.primary.orange, fontFamily: 'monospace' }}>
+                      {it.symbol}
+                    </div>
                   </div>
                   <div className="text-xs">
-                    <span style={{ color: '#4A90E2' }}>Price: </span>
-                    <span className={`font-mono font-bold ${it.price === null ? 'text-gray-500' : 'text-white'}`}>{formatPrice(it.price)}</span>
+                    <span style={{ color: TERMINAL_COLORS.primary.blue }}>Price: </span>
+                    <span className={`font-mono font-bold ${it.price === null ? 'text-gray-500' : 'text-white'}`}>
+                      {formatPrice(it.price)}
+                    </span>
                     <span className="ml-1 text-[10px] text-gray-500">CAD</span>
                   </div>
-                  <div className="text-xs mt-0.5" style={{ color: it.change >= 0 ? '#00FF88' : '#FF4444' }}>
+                  <div className="text-xs mt-0.5" style={{
+                    color: it.change >= 0 ? TERMINAL_COLORS.trend.up : TERMINAL_COLORS.trend.down
+                  }}>
                     {it.price !== null ? (it.change >= 0 ? '▲' : '▼') : '•'} {Math.abs(it.change).toFixed(2)}%
                   </div>
                 </div>
-                {/* Sparkline */}
-                <div className={`w-[120px] h-[50px] ml-3 flex items-center`}>
-                  <HighPerformanceSparkline
-                    symbol={`${it.engineSymbol}`}
-                    buffer={getBuffer(it.engineSymbol)}
-                    width={120}
-                    height={50}
-                    color={it.trend === 'up' ? th.colorUp : th.colorDown}
-                    glowIntensity={th.glowIntensity}
-                    showStats={false}
-                    isSignalActive={false}
-                    volatilityAdaptive={true}
-                    baseLineWidth={th.baseLineWidth}
-                    maxLineWidth={th.maxLineWidth}
-                    smoothingFactor={th.smoothingFactor}
-                    renderMode={'areaNeon'}
-                    lineColor={'#FFFFFF'}
-                    expandOnHover={false}
-                    sampleCount={160}
-                  />
-                </div>
+
+                {/* Sparkline - Skip for yield symbols */}
+                {!isYield && (
+                  <div className="w-[120px] h-[50px] ml-3 flex items-center">
+                    <HighPerformanceSparkline
+                      symbol={it.engineSymbol}
+                      buffer={getBuffer(it.engineSymbol)}
+                      width={120}
+                      height={50}
+                      color={it.trend === 'up' ? th.colorUp : th.colorDown}
+                      glowIntensity={th.glowIntensity}
+                      showStats={false}
+                      isSignalActive={false}
+                      volatilityAdaptive={true}
+                      baseLineWidth={th.baseLineWidth}
+                      maxLineWidth={th.maxLineWidth}
+                      smoothingFactor={th.smoothingFactor}
+                      renderMode={'areaNeon'}
+                      lineColor={'#FFFFFF'}
+                      expandOnHover={false}
+                      sampleCount={160}
+                    />
+                  </div>
+                )}
               </div>
-            </div>
+            </TerminalCard>
           );
-
-          const renderRect = (it: MoverItem, key: string) => (
-            <div
-              key={key}
-              className={`relative overflow-hidden col-span-3 h-[90px] transition-all duration-300 bloomberg-terminal-card movers-card feature-zoom min-w-0`}
-            >
-              <div className="h-full flex items-center px-3">
-                <div className="card-blue-inner blue-pulse" style={{ opacity: blueParams.opacity, animationDuration: `${blueParams.speed}s` }}></div>
-                {/* Left info */}
-                <div className="flex-1 min-w-0">
-                  <div className="mb-1 truncate">
-                    <div className="text-sm font-bold" style={{ color: '#FFA500', fontFamily: 'monospace' }}>{it.symbol}</div>
-                  </div>
-                  <div className="text-xs">
-                    <span style={{ color: '#4A90E2' }}>Price: </span>
-                    <span className={`font-mono font-bold ${it.price === null ? 'text-gray-500' : 'text-white'}`}>{formatPrice(it.price)}</span>
-                    <span className="ml-1 text-[10px] text-gray-500">CAD</span>
-                  </div>
-                  <div className="text-xs mt-0.5" style={{ color: it.change >= 0 ? '#00FF88' : '#FF4444' }}>
-                    {it.price !== null ? (it.change >= 0 ? '▲' : '▼') : '•'} {Math.abs(it.change).toFixed(2)}%
-                  </div>
-                </div>
-                {/* Sparkline */}
-                <div className={`w-[240px] h-[70px] ml-3 flex items-center`}>
-                  <HighPerformanceSparkline
-                    symbol={`${it.engineSymbol}`}
-                    buffer={getBuffer(it.engineSymbol)}
-                    width={240}
-                    height={70}
-                    color={it.trend === 'up' ? th.colorUp : th.colorDown}
-                    glowIntensity={th.glowIntensity}
-                    showStats={false}
-                    isSignalActive={false}
-                    volatilityAdaptive={true}
-                    baseLineWidth={th.baseLineWidth}
-                    maxLineWidth={th.maxLineWidth}
-                    smoothingFactor={th.smoothingFactor}
-                    renderMode={'areaNeon'}
-                    lineColor={'#FFFFFF'}
-                    expandOnHover={false}
-                    sampleCount={300}
-                  />
-                </div>
-              </div>
-            </div>
-          );
-
-          // Prepare items based on layout mode
-          const smallCount = layoutMode === 'six' ? 6 : layoutMode === 'twoPlusRect' ? 2 : 3;
-          const items: JSX.Element[] = [];
-          for (let i = 0; i < Math.min(smallCount, visible.length); i++) {
-            items.push(renderSmall(visible[i], `${visible[i].symbol}-s-${i}`));
-          }
-
-          // Fill the remaining spot on the first row when we only render 2 squares (for visual balance)
-          if (layoutMode === 'twoPlusRect') {
-            items.push(<div key="ph" className="h-[90px] invisible" />);
-          }
-
-          if (layoutMode !== 'six') {
-            const rectIdx = (smallCount + (featureIndex % Math.max(1, visible.length - smallCount))) % visible.length;
-            items.push(renderRect(visible[rectIdx], `${visible[rectIdx].symbol}-r`));
-          } else {
-            // Ensure exactly 6 squares in six mode
-            for (let i = smallCount; i < 6; i++) {
-              items.push(renderSmall(visible[i], `${visible[i].symbol}-s-${i}`));
-            }
-          }
-
-          return items;
-        })()}
+        })}
       </div>
     </div>
   );

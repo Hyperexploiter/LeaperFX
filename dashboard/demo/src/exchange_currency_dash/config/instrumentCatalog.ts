@@ -238,6 +238,19 @@ export const FOREX_INSTRUMENTS: InstrumentDefinition[] = [
     tradeable: true,
     showInDashboard: true
   },
+  {
+    symbol: 'ILS/CAD',
+    name: 'Israeli Shekel / Canadian Dollar',
+    category: 'forex',
+    subCategory: 'middle_east',
+    baseCurrency: 'ILS',
+    quoteCurrency: 'CAD',
+    dataSource: 'fxapi',
+    updateFrequency: 60000,
+    priority: 'high',
+    tradeable: true,
+    showInDashboard: true
+  },
 
   // Americas
   {

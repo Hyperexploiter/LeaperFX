@@ -10,6 +10,8 @@ import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import { useCryptoData, useAnimatedPrice } from '../hooks/useRealTimeData';
 import { Loader, AlertTriangle } from 'lucide-react';
 import unifiedDataAggregator, { MarketDataPoint } from '../services/unifiedDataAggregator';
+import { TerminalCard } from './shared/TerminalCard';
+import { TERMINAL_COLORS } from '../config/terminalTheme';
 
 interface CryptoItem {
   symbol: string;
@@ -86,56 +88,53 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
   }, [crypto.trend]);
 
   return (
-    <div
-      className={`h-[85px] relative group overflow-hidden transition-all duration-200 bloomberg-terminal-card movers-card ${
-        isAnimating ? 'ring-1 ring-blue-400/50' : ''
-      }`}
-    >
-      <div className="card-blue-inner blue-pulse"></div>
-      <div className="h-full flex items-center px-4">
+    <TerminalCard height="90px" variant="crypto">
+      <div className="h-full flex items-center px-3">
         {/* Left section - Crypto info */}
-        <div className="flex-1">
-          <div className="mb-2">
-            <h3 className="text-base font-bold" style={{
-              color: '#FFA500',
+        <div className="flex-1 min-w-0">
+          <div className="mb-1 truncate">
+            <div className="text-base font-bold" style={{
+              color: TERMINAL_COLORS.primary.orange,
               fontFamily: 'monospace'
             }}>
               {crypto.symbol}
-            </h3>
-            <span className="text-xs" style={{ color: '#666' }}>{crypto.name}</span>
+            </div>
           </div>
-          <div className="text-sm">
-            <span style={{ color: '#4A90E2' }}>Price: </span>
+          <div className="text-xs">
+            <span style={{ color: TERMINAL_COLORS.primary.blue }}>Price: </span>
             <span className={`font-mono font-bold text-base transition-all duration-300 ${
               isAnimating ? 'text-blue-300' : 'text-white'
             }`}>
               {displayPrice}
             </span>
-            <span className="ml-1 text-xs text-gray-500">CAD</span>
+            <span className="ml-1 text-[10px] text-gray-500">CAD</span>
             {isAnimating && (
               <span className="ml-2 text-xs text-blue-400 animate-pulse">●</span>
             )}
           </div>
+          <div className="text-xs mt-0.5" style={{
+            color: isPositive ? TERMINAL_COLORS.trend.up : TERMINAL_COLORS.trend.down
+          }}>
+            {Number.isFinite(crypto.change) && <span className="mr-1">{isPositive ? '▲' : '▼'}</span>}
+            {changeDisplay}
+          </div>
         </div>
 
-        {/* Center section - Mini chart */}
-        <div className="w-28 h-12 mx-4" style={{
-          background: 'rgba(0, 20, 40, 0.4)',
-          border: '0.5px solid rgba(255, 215, 0, 0.15)'
-        }}>
+        {/* Right section - Mini chart */}
+        <div className="w-[120px] h-[50px] ml-3 flex items-center crypto-chart-container">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
               <defs>
                 <linearGradient id={`crypto-gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={isPositive ? '#00FF88' : '#FF4444'} stopOpacity={0.7}/>
-                  <stop offset="100%" stopColor={isPositive ? '#00FF88' : '#FF4444'} stopOpacity={0.1}/>
+                  <stop offset="0%" stopColor={isPositive ? TERMINAL_COLORS.trend.up : TERMINAL_COLORS.trend.down} stopOpacity={0.7}/>
+                  <stop offset="100%" stopColor={isPositive ? TERMINAL_COLORS.trend.up : TERMINAL_COLORS.trend.down} stopOpacity={0.1}/>
                 </linearGradient>
               </defs>
               <YAxis hide domain={['dataMin', 'dataMax']} />
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke={isPositive ? '#00FF88' : '#FF4444'}
+                stroke={isPositive ? TERMINAL_COLORS.trend.up : TERMINAL_COLORS.trend.down}
                 strokeWidth={0.8}
                 fillOpacity={1}
                 fill={`url(#crypto-gradient-${index})`}
@@ -144,19 +143,8 @@ const RealTimeCryptoCard: React.FC<RealTimeCryptoCardProps> = ({ crypto, index }
             </AreaChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Right section - 24h change */}
-        <div className="text-right">
-          <div className="font-bold text-lg flex items-center justify-end" style={{
-            color: isPositive ? '#00FF88' : '#FF4444'
-          }}>
-            {Number.isFinite(crypto.change) && <span className="mr-1">{isPositive ? '▲' : '▼'}</span>}
-            {changeDisplay}
-          </div>
-          <div className="text-xs" style={{ color: '#666' }}>24h</div>
-        </div>
       </div>
-    </div>
+    </TerminalCard>
   );
 };
 

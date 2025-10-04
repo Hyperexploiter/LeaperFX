@@ -3,9 +3,9 @@
  * Handles PDF generation, email/SMS sending, and audit trails
  */
 
-import { transactionService } from './transactionService';
-import { customerService } from './customerService';
-import { emailService } from './emailService';
+import transactionService from './transactionService';
+import customerService from './customerService';
+import emailService from './emailService';
 import type { Transaction } from './transactionService';
 import type { Customer } from './customerService';
 
@@ -470,4 +470,5 @@ Thank you for your business!`;
   }
 }
 
-export const receiptService = new ReceiptService();
+const receiptService = new ReceiptService();
+export default receiptService;

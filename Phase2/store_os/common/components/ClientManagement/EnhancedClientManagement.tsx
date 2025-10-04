@@ -5,10 +5,12 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, Plus, Search, Edit2, Shield, AlertTriangle,
   CheckCircle, Clock, Filter, SortAsc, SortDesc, Eye,
-  User, Mail, Phone, MapPin, Upload
+  User, Mail, Phone, MapPin, Upload, Camera, FileText
 } from 'lucide-react';
 import { Modal, Toast } from '../Modal';
 import CSVImport from '../CSVImport';
+import DocumentCapture from '../DocumentCapture';
+import LivenessDetection from '../LivenessDetection';
 import customerService, { type CustomerProfile, type CustomerSearchFilters } from '../../services/customerService';
 import webSocketService from '../../services/webSocketService';
 import transactionService from '../../services/transactionService';
@@ -73,6 +75,9 @@ const EnhancedClientManagement: React.FC = () => {
   const [showClientProfileModal, setShowClientProfileModal] = useState<boolean>(false);
   const [showFiltersModal, setShowFiltersModal] = useState<boolean>(false);
   const [showCSVImportModal, setShowCSVImportModal] = useState<boolean>(false);
+  const [showPhotoIDCaptureModal, setShowPhotoIDCaptureModal] = useState<boolean>(false);
+  const [registrationStep, setRegistrationStep] = useState<number>(1);
+  const [capturedDocuments, setCapturedDocuments] = useState<Record<string, any>>({});
   
   // Selected data
   const [selectedClient, setSelectedClient] = useState<EnhancedClient | null>(null);

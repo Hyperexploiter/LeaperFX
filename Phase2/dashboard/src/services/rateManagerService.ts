@@ -4,7 +4,7 @@
  * Provides store owner capabilities for rate overrides and management
  */
 
-import webSocketService, { WebSocketEvent } from '../../demo/src/services/webSocketService';
+import webSocketService, { WebSocketEvent } from './webSocketService';
 import errorHandler from './errorHandler';
 
 export interface RateData {

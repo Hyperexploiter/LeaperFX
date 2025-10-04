@@ -1,6 +1,25 @@
 // src/services/exchangeRateService.ts
 
-const API_URL = 'https://api.frankfurter.app';
+// Unified API configuration with fallback to Frankfurter
+const getApiUrl = (): string => {
+  // Check for unified backend API URL from environment
+  const unifiedApi = (
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL) ||
+    (typeof window !== 'undefined' && (window as any).__ENV__?.VITE_API_BASE_URL) ||
+    (typeof process !== 'undefined' && (process as any).env?.VITE_API_BASE_URL)
+  );
+
+  if (unifiedApi) {
+    console.log('🔗 Using unified API backend:', unifiedApi);
+    return `${unifiedApi}/rates`;
+  }
+
+  console.log('⚠️ Falling back to Frankfurter API');
+  return 'https://api.frankfurter.app';
+};
+
+// Dynamic API URL - will switch between unified backend and Frankfurter fallback
+const getAPIURL = () => getApiUrl();
 const REQUEST_TIMEOUT = 10000; // 10 seconds
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
@@ -81,20 +100,42 @@ export const fetchLatestRates = async (baseCurrency: string = 'CAD'): Promise<Ra
     try {
       console.log(`Fetching latest rates (attempt ${attempt}/${MAX_RETRIES}) for ${baseCurrency}`);
       
-      const response = await fetchWithTimeout(`${API_URL}/latest?from=${baseCurrency}`);
+      const apiUrl = getAPIURL();
+      const endpoint = apiUrl.includes('frankfurter.app')
+        ? `${apiUrl}/latest?from=${baseCurrency}`
+        : `${apiUrl}/latest/${baseCurrency}`;
+
+      console.log(`📊 Fetching rates from: ${endpoint}`);
+      const response = await fetchWithTimeout(endpoint);
       
       if (!response.ok) {
         throw new Error(`API Network Error: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
-      
-      if (!data || !data.rates) {
+
+      // Handle both unified API and Frankfurter response formats
+      let rates: RateData;
+      if (data.rates) {
+        // Frankfurter format: { rates: { USD: 0.73, EUR: 0.62 } }
+        rates = data.rates;
+      } else if (data.data && Array.isArray(data.data)) {
+        // Unified API format: { data: [{ symbol: "USD/CAD", rate: 1.37 }] }
+        rates = {};
+        data.data.forEach((item: any) => {
+          if (item.symbol && item.rate) {
+            const currency = item.symbol.split('/')[0];
+            if (currency !== baseCurrency) {
+              rates[currency] = item.rate;
+            }
+          }
+        });
+      } else {
         throw new Error('Invalid response format: missing rates data');
       }
-      
-      console.log(`✅ Successfully fetched latest rates for ${baseCurrency}`);
-      return data.rates;
+
+      console.log(`✅ Successfully fetched latest rates for ${baseCurrency} from ${apiUrl.includes('frankfurter.app') ? 'Frankfurter' : 'Unified API'}`);
+      return rates;
       
     } catch (error) {
       lastError = error as Error;
@@ -134,13 +175,37 @@ export const fetchHistoricalRate = async (baseCurrency: string = 'CAD'): Promise
             try {
                 console.log(`Fetching historical rates for ${dateString} (attempt ${retryAttempt}/${MAX_RETRIES})`);
                 
-                const response = await fetchWithTimeout(`${API_URL}/${dateString}?from=${baseCurrency}`);
+                const apiUrl = getAPIURL();
+                const endpoint = apiUrl.includes('frankfurter.app')
+                  ? `${apiUrl}/${dateString}?from=${baseCurrency}`
+                  : `${apiUrl}/historical/${dateString}/${baseCurrency}`;
+
+                console.log(`📊 Fetching historical rates from: ${endpoint}`);
+                const response = await fetchWithTimeout(endpoint);
                 
                 if (response.ok) {
                     const data = await response.json();
-                    if (data && data.rates) {
+                    let rates: RateData | null = null;
+
+                    if (data.rates) {
+                        // Frankfurter format
+                        rates = data.rates;
+                    } else if (data.data && Array.isArray(data.data)) {
+                        // Unified API format
+                        rates = {};
+                        data.data.forEach((item: any) => {
+                          if (item.symbol && item.rate) {
+                            const currency = item.symbol.split('/')[0];
+                            if (currency !== baseCurrency) {
+                              rates![currency] = item.rate;
+                            }
+                          }
+                        });
+                    }
+
+                    if (rates) {
                         console.log(`✅ Successfully fetched historical rates for ${dateString}`);
-                        return data.rates;
+                        return rates;
                     }
                 }
                 
@@ -211,24 +276,39 @@ export const fetchSupportedCurrencies = async (): Promise<SupportedCurrency[]> =
         try {
             console.log(`Fetching supported currencies (attempt ${attempt}/${MAX_RETRIES})`);
             
-            const response = await fetchWithTimeout(`${API_URL}/currencies`);
+            const apiUrl = getAPIURL();
+            const endpoint = apiUrl.includes('frankfurter.app')
+              ? `${apiUrl}/currencies`
+              : `${apiUrl}/currencies`;
+
+            console.log(`📊 Fetching currencies from: ${endpoint}`);
+            const response = await fetchWithTimeout(endpoint);
             
             if (!response.ok) {
                 throw new Error(`API Network Error: ${response.status} ${response.statusText}`);
             }
             
             const data = await response.json();
-            
-            if (!data || typeof data !== 'object') {
-                throw new Error('Invalid response format: expected currency object');
+
+            let currencies: SupportedCurrency[];
+
+            if (data.data && Array.isArray(data.data)) {
+                // Unified API format: { data: [{ code: "USD", name: "US Dollar" }] }
+                currencies = data.data.map((item: any) => ({
+                    value: item.code as string,
+                    label: `${item.code} - ${item.name as string}`
+                }));
+            } else if (data && typeof data === 'object' && !data.data) {
+                // Frankfurter format: { USD: "US Dollar", EUR: "Euro" }
+                currencies = Object.entries(data).map(([code, name]) => ({
+                    value: code as string,
+                    label: `${code} - ${name as string}`
+                }));
+            } else {
+                throw new Error('Invalid response format: expected currency data');
             }
-            
-            const currencies = Object.entries(data).map(([code, name]) => ({
-                value: code as string,
-                label: `${code} - ${name as string}`
-            }));
-            
-            console.log(`✅ Successfully fetched ${currencies.length} supported currencies`);
+
+            console.log(`✅ Successfully fetched ${currencies.length} supported currencies from ${apiUrl.includes('frankfurter.app') ? 'Frankfurter' : 'Unified API'}`);
             return currencies;
             
         } catch (error) {

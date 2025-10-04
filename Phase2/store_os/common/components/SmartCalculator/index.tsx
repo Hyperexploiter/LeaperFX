@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, User, Plus } from 'lucide-react';
+import { CheckCircle, XCircle, User, Plus, Wifi, WifiOff } from 'lucide-react';
 import { fetchLatestRates } from '../../services/exchangeRateService';
+import webSocketService from '../../services/webSocketService';
 import { Modal, Toast } from '../Modal';
 import PaymentProcessingModal from '../../tabs/Transactions/components/PaymentProcessingModal';
 import type { PaymentMethod } from '../../features/payments/types';
@@ -16,6 +17,8 @@ const SmartCalculator: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [rates, setRates] = useState<{[key: string]: number} | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState<boolean>(false);
+  const [lastRateUpdate, setLastRateUpdate] = useState<string | null>(null);
   
   // Customer-related state
   const [customers, setCustomers] = useState<any[]>([]);
@@ -87,30 +90,63 @@ const SmartCalculator: React.FC = () => {
     loadCustomers();
   }, []);
 
-  // Fetch exchange rates on component mount and when currencies change
+  // Initialize WebSocket connection and fetch initial rates
   useEffect(() => {
-    const getRates = async () => {
+    let rateUpdateUnsubscribe: (() => void) | null = null;
+
+    const initializeRatesAndWebSocket = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
+        // Initialize WebSocket connection
+        const connected = await webSocketService.connect();
+        setIsWebSocketConnected(connected);
+
+        // Subscribe to real-time rate updates
+        rateUpdateUnsubscribe = webSocketService.subscribeToRateUpdates((rateData) => {
+          console.log('🔄 Received real-time rate update:', rateData);
+
+          if (rateData.currency && (rateData.rate || (rateData.buyRate && rateData.sellRate))) {
+            const rate = rateData.rate || (parseFloat(rateData.buyRate) + parseFloat(rateData.sellRate)) / 2;
+
+            setRates(prevRates => ({
+              ...prevRates,
+              [rateData.currency]: rate
+            }));
+
+            setLastRateUpdate(new Date().toLocaleTimeString());
+            showToast('info', `Rate updated: ${rateData.currency} = ${rate.toFixed(4)}`);
+          }
+        });
+
+        // Fetch initial rates from unified API
         const baseCurrency = 'CAD';
         const latestRates = await fetchLatestRates(baseCurrency);
-        
+
         if (latestRates) {
           setRates(latestRates);
+          console.log('✅ Initial rates loaded from unified API');
         } else {
-          setError('Failed to fetch exchange rates');
+          setError('Failed to fetch initial exchange rates');
         }
       } catch (err) {
-        setError('An error occurred while fetching exchange rates');
-        console.error(err);
+        setError('An error occurred while initializing rates');
+        console.error('Rate initialization error:', err);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    getRates();
+
+    initializeRatesAndWebSocket();
+
+    // Cleanup function
+    return () => {
+      if (rateUpdateUnsubscribe) {
+        rateUpdateUnsubscribe();
+      }
+      // Don't disconnect WebSocket here as other components might be using it
+    };
   }, []);
   
   const handleCalculate = () => {
@@ -302,15 +338,37 @@ const SmartCalculator: React.FC = () => {
     <div className="bg-white rounded-xl shadow-md p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-gray-800">Smart Calculator</h2>
-        {isLoading && (
-          <div className="flex items-center text-blue-600">
-            <svg className="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>Loading rates...</span>
+        <div className="flex items-center space-x-4">
+          {/* WebSocket Connection Status */}
+          <div className="flex items-center space-x-2">
+            {isWebSocketConnected ? (
+              <Wifi className="h-4 w-4 text-green-500" title="Connected to real-time updates" />
+            ) : (
+              <WifiOff className="h-4 w-4 text-red-500" title="No real-time connection" />
+            )}
+            <span className={`text-xs ${isWebSocketConnected ? 'text-green-600' : 'text-red-600'}`}>
+              {isWebSocketConnected ? 'Live' : 'Offline'}
+            </span>
           </div>
-        )}
+
+          {/* Loading indicator */}
+          {isLoading && (
+            <div className="flex items-center text-blue-600">
+              <svg className="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Loading rates...</span>
+            </div>
+          )}
+
+          {/* Last update timestamp */}
+          {lastRateUpdate && (
+            <div className="text-xs text-gray-500">
+              Last update: {lastRateUpdate}
+            </div>
+          )}
+        </div>
       </div>
       
       {error && (

@@ -115,6 +115,29 @@ class WebSocketService {
               console.warn('Invalid WebSocket message format:', data);
               return;
             }
+
+            // Handle unified backend rate update format
+            if (data.type === 'rate_update' && data.data) {
+              console.log('📈 Received rate update from unified backend:', data.data);
+              // Ensure consistent event format for store_os components
+              const wsEvent: WebSocketEvent = {
+                type: 'rate_update',
+                data: {
+                  currency: data.data.currency || data.data.symbol?.split('/')[0],
+                  buyRate: data.data.buyRate || data.data.buy,
+                  sellRate: data.data.sellRate || data.data.sell,
+                  rate: data.data.rate || data.data.price,
+                  timestamp: data.data.timestamp || Date.now(),
+                  source: 'unified_backend'
+                },
+                timestamp: data.timestamp || new Date().toISOString(),
+                id: data.id || `rate_${Date.now()}`
+              };
+              this.notifySubscribers(wsEvent);
+              return;
+            }
+
+            // Handle other event types with standard format
             const wsEvent: WebSocketEvent = {
               type: data.type,
               data: data.data || {},
@@ -175,16 +198,60 @@ class WebSocketService {
    * Get WebSocket URL based on current environment
    */
   private getWebSocketUrl(): string | null {
+    // Try to get unified backend WebSocket URL first
+    const unifiedWsUrl = this.getUnifiedWebSocketUrl();
+    if (unifiedWsUrl) {
+      console.log('🔗 Using unified WebSocket backend:', unifiedWsUrl);
+      return unifiedWsUrl;
+    }
+
     if (typeof window !== 'undefined') {
       const host = window.location.host || window.location.hostname || '';
       // Disable remote websocket attempts on static hosting like GitHub Pages
       if (host.includes('github.io')) {
+        console.log('⚠️ Static hosting detected, disabling WebSocket');
         return null;
       }
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${protocol}//${host}/ws`;
+      const fallbackUrl = `${protocol}//${host}/ws`;
+      console.log('⚠️ Falling back to local WebSocket:', fallbackUrl);
+      return fallbackUrl;
     }
     return 'ws://localhost:3001/ws';
+  }
+
+  /**
+   * Get unified backend WebSocket URL from environment
+   */
+  private getUnifiedWebSocketUrl(): string | null {
+    try {
+      // Check for unified backend WebSocket URL from environment
+      const unifiedApi = (
+        (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL) ||
+        (typeof window !== 'undefined' && (window as any).__ENV__?.VITE_API_BASE_URL) ||
+        (typeof process !== 'undefined' && (process as any).env?.VITE_API_BASE_URL)
+      );
+
+      if (unifiedApi) {
+        // Convert HTTP(S) API URL to WebSocket URL
+        const wsUrl = unifiedApi.replace(/^https?:\/\//i, (match) => {
+          return match.toLowerCase().startsWith('https') ? 'wss://' : 'ws://';
+        });
+        return `${wsUrl}/ws`;
+      }
+
+      // Check for direct WebSocket URL
+      const directWsUrl = (
+        (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_WS_URL) ||
+        (typeof window !== 'undefined' && (window as any).__ENV__?.VITE_WS_URL) ||
+        (typeof process !== 'undefined' && (process as any).env?.VITE_WS_URL)
+      );
+
+      return directWsUrl || null;
+    } catch (error) {
+      console.error('Error getting unified WebSocket URL:', error);
+      return null;
+    }
   }
   
   /**
@@ -340,12 +407,25 @@ class WebSocketService {
     mode: 'websocket' | 'local';
     subscriberCount: number;
     queueSize: number;
+    backendType?: 'unified' | 'local' | 'fallback';
   } {
+    const url = this.getWebSocketUrl();
+    let backendType: 'unified' | 'local' | 'fallback' = 'fallback';
+
+    if (url) {
+      if (this.getUnifiedWebSocketUrl()) {
+        backendType = 'unified';
+      } else {
+        backendType = 'local';
+      }
+    }
+
     return {
       connected: this.connected,
       mode: this.isPollingMode ? 'local' : 'websocket',
       subscriberCount: this.subscribers.length,
-      queueSize: this.eventQueue.length
+      queueSize: this.eventQueue.length,
+      backendType
     };
   }
   
@@ -357,8 +437,40 @@ class WebSocketService {
       type,
       data: {
         ...data,
-        source: 'system',
-        environment: process.env.NODE_ENV || 'development'
+        source: 'store_os',
+        environment: (
+          (typeof process !== 'undefined' && process.env?.NODE_ENV) ||
+          (typeof import.meta !== 'undefined' && (import.meta as any).env?.MODE) ||
+          'development'
+        )
+      }
+    });
+  }
+
+  /**
+   * Subscribe to rate updates specifically
+   */
+  subscribeToRateUpdates(callback: (rateData: any) => void): () => void {
+    return this.subscribe((event: WebSocketEvent) => {
+      if (event.type === 'rate_update') {
+        callback(event.data);
+      }
+    });
+  }
+
+  /**
+   * Send rate update to unified backend (for store owner rate changes)
+   */
+  broadcastRateUpdate(currency: string, buyRate: number, sellRate: number): void {
+    this.send({
+      type: 'rate_update',
+      data: {
+        currency,
+        buyRate,
+        sellRate,
+        rate: (buyRate + sellRate) / 2,
+        source: 'store_os',
+        timestamp: Date.now()
       }
     });
   }
